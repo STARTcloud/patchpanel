@@ -21,7 +21,7 @@ jobs:
   release-please:
     name: Release Please
     needs: ci-checks
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
@@ -55,7 +55,7 @@ jobs:
     name: Publish Documentation
     needs: build-production
     if: ${{ needs.release-please.outputs.release_created }}
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Trigger Documentation Build
         uses: actions/github-script@v8
