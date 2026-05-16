@@ -1,0 +1,321 @@
+.haproxy-ui {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.haproxy-ui code {
+  color: inherit;
+  font-size: 0.875em;
+}
+
+.haproxy-ui table code {
+  word-break: break-all;
+}
+
+.haproxy-ui .navbar-brand {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Stats / Dashboard cards fade in with a small per-card stagger so they don't
+ * all flash in at once when the history bootstraps. Each direct child of
+ * .patchpanel-stats-fade gets a slightly later delay than the previous one. */
+.patchpanel-stats-fade > * {
+  animation: patchpanel-fade-in 0.4s ease-out both;
+}
+.patchpanel-stats-fade > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.patchpanel-stats-fade > *:nth-child(2) {
+  animation-delay: 80ms;
+}
+.patchpanel-stats-fade > *:nth-child(3) {
+  animation-delay: 160ms;
+}
+.patchpanel-stats-fade > *:nth-child(4) {
+  animation-delay: 240ms;
+}
+.patchpanel-stats-fade > *:nth-child(5) {
+  animation-delay: 320ms;
+}
+.patchpanel-stats-fade > *:nth-child(n + 6) {
+  animation-delay: 400ms;
+}
+
+@keyframes patchpanel-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* v0.2.39 — Stats live-table row variants. Theme-aware via data-bs-theme so
+ * dark mode and light mode both get legible contrast. Bootstrap's
+ * table-active + table-secondary defaults were too washed-out in light mode
+ * and too murky in dark mode for the FRONTEND/BACKEND grouping to read at
+ * a glance. */
+.patchpanel-stats-group-row {
+  background: rgba(13, 110, 253, 0.08);
+  border-top: 2px solid var(--bs-primary);
+}
+.patchpanel-stats-group-row td {
+  background-color: transparent !important;
+  color: var(--bs-body-color) !important;
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+}
+.patchpanel-stats-group-row a,
+.patchpanel-stats-group-row code {
+  color: var(--bs-body-color) !important;
+}
+
+.patchpanel-stats-frontend-row td {
+  background-color: rgba(13, 110, 253, 0.05) !important;
+  border-left: 3px solid var(--bs-primary);
+}
+.patchpanel-stats-backend-row td {
+  background-color: rgba(102, 16, 242, 0.06) !important;
+  border-left: 3px solid #6610f2; /* bs-purple */
+  border-bottom: 2px solid rgba(102, 16, 242, 0.25);
+}
+
+[data-bs-theme='dark'] .patchpanel-stats-group-row {
+  background: rgba(13, 110, 253, 0.18);
+}
+[data-bs-theme='dark'] .patchpanel-stats-frontend-row td {
+  background-color: rgba(13, 110, 253, 0.12) !important;
+}
+[data-bs-theme='dark'] .patchpanel-stats-backend-row td {
+  background-color: rgba(102, 16, 242, 0.18) !important;
+}
+
+.patchpanel-stats-row-down td {
+  background-color: rgba(220, 53, 69, 0.1) !important;
+  border-left: 3px solid var(--bs-danger);
+}
+.patchpanel-stats-row-maint td {
+  background-color: rgba(255, 193, 7, 0.12) !important;
+  border-left: 3px solid var(--bs-warning);
+}
+.patchpanel-stats-row-drain td {
+  background-color: rgba(13, 202, 240, 0.1) !important;
+  border-left: 3px solid var(--bs-info);
+}
+[data-bs-theme='dark'] .patchpanel-stats-row-down td {
+  background-color: rgba(220, 53, 69, 0.22) !important;
+}
+[data-bs-theme='dark'] .patchpanel-stats-row-maint td {
+  background-color: rgba(255, 193, 7, 0.18) !important;
+}
+[data-bs-theme='dark'] .patchpanel-stats-row-drain td {
+  background-color: rgba(13, 202, 240, 0.18) !important;
+}
+
+/* v0.2.39 — Dashboard aesthetic polish. KPI tiles get a subtle gradient
+ * hover state; the customizable panels get consistent min-height so the
+ * grid doesn't ragged when one card is shorter than its row neighbor. */
+.haproxy-ui .card {
+  border-radius: 0.5rem;
+}
+.haproxy-ui .display-6 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.haproxy-ui [draggable='true'] {
+  user-select: none;
+}
+.haproxy-ui [draggable='true']:active {
+  cursor: grabbing;
+}
+
+/* v0.2.40 — Dashboard panel chrome. Each panel is a relative-positioned
+ * wrapper around a Bootstrap Card. The controls in the top-right corner
+ * auto-dim and brighten on panel hover so they don't clutter the
+ * dashboard when you're just looking at metrics, but they're discoverable
+ * when you mouse over to interact. Category-specific accents (subtle left
+ * border) signal which panels are metrics, statuses, or actions. */
+.patchpanel-panel {
+  transition:
+    transform 0.12s ease-out,
+    box-shadow 0.12s ease-out;
+  height: 100%;
+}
+.patchpanel-panel:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
+}
+.patchpanel-panel > .card {
+  border-left-width: 3px;
+  height: 100%;
+}
+.patchpanel-panel-metric > .card {
+  border-left-color: var(--bs-primary);
+}
+.patchpanel-panel-status > .card {
+  border-left-color: var(--bs-success);
+}
+.patchpanel-panel-action > .card {
+  border-left-color: var(--bs-warning);
+}
+.patchpanel-panel-controls {
+  opacity: 0.18;
+  transition: opacity 0.15s ease-out;
+}
+.patchpanel-panel:hover .patchpanel-panel-controls,
+.patchpanel-panel-controls:hover,
+.patchpanel-panel-controls:focus-within {
+  opacity: 1;
+}
+
+/* v0.3.0 — KPI tiles. Visible border so the four top tiles read as
+ * distinct cards (not just gradient blobs). Hover lift kept; the border
+ * is the new bit. The `border-0` className was removed from the JSX so
+ * the default Bootstrap card border shows; this rule just strengthens
+ * it slightly and adds the hover treatment. */
+.haproxy-ui .patchpanel-kpi-tile {
+  border: 1px solid var(--bs-border-color);
+  transition:
+    transform 0.1s ease-out,
+    box-shadow 0.1s ease-out,
+    border-color 0.1s ease-out;
+}
+.haproxy-ui .patchpanel-kpi-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.08);
+  border-color: var(--bs-primary);
+}
+
+/* v0.3.0 — Full-viewport-height pages. Logs, Topology, Rendered cfg, and
+ * Raw State were capped at 70-75vh in their <pre>/<ReactFlow> wrappers.
+ * That left dead space at the bottom on tall monitors and made the
+ * primary content cramped on laptops. The `.patchpanel-fullheight-page`
+ * class on the outer Card makes the card itself fill the available
+ * vertical real estate; pages opt-in by adding it. Card.Body becomes a
+ * flex column so the inner pre/iframe expands. The Layout container's
+ * Bootstrap `py-3` adds the necessary breathing room. */
+.patchpanel-fullheight-page {
+  min-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+}
+.patchpanel-fullheight-page > .card-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.patchpanel-fullheight-page .patchpanel-fullheight-scroller {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* React Flow's `width: 100%; height: 100%` inline style fails to resolve
+ * against a flex item parent whose specified height is `auto`
+ * (flexbugs#197). Absolute-positioning bypasses percentage resolution and
+ * fills the relative-positioned wrapper directly. */
+.patchpanel-topology-pane > .react-flow {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* v0.3.0 — Dashboard CSS Grid backend. Replaces the v0.2.40 react-bootstrap
+ * Row/Col flex layout so each panel can declare its own width (3-12 col
+ * span) and height (1-4 row span, or auto-sized to content). The 12-col
+ * track + minmax row size gives us a true 2D layout — panels can be wide
+ * and short, narrow and tall, or anything in between, mirroring Home
+ * Assistant's section-view grid. On mobile every panel collapses to a
+ * single column to stay readable. */
+.patchpanel-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: 10rem;
+  gap: 1rem;
+}
+
+/* Each panel pins to N rows × M columns. The Card clips so taller content
+ * scrolls inside Card.Body instead of pushing the grid row taller (which
+ * would drag sibling panels in the same row along with it). Scrollbar is
+ * deliberately subtle — thin width + low-opacity thumb that brightens on
+ * hover — to keep the dashboard feeling spacious. */
+.patchpanel-panel > .card {
+  overflow: hidden;
+}
+.patchpanel-panel > .card > .card-body {
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.35) transparent;
+}
+.patchpanel-panel > .card > .card-body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.patchpanel-panel > .card > .card-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.patchpanel-panel > .card > .card-body::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.3);
+  border-radius: 3px;
+}
+.patchpanel-panel > .card > .card-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 128, 128, 0.55);
+}
+@media (max-width: 768px) {
+  .patchpanel-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .patchpanel-dashboard-grid > .patchpanel-panel {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+  }
+}
+
+@keyframes patchpanel-panel-wobble {
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-0.6deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(0.6deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+.patchpanel-dashboard-grid.is-dragging .patchpanel-panel:not(.patchpanel-panel-is-source) {
+  animation: patchpanel-panel-wobble 0.6s ease-in-out infinite;
+  transform-origin: 50% 50%;
+}
+.patchpanel-dashboard-grid.is-dragging .patchpanel-panel:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.06);
+}
+.patchpanel-panel-is-source {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+}
+.patchpanel-panel-is-source > .card {
+  border-style: dashed;
+}
+.patchpanel-panel-is-drop-target > .card {
+  background: rgba(13, 110, 253, 0.06);
+}
+[data-bs-theme='dark'] .patchpanel-panel-is-drop-target > .card {
+  background: rgba(13, 110, 253, 0.18);
+}
+
+.patchpanel-panel > .card.patchpanel-kpi-tile {
+  border-left-width: 1px;
+}

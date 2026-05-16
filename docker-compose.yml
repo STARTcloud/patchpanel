@@ -1,0 +1,80 @@
+# PatchPanel standalone deployment via Docker Compose.
+#
+# This is the third PatchPanel deployment surface:
+#   1. Home Assistant add-on  (haproxy/patchpanel as an HA addon)
+#   2. Debian package (.deb)  (apt install patchpanel haproxy)
+#   3. Docker Compose         (this file)
+#
+# The patchpanel image is published to containers.startcloud.com.
+# To build locally instead, replace `image: ...` with `build: .`.
+#
+# First boot:
+#   docker compose up -d
+#   docker compose logs -f patchpanel    # prints the setup token
+#   # Open https://<host>:8099, paste the setup token, finish the wizard.
+
+services:
+  patchpanel:
+    image: public.containers.startcloud.com/startcloud/patchpanel:latest
+    container_name: patchpanel
+    restart: unless-stopped
+    ports:
+      - '8099:8099' # Management UI / API
+    volumes:
+      - patchpanel-config:/etc/patchpanel # config.yaml, .jwt-secret, setup.token, ssl/
+      - patchpanel-data:/var/lib/patchpanel # state.json, audit.sqlite, snapshots/
+      - patchpanel-logs:/var/log/patchpanel # file-rotated logs (journald is sink in non-Docker)
+      - haproxy-config:/etc/haproxy # rendered haproxy.cfg, certs/, crt-lists
+      - haproxy-run:/run/haproxy # master + admin sockets (shared with haproxy container)
+      - letsencrypt:/etc/letsencrypt # certbot account + cert store
+    networks:
+      - patchpanel
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:8099/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  haproxy:
+    image: haproxy:2.9
+    container_name: haproxy
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - haproxy-config:/etc/haproxy:ro # read-only; patchpanel owns writes
+      - haproxy-run:/run/haproxy # master + admin sockets
+      - letsencrypt:/etc/letsencrypt:ro # cert chains referenced from crt-list
+    networks:
+      - patchpanel
+    depends_on:
+      patchpanel:
+        condition: service_healthy
+    # HAProxy's entry point reads /etc/haproxy/haproxy.cfg. PatchPanel
+    # writes the cfg on first boot before haproxy starts (via depends_on).
+    command:
+      - -W
+      - -S
+      - /run/haproxy/master.sock,mode,600
+      - -f
+      - /etc/haproxy/haproxy.cfg
+
+volumes:
+  patchpanel-config:
+  patchpanel-data:
+  patchpanel-logs:
+  haproxy-config:
+  haproxy-run:
+  letsencrypt:
+
+networks:
+  patchpanel:
+    driver: bridge

@@ -1,0 +1,53 @@
+{
+  "name": "@patchpanel/web",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "React 19 frontend for the HAProxy management UI",
+  "license": "GPL-3.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@dr.pogodin/react-helmet": "^3.0.4",
+    "@highcharts/map-collection": "^2.3.2",
+    "@xyflow/react": "^12.4.0",
+    "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
+    "dagre": "^0.8.5",
+    "diff": "^9.0.0",
+    "highcharts": "^12.3.0",
+    "highcharts-react-official": "^3.2.1",
+    "prop-types": "^15.8.1",
+    "react": "^19.2.0",
+    "react-bootstrap": "^2.10.10",
+    "react-dom": "^19.2.0",
+    "react-router": "^7.9.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-prettier": "^5.5.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^6.0.0",
+    "globals": "^17.0.0",
+    "prettier": "^3.8.3",
+    "vite": "^7.1.0",
+    "vitest": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

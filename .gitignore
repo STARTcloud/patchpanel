@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.env
+.env.local
+.vite/
+.cache/
+*.tsbuildinfo
+.DS_Store
+
+# Claude Code per-project state (settings, caches, agent/command defs)
+.claude/

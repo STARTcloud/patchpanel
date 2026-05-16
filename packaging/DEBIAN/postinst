@@ -1,0 +1,98 @@
+#!/bin/bash
+set -e
+
+CONFIG_DIR=/etc/patchpanel
+DATA_DIR=/var/lib/patchpanel
+LOG_DIR=/var/log/patchpanel
+INSTALL_DIR=/opt/patchpanel
+TEMPLATE_DIR=${INSTALL_DIR}/config-templates
+
+# 1. System user + group
+if ! getent passwd patchpanel > /dev/null 2>&1; then
+    adduser --system --group --home "${INSTALL_DIR}" \
+            --no-create-home --shell /usr/sbin/nologin \
+            --gecos "PatchPanel system user" patchpanel
+fi
+
+# 2. Supplementary group: haproxy (so we can rewrite /etc/haproxy/haproxy.cfg)
+if getent group haproxy > /dev/null 2>&1; then
+    usermod -aG haproxy patchpanel || true
+fi
+
+# 3. Directories
+install -d -o patchpanel -g patchpanel -m 755 "${DATA_DIR}"
+install -d -o patchpanel -g patchpanel -m 755 "${LOG_DIR}"
+install -d -o patchpanel -g patchpanel -m 755 "${CONFIG_DIR}"
+install -d -o patchpanel -g patchpanel -m 700 "${CONFIG_DIR}/ssl"
+
+# 4. Fresh install vs upgrade
+case "$1" in
+    configure)
+        # 4a. Copy config template only if user config doesn't exist
+        if [[ ! -f "${CONFIG_DIR}/config.yaml" ]]; then
+            cp "${TEMPLATE_DIR}/production-config.yaml" "${CONFIG_DIR}/config.yaml"
+            chown patchpanel:patchpanel "${CONFIG_DIR}/config.yaml"
+            chmod 640 "${CONFIG_DIR}/config.yaml"
+            FRESH_INSTALL=1
+        else
+            FRESH_INSTALL=0
+        fi
+
+        # 4b. JWT secret — generate if missing, substitute placeholder in config
+        if [[ ! -f "${CONFIG_DIR}/.jwt-secret" ]]; then
+            openssl rand -hex 32 > "${CONFIG_DIR}/.jwt-secret"
+            chown patchpanel:patchpanel "${CONFIG_DIR}/.jwt-secret"
+            chmod 600 "${CONFIG_DIR}/.jwt-secret"
+        fi
+
+        # Substitute placeholder in config (only matters on fresh install;
+        # on upgrade the user's config already has the real secret)
+        if grep -q '__JWT_SECRET_FROM_FILE__' "${CONFIG_DIR}/config.yaml" 2>/dev/null; then
+            JWT_SECRET=$(cat "${CONFIG_DIR}/.jwt-secret")
+            sed -i "s|__JWT_SECRET_FROM_FILE__|${JWT_SECRET}|g" "${CONFIG_DIR}/config.yaml"
+        fi
+
+        # 4c. Setup token for first-run wizard (fresh install only)
+        if [[ "${FRESH_INSTALL}" = "1" ]] && [[ ! -f "${CONFIG_DIR}/setup.token" ]]; then
+            openssl rand -hex 32 > "${CONFIG_DIR}/setup.token"
+            chown patchpanel:patchpanel "${CONFIG_DIR}/setup.token"
+            chmod 600 "${CONFIG_DIR}/setup.token"
+        fi
+        ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+        # No action needed for these dpkg phases.
+        ;;
+    *)
+        echo "postinst called with unknown argument: $1" >&2
+        exit 1
+        ;;
+esac
+
+# 5. Reload systemd
+systemctl daemon-reload
+
+# 6. Banner
+SETUP_TOKEN=""
+if [[ "${FRESH_INSTALL:-0}" = "1" ]] && [[ -f "${CONFIG_DIR}/setup.token" ]]; then
+    SETUP_TOKEN=$(cat "${CONFIG_DIR}/setup.token")
+fi
+
+echo ""
+echo "================================================================="
+echo "  PatchPanel installed."
+echo ""
+echo "  Config:    ${CONFIG_DIR}/config.yaml"
+echo "  Data:      ${DATA_DIR}/"
+echo "  Logs:      journalctl -fu patchpanel"
+echo ""
+if [[ -n "${SETUP_TOKEN}" ]]; then
+    echo "  Setup token (one-time, consumed by first-run wizard):"
+    echo "    ${SETUP_TOKEN}"
+    echo ""
+fi
+echo "  Start: systemctl enable --now patchpanel"
+echo "  Then open https://<host>:8099/ and complete the setup wizard."
+echo "================================================================="
+echo ""
+
+#DEBHELPER#

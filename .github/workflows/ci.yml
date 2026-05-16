@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  workflow_call:
+  pull_request:
+    branches: ['main']
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+  packages: read
+  actions: read
+
+jobs:
+  lint-root:
+    name: Lint (root + shell + yaml + md)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: ESLint (root + packaging/scripts)
+        run: npm run lint:root
+      - name: shellcheck (Debian maintainer scripts)
+        run: npm run lint:sh
+      - name: yaml-lint
+        run: npm run lint:yaml
+      - name: markdownlint
+        run: npm run lint:md
+      - name: Prettier
+        run: npm run format:check
+
+  lint-backend:
+    name: Lint (server workspace)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint server
+        run: npm run lint:backend
+
+  lint-frontend:
+    name: Lint (web workspace)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint web
+        run: npm run lint:frontend
+
+  build-frontend:
+    name: Build frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Build (Vite)
+        run: npm run build
+
+  security:
+    name: Security (audit + licenses + supply-chain)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Vulnerability scan (better-npm-audit)
+        run: npm run security:vulnerabilities
+      - name: License compliance (whitelist)
+        run: npm run security:licenses
+      - name: Supply chain (audit-ci)
+        run: npm run security:supply-chain
+      - name: Provenance signatures
+        run: npm run security:signatures || true
+
+  verify-scripts:
+    name: Verify packaging scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: sync-versions dry-run
+        run: |
+          # Verify sync-versions.js is syntactically valid and runnable
+          node --check packaging/scripts/sync-versions.js
+          echo "sync-versions.js OK"
+      - name: generate-docs dry-run
+        run: |
+          node --check packaging/scripts/generate-docs.js
+          echo "generate-docs.js OK"
+
+  dependabot-updates:
+    name: Dependabot Updates
+    uses: ./.github/workflows/dependabot-trigger.yml
+
+  codeql-analysis:
+    name: CodeQL
+    needs:
+      [
+        lint-root,
+        lint-backend,
+        lint-frontend,
+        build-frontend,
+        security,
+        verify-scripts,
+        dependabot-updates,
+      ]
+    uses: ./.github/workflows/codeql.yml

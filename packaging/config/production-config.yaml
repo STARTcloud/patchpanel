@@ -1,0 +1,710 @@
+# PatchPanel production configuration template.
+#
+# This file is shipped inside the .deb at
+#   /opt/patchpanel/config-templates/production-config.yaml
+# The postinst (fresh install) or the in-app configMigrator (upgrade)
+# materialise it as /etc/patchpanel/config.yaml. On upgrade the user's
+# values are preserved while new template keys are merged in.
+#
+# Every leaf is metadata-wrapped:
+#   { type, value, description, section, subsection, order, ...optional }
+# This drives the auto-generated Settings UI. Sentinel values like
+# __JWT_SECRET_FROM_FILE__ are substituted by the configMigrator on
+# first run with the contents of /etc/patchpanel/.jwt-secret.
+#
+# Key names are camelCase to match the existing patchpanel code path
+# (which deep-merges this onto the runtime defaults). Section ordering
+# is presentation-only — driven by the `order` field, not file order.
+
+version: 0.3.0
+
+_sections:
+  Server:
+    description: HTTP server bind, TLS termination, deployment mode
+    icon: fas fa-server
+    order: 1
+  HAProxy:
+    description: HAProxy paths and reload behaviour
+    icon: fas fa-network-wired
+    order: 2
+  Paths:
+    description: Filesystem paths for runtime state, data, and binaries
+    icon: fas fa-folder-tree
+    order: 3
+  Certificates:
+    description: Let's Encrypt renewal, certbot, BYO certs, trusted CAs / CRLs
+    icon: fas fa-certificate
+    order: 4
+  Security:
+    description: JWT, API keys, CSRF, helmet headers
+    icon: fas fa-shield-halved
+    order: 5
+  CORS:
+    description: Cross-origin request whitelist
+    icon: fas fa-globe
+    order: 6
+  Rate Limiting:
+    description: Tiered request rate limits
+    icon: fas fa-gauge-high
+    order: 7
+  Logging:
+    description: Log level, format, destination
+    icon: fas fa-file-lines
+    order: 8
+  GeoIP:
+    description: GeoIP database and fallback provider
+    icon: fas fa-earth-americas
+    order: 9
+  Authentication:
+    description: Authentication strategy
+    icon: fas fa-key
+    order: 10
+
+# ─────────────────────────── mode (top-level) ───────────────────────────
+mode:
+  type: select
+  value: standalone
+  options: [homeassistant, standalone]
+  description: |
+    Deployment surface. homeassistant: trust supervisor proxy, read
+    X-Ingress-Path and X-Remote-User-* headers, no local auth.
+    standalone: terminate own TLS, run setup-token + session + API key auth.
+  section: Server
+  subsection: Mode
+  order: 1
+  required: true
+
+# ─────────────────────────── server ───────────────────────────
+server:
+  host:
+    type: host
+    value: 0.0.0.0
+    description: Network interface to bind. Use 127.0.0.1 to expose only locally.
+    section: Server
+    subsection: Bind
+    order: 1
+    required: true
+  port:
+    type: integer
+    value: 8099
+    description: TCP port for the management UI and API.
+    section: Server
+    subsection: Bind
+    order: 2
+    required: true
+    validation:
+      min: 1
+      max: 65535
+  trustProxy:
+    type: array
+    value: []
+    description: |
+      Trusted upstream proxies (CIDR list, or "loopback"/"linklocal"/"uniquelocal").
+      Required for X-Forwarded-* and HA ingress headers to be respected.
+    section: Server
+    subsection: Bind
+    order: 3
+  shutdownGracePeriodMs:
+    type: integer
+    value: 10000
+    description: Time (ms) to drain in-flight requests on SIGTERM before exit.
+    section: Server
+    subsection: Bind
+    order: 4
+    validation:
+      min: 0
+      max: 60000
+  ingressPathHeader:
+    type: string
+    value: X-Ingress-Path
+    description: Header carrying the HA ingress URL prefix. Only used when mode = homeassistant.
+    section: Server
+    subsection: Home Assistant
+    order: 1
+    conditional:
+      field: mode
+      value: homeassistant
+  supervisorTokenEnv:
+    type: string
+    value: SUPERVISOR_TOKEN
+    description: Env var containing the HA supervisor token (for HA API callbacks).
+    section: Server
+    subsection: Home Assistant
+    order: 2
+    conditional:
+      field: mode
+      value: homeassistant
+
+# ─────────────────────────── ssl ───────────────────────────
+ssl:
+  enabled:
+    type: boolean
+    value: true
+    description: Serve the management UI over HTTPS.
+    section: Server
+    subsection: TLS
+    order: 1
+  generate:
+    type: boolean
+    value: true
+    description: Generate a self-signed cert on first run if certPath is missing.
+    section: Server
+    subsection: TLS
+    order: 2
+    depends_on: enabled
+    show_when: [true]
+  certPath:
+    type: string
+    value: /etc/patchpanel/ssl/cert.pem
+    description: Path to TLS certificate (PEM).
+    section: Server
+    subsection: TLS
+    order: 3
+    depends_on: enabled
+    show_when: [true]
+  keyPath:
+    type: string
+    value: /etc/patchpanel/ssl/key.pem
+    description: Path to TLS private key (PEM, mode 0600).
+    section: Server
+    subsection: TLS
+    order: 4
+    depends_on: enabled
+    show_when: [true]
+  minVersion:
+    type: select
+    value: TLSv1.2
+    options: [TLSv1.2, TLSv1.3]
+    description: Minimum TLS protocol version.
+    section: Server
+    subsection: TLS
+    order: 5
+    depends_on: enabled
+    show_when: [true]
+  maxVersion:
+    type: select
+    value: TLSv1.3
+    options: [TLSv1.2, TLSv1.3]
+    description: Maximum TLS protocol version.
+    section: Server
+    subsection: TLS
+    order: 6
+    depends_on: enabled
+    show_when: [true]
+  ciphers:
+    type: textarea
+    value: ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305
+    description: OpenSSL cipher list (ECDHE only by default).
+    section: Server
+    subsection: TLS
+    order: 7
+    depends_on: enabled
+    show_when: [true]
+  honorCipherOrder:
+    type: boolean
+    value: true
+    description: Server selects cipher from its own preference order.
+    section: Server
+    subsection: TLS
+    order: 8
+    depends_on: enabled
+    show_when: [true]
+
+# ─────────────────────────── paths ───────────────────────────
+paths:
+  state:
+    type: string
+    value: /var/lib/patchpanel/state.json
+    description: Canonical HAProxy state document (renderer source).
+    section: Paths
+    subsection: Data
+    order: 1
+  audit:
+    type: string
+    value: /var/lib/patchpanel/audit.sqlite
+    description: SQLite audit log (every state mutation).
+    section: Paths
+    subsection: Data
+    order: 2
+  snapshotsDir:
+    type: string
+    value: /var/lib/patchpanel/snapshots
+    description: Time-machine state snapshots directory.
+    section: Paths
+    subsection: Data
+    order: 3
+  geoipDir:
+    type: string
+    value: /var/lib/patchpanel/geoip
+    description: GeoIP MMDB store.
+    section: Paths
+    subsection: Data
+    order: 4
+  credentials:
+    type: string
+    value: /var/lib/patchpanel/credentials
+    description: ACME account keys and DNS provider credentials.
+    section: Paths
+    subsection: Data
+    order: 5
+  options:
+    type: string
+    value: null
+    description: |
+      HA addon options.json path. Only set in HA-ingress mode where the
+      supervisor mounts /data/options.json. null in standalone.
+    section: Paths
+    subsection: Data
+    order: 6
+  haproxyConfig:
+    type: string
+    value: /etc/haproxy/haproxy.cfg
+    description: Where the rendered cfg is atomically swapped.
+    section: Paths
+    subsection: HAProxy
+    order: 1
+  haproxyCertsList:
+    type: string
+    value: /etc/haproxy/certs.list
+    description: crt-list file referenced from `bind ssl`.
+    section: Paths
+    subsection: HAProxy
+    order: 2
+  haproxyCertsDir:
+    type: string
+    value: /etc/haproxy/certs
+    description: Cert directory referenced from crt-list entries.
+    section: Paths
+    subsection: HAProxy
+    order: 3
+  haproxyMasterSocket:
+    type: string
+    value: /run/haproxy/master.sock
+    description: HAProxy master CLI socket (used for reload).
+    section: Paths
+    subsection: HAProxy
+    order: 4
+  haproxyStatsSocket:
+    type: string
+    value: /run/haproxy/admin.sock
+    description: HAProxy runtime API socket (live stats + per-server actions).
+    section: Paths
+    subsection: HAProxy
+    order: 5
+  haproxyPidFile:
+    type: string
+    value: /run/haproxy.pid
+    description: HAProxy PID file (used by the systemctl control strategy).
+    section: Paths
+    subsection: HAProxy
+    order: 6
+  haproxyBin:
+    type: string
+    value: /usr/sbin/haproxy
+    description: HAProxy binary (used for `haproxy -c` config validation).
+    section: Paths
+    subsection: HAProxy
+    order: 7
+  haproxyErrorPagesDir:
+    type: string
+    value: /var/lib/patchpanel/errors
+    description: Custom HTTP error pages directory.
+    section: Paths
+    subsection: HAProxy
+    order: 8
+  haproxyMapsDir:
+    type: string
+    value: /etc/haproxy/maps
+    description: HAProxy map-file directory (one .map per state.maps[] entry).
+    section: Paths
+    subsection: HAProxy
+    order: 9
+  trustedCasDir:
+    type: string
+    value: /var/lib/patchpanel/trusted-cas
+    description: Uploaded CA bundles (mTLS client validation, upstream verify).
+    section: Paths
+    subsection: Certificates
+    order: 1
+  trustedCrlsDir:
+    type: string
+    value: /var/lib/patchpanel/trusted-crls
+    description: Uploaded CRLs (revocation lists for binds doing mTLS).
+    section: Paths
+    subsection: Certificates
+    order: 2
+  byoCertsDir:
+    type: string
+    value: /var/lib/patchpanel/certs/byo
+    description: Bring-your-own PEM uploads (renewed externally).
+    section: Paths
+    subsection: Certificates
+    order: 3
+  letsencryptDir:
+    type: string
+    value: /etc/letsencrypt
+    description: certbot account + cert store (standard layout).
+    section: Paths
+    subsection: Certificates
+    order: 4
+  letsencryptLog:
+    type: string
+    value: /var/log/letsencrypt/letsencrypt.log
+    description: certbot log file (tailed by the live-logs SSE endpoint).
+    section: Paths
+    subsection: Certificates
+    order: 5
+  certbotBin:
+    type: string
+    value: /usr/bin/certbot
+    description: certbot binary.
+    section: Paths
+    subsection: Certificates
+    order: 6
+  templatesDir:
+    type: string
+    value: /usr/share/patchpanel/templates
+    description: Rendering templates (shipped read-only).
+    section: Paths
+    subsection: Internal
+    order: 1
+  webDir:
+    type: string
+    value: /opt/patchpanel/web/dist
+    description: Built React frontend (served as static).
+    section: Paths
+    subsection: Internal
+    order: 2
+
+# ─────────────────────────── haproxy ───────────────────────────
+haproxy:
+  reload:
+    method:
+      type: select
+      value: master-socket
+      options: [master-socket, systemctl, child-process]
+      description: How patchpanel reloads HAProxy after a config swap.
+      section: HAProxy
+      subsection: Reload
+      order: 1
+    hardStopAfter:
+      type: string
+      value: 30s
+      description: Old worker drain deadline before forced termination.
+      section: HAProxy
+      subsection: Reload
+      order: 2
+    validateBeforeReload:
+      type: boolean
+      value: true
+      description: Run `haproxy -c` against the rendered cfg before swapping.
+      section: HAProxy
+      subsection: Reload
+      order: 3
+    rollbackOnFailure:
+      type: boolean
+      value: true
+      description: Restore previous cfg + reload if the new cfg fails validation.
+      section: HAProxy
+      subsection: Reload
+      order: 4
+
+# ─────────────────────────── renewal ───────────────────────────
+renewal:
+  schedule:
+    type: string
+    value: '5 8 * * 1,4'
+    description: Cron expression for the renewal scheduler (Mon/Thu 08:05 default).
+    section: Certificates
+    subsection: Renewal
+    order: 1
+  defaultPropagationSeconds:
+    type: integer
+    value: 120
+    description: DNS-01 propagation wait (seconds) for new TXT records.
+    section: Certificates
+    subsection: Renewal
+    order: 2
+    validation:
+      min: 0
+      max: 3600
+
+# ─────────────────────────── auth ───────────────────────────
+auth:
+  strategy:
+    type: select
+    value: none
+    options: [none, ha-ingress, basic, oidc]
+    description: |
+      Authentication strategy. none = no auth (dev only); ha-ingress = trust HA
+      supervisor headers; basic = HTTP basic; oidc = OIDC discovery (not wired yet).
+    section: Authentication
+    subsection: Strategy
+    order: 1
+    required: true
+
+# ─────────────────────────── security ───────────────────────────
+security:
+  jwtSecret:
+    type: password
+    value: __JWT_SECRET_FROM_FILE__
+    description: |
+      Session / JWT signing key. The configMigrator substitutes this placeholder
+      on first run with the contents of /etc/patchpanel/.jwt-secret.
+    section: Security
+    subsection: Session / JWT
+    order: 1
+    required: true
+  jwtExpiry:
+    type: string
+    value: 24h
+    description: Token / session lifetime (e.g. 1h, 24h, 7d).
+    section: Security
+    subsection: Session / JWT
+    order: 2
+  sessionCookieName:
+    type: string
+    value: patchpanel.sid
+    description: Session cookie name.
+    section: Security
+    subsection: Session / JWT
+    order: 3
+  sessionSecure:
+    type: boolean
+    value: true
+    description: Send the session cookie only over HTTPS.
+    section: Security
+    subsection: Session / JWT
+    order: 4
+  sessionSameSite:
+    type: select
+    value: lax
+    options: [lax, strict, none]
+    description: SameSite policy for the session cookie.
+    section: Security
+    subsection: Session / JWT
+    order: 5
+  bcryptRounds:
+    type: integer
+    value: 12
+    description: bcrypt cost factor for passwords and API keys.
+    section: Security
+    subsection: Hashing
+    order: 1
+    validation:
+      min: 10
+      max: 15
+  apiKeyEncryptEnabled:
+    type: boolean
+    value: false
+    description: |
+      Store the full plaintext API key encrypted with AES-256-CBC alongside
+      the bcrypt hash (allows admin retrieval). Off by default.
+    section: Security
+    subsection: API Keys
+    order: 1
+  csrfEnabled:
+    type: boolean
+    value: true
+    description: Enable lusca CSRF middleware on cookie-authenticated routes.
+    section: Security
+    subsection: CSRF
+    order: 1
+  helmetEnabled:
+    type: boolean
+    value: true
+    description: Enable helmet middleware (CSP, HSTS, XFO, noSniff, referrerPolicy).
+    section: Security
+    subsection: Helmet
+    order: 1
+  hstsEnabled:
+    type: boolean
+    value: true
+    description: Send Strict-Transport-Security header.
+    section: Security
+    subsection: Helmet
+    order: 2
+    depends_on: helmetEnabled
+    show_when: [true]
+  hstsMaxAge:
+    type: integer
+    value: 31536000
+    description: HSTS max-age in seconds (default 1 year).
+    section: Security
+    subsection: Helmet
+    order: 3
+    depends_on: hstsEnabled
+    show_when: [true]
+  hstsIncludeSubdomains:
+    type: boolean
+    value: true
+    description: Apply HSTS to all subdomains.
+    section: Security
+    subsection: Helmet
+    order: 4
+    depends_on: hstsEnabled
+    show_when: [true]
+  hstsPreload:
+    type: boolean
+    value: false
+    description: Include the preload directive (only enable after submission to hstspreload.org).
+    section: Security
+    subsection: Helmet
+    order: 5
+    depends_on: hstsEnabled
+    show_when: [true]
+
+# ─────────────────────────── cors ───────────────────────────
+cors:
+  enabled:
+    type: boolean
+    value: true
+    description: Enable CORS middleware. Required for browser API clients on a different origin.
+    section: CORS
+    subsection: Policy
+    order: 1
+  whitelist:
+    type: array
+    value: []
+    description: |
+      Allowed origin URLs (exact match, no wildcards). Empty array
+      means "same-origin only".
+    section: CORS
+    subsection: Policy
+    order: 2
+    depends_on: enabled
+    show_when: [true]
+  credentials:
+    type: boolean
+    value: true
+    description: Send Access-Control-Allow-Credentials (required for cookie auth).
+    section: CORS
+    subsection: Policy
+    order: 3
+    depends_on: enabled
+    show_when: [true]
+
+# ─────────────────────────── rateLimit ───────────────────────────
+rateLimit:
+  authWindowMs:
+    type: integer
+    value: 900000
+    description: Window (ms) for the auth-strict tier (login, password reset).
+    section: Rate Limiting
+    subsection: Auth (strict)
+    order: 1
+    validation:
+      min: 60000
+      max: 3600000
+  authMax:
+    type: integer
+    value: 25
+    description: Max requests per window for the auth tier.
+    section: Rate Limiting
+    subsection: Auth (strict)
+    order: 2
+    validation:
+      min: 1
+      max: 1000
+  writeWindowMs:
+    type: integer
+    value: 60000
+    description: Window (ms) for state-mutating endpoints.
+    section: Rate Limiting
+    subsection: Write
+    order: 1
+  writeMax:
+    type: integer
+    value: 60
+    description: Max writes per window.
+    section: Rate Limiting
+    subsection: Write
+    order: 2
+  readWindowMs:
+    type: integer
+    value: 60000
+    description: Window (ms) for read endpoints.
+    section: Rate Limiting
+    subsection: Read
+    order: 1
+  readMax:
+    type: integer
+    value: 1000
+    description: Max reads per window.
+    section: Rate Limiting
+    subsection: Read
+    order: 2
+
+# ─────────────────────────── logging ───────────────────────────
+logging:
+  level:
+    type: select
+    value: info
+    options: [error, warn, info, debug, trace]
+    description: Minimum log level.
+    section: Logging
+    subsection: General
+    order: 1
+  format:
+    type: select
+    value: pretty
+    options: [pretty, json]
+    description: Log line format. Use json for log aggregators.
+    section: Logging
+    subsection: General
+    order: 2
+  directory:
+    type: string
+    value: /var/log/patchpanel
+    description: Directory for file-rotated logs (journald is the primary sink).
+    section: Logging
+    subsection: General
+    order: 3
+  auditRetentionDays:
+    type: integer
+    value: 365
+    description: Days of audit-log history to retain before vacuuming.
+    section: Logging
+    subsection: Audit
+    order: 1
+    validation:
+      min: 30
+      max: 3650
+
+# ─────────────────────────── geoip ───────────────────────────
+geoip:
+  enabled:
+    type: boolean
+    value: false
+    description: Enable GeoIP enrichment for the dashboard origin panels.
+    section: GeoIP
+    subsection: Database
+    order: 1
+  dbPath:
+    type: string
+    value: /var/lib/patchpanel/geoip/GeoLite2-City.mmdb
+    description: Path to the MaxMind MMDB file.
+    section: GeoIP
+    subsection: Database
+    order: 2
+    depends_on: enabled
+    show_when: [true]
+  fallbackProvider:
+    type: select
+    value: none
+    options: [none, ip-api, ipinfo]
+    description: HTTP fallback when MMDB lookup misses.
+    section: GeoIP
+    subsection: Database
+    order: 3
+    depends_on: enabled
+    show_when: [true]
+  updateSchedule:
+    type: string
+    value: '0 4 * * 0'
+    description: Cron expression for MMDB auto-update (default weekly Sun 04:00).
+    section: GeoIP
+    subsection: Database
+    order: 4
+    depends_on: enabled
+    show_when: [true]

@@ -1,0 +1,271 @@
+.Dd $Mdocdate$
+.Dt PATCHPANEL.YAML 5
+.Os
+.Sh NAME
+.Nm patchpanel.yaml
+.Nd configuration file for PatchPanel
+.Sh DESCRIPTION
+.Nm
+is the bootstrap configuration file for
+.Xr patchpanel 8 .
+It uses YAML 1.2 and a metadata-wrapped schema: every leaf value is an
+object carrying not just the value itself but type information,
+documentation, and UI presentation hints. This schema drives the
+auto-generated Settings UI in the PatchPanel management web interface.
+.Pp
+The file is typically located at
+.Pa /etc/patchpanel/config.yaml
+and is read by
+.Xr patchpanel 8
+at startup. The path can be overridden via the
+.Ev CONFIG_PATH
+environment variable, which the bundled systemd unit sets to the
+default location.
+.Pp
+.Nm
+holds
+.Sy bootstrap
+state \(em paths, ports, SSL, authentication strategy, log directory.
+The HAProxy data model (frontends, backends, ACLs, certs) lives in a
+separate
+.Sy state document
+at
+.Pa /var/lib/patchpanel/state.json
+and is mutated through the management UI rather than this file.
+.Sh METADATA SCHEMA
+Every leaf value carries the following keys:
+.Bl -tag -width "subsection_key"
+.It Cm type
+One of:
+.Sy string , integer , boolean , password , host , select , array , object , textarea .
+.It Cm value
+The actual value at that path.
+.It Cm description
+Human-readable label / help text shown in the Settings UI.
+.It Cm section
+Top-level Settings UI section name (see
+.Sx _sections
+below).
+.It Cm subsection
+Group within a section (optional).
+.It Cm order
+Integer ordering hint within section/subsection.
+.It Cm required
+Boolean. If true, the field must be set.
+.It Cm validation
+Optional
+.Sy { min , max }
+nested object for numeric bounds.
+.It Cm options
+For
+.Sy select
+type: array of allowed values.
+.It Cm depends_on
+Sibling field name. Field is only rendered when the named sibling
+matches
+.Cm show_when .
+.It Cm show_when
+Array of values that activate this field.
+.It Cm conditional
+Alternative to
+.Sy depends_on / show_when
+with a full dotted path:
+.Sy { field: 'a.b.c' , value: scalar | array } .
+.El
+.Pp
+The
+.Sy _sections
+mapping at the top of the file declares the Settings UI tabs:
+.Pp
+.Bd -literal -offset indent
+_sections:
+  Server:
+    description: HTTP server bind, ports, SSL
+    icon: fas fa-server
+    order: 1
+  HAProxy:
+    description: HAProxy paths and reload behaviour
+    icon: fas fa-network-wired
+    order: 2
+.Ed
+.Sh CONFIGURATION SECTIONS
+.Ss mode
+Daemon operating mode.
+.Bl -tag -width ".Cm homeassistant"
+.It Cm homeassistant
+Inside the HAProxy HA add-on. Trusts the supervisor proxy IP, parses
+.Ev X-Ingress-Path
+for asset URLs, reads
+.Ev X-Remote-User-*
+for audit attribution. No local authentication; no first-run wizard.
+.It Cm standalone
+Bare-metal / VM / Docker-non-HA install. Generates
+.Pa /etc/patchpanel/setup.token
+on first boot, runs in setup-only mode until consumed by the wizard.
+After setup, authentication is session cookies or API keys.
+.El
+.Ss server
+HTTP server settings: bind host, port, trust-proxy chain, graceful
+shutdown grace period, ingress-path header name.
+.Ss ssl
+TLS termination for the management UI.
+.Cm enabled
+toggles HTTPS;
+.Cm generate
+toggles runtime self-signed cert generation;
+.Cm key / cert
+are filesystem paths.
+.Ss paths
+Filesystem paths
+.Nm patchpanel
+reads or writes:
+.Sy state.json , audit.sqlite , snapshots/ , geoip/ , credentials/ ,
+.Sy haproxy.cfg , haproxy/certs/ , haproxy/master.sock ,
+.Sy letsencrypt/ , trusted-cas/ , trusted-crls/ , certbot , haproxy .
+.Ss haproxy
+Reload behaviour:
+.Cm method
+(master-socket | systemctl | child-process),
+.Cm hardStopAfter ,
+.Cm validateBeforeReload ,
+.Cm rollbackOnFailure .
+.Ss renewal
+Cron schedule and DNS-01 propagation delay for certbot renewals.
+.Ss auth
+Authentication strategy:
+.Sy none ,
+.Sy ha-ingress ,
+.Sy basic ,
+.Sy oidc .
+.Ss security
+JWT secret (postinst-substituted), API-key bcrypt rounds, session
+cookie settings, CSRF gate, helmet / CSP / HSTS toggles.
+.Ss cors
+Whitelist origins for the management API.
+.Ss rate_limiting
+Tiered limits: auth-strict, write, read-permissive.
+.Ss logging
+.Cm level
+(error | warn | info | debug) and
+.Cm format
+(pretty | json).
+.Sh FILES
+.Bl -tag -width ".Pa /var/lib/patchpanel/state.json"
+.It Pa /etc/patchpanel/config.yaml
+This file
+.It Pa /etc/patchpanel/.jwt-secret
+JWT signing key (postinst-generated, mode 0600)
+.It Pa /etc/patchpanel/setup.token
+First-run wizard gate (fresh installs only)
+.It Pa /var/lib/patchpanel/state.json
+HAProxy data model (canonical source of truth)
+.El
+.Sh EXAMPLES
+Excerpt showing the metadata wrapper on a few representative leaves:
+.Bd -literal -offset indent
+_sections:
+  Server:
+    description: HTTP server bind, ports, SSL
+    icon: fas fa-server
+    order: 1
+
+server:
+  port:
+    type: integer
+    value: 8099
+    description: TCP port for the management UI
+    section: Server
+    subsection: Bind
+    order: 1
+    validation:
+      min: 1
+      max: 65535
+  trust_proxy:
+    type: array
+    value: []
+    description: Trusted upstream proxies (CIDR list)
+    section: Server
+    subsection: Bind
+    order: 2
+
+ssl:
+  enabled:
+    type: boolean
+    value: true
+    description: Serve management UI over HTTPS
+    section: Server
+    subsection: TLS
+    order: 1
+  cert:
+    type: string
+    value: /etc/patchpanel/ssl/cert.pem
+    description: TLS certificate path
+    section: Server
+    subsection: TLS
+    order: 2
+    depends_on: enabled
+    show_when: [true]
+
+security:
+  jwt_secret:
+    type: password
+    value: __JWT_SECRET_FROM_FILE__
+    description: Session / JWT signing key
+    section: Security
+    required: true
+.Ed
+.Pp
+The
+.Sy __JWT_SECRET_FROM_FILE__
+sentinel is substituted by the postinst script with the contents of
+.Pa /etc/patchpanel/.jwt-secret
+on fresh install.
+.Sh DIAGNOSTICS
+Configuration errors prevent startup. The most common causes:
+.Bl -bullet -offset indent
+.It
+Invalid YAML syntax (indentation, mixed tabs/spaces)
+.It
+Non-existent file paths referenced from
+.Sy ssl.cert ,
+.Sy ssl.key ,
+.Sy paths.haproxyConfig
+.It
+A
+.Sy required: true
+field with an unset
+.Sy value
+.It
+.Sy type: integer
+with a value outside
+.Sy validation: { min, max }
+.It
+Insufficient permissions on
+.Pa /etc/haproxy/ ,
+.Pa /var/lib/patchpanel/ ,
+or
+.Pa /etc/letsencrypt/
+.El
+.Sh UPGRADE BEHAVIOUR
+On
+.Cm apt upgrade ,
+.Pa /etc/patchpanel/config.yaml
+is preserved. The
+.Xr patchpanel 8
+daemon runs its config migrator at startup, which merges new keys from
+the shipped template
+.Pa ( /opt/patchpanel/config-templates/production-config.yaml )
+into the user's config while preserving every
+.Sy value
+the user has changed. Pre-merge, a timestamped backup is written
+alongside the config file:
+.Pa /etc/patchpanel/config.yaml.backup.<unixtime> .
+.Sh SEE ALSO
+.Xr patchpanel 8 ,
+.Xr haproxy 1 ,
+.Xr yaml 7 ,
+.Xr systemctl 1
+.Sh STANDARDS
+YAML 1.2 (
+.Lk https://yaml.org/spec/1.2.2/ ).
+.\" x-release-please-version

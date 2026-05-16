@@ -1,0 +1,77 @@
+{
+  "name": "patchpanel",
+  "version": "0.3.0",
+  "private": true,
+  "description": "PatchPanel - HAProxy management UI (Express backend + React frontend). Ships inside the Home Assistant HAProxy addon today; standalone Debian package built and published to packages.debian.startcloud.com.",
+  "license": "GPL-3.0",
+  "author": "MarkProminic <https://github.com/MarkProminic>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/STARTcloud/patchpanel.git"
+  },
+  "homepage": "https://patchpanel.startcloud.com/",
+  "bugs": {
+    "url": "https://github.com/STARTcloud/patchpanel/issues"
+  },
+  "type": "module",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "scripts": {
+    "start": "node server/src/server.js",
+    "dev": "npm run dev --workspace=server",
+    "prebuild": "npm run sync-versions",
+    "build": "npm run build --workspace=web",
+    "sync-versions": "node packaging/scripts/sync-versions.js",
+    "generate-docs": "node packaging/scripts/generate-docs.js",
+    "test": "npm run test --workspaces --if-present",
+    "lint:root": "eslint .",
+    "lint:backend": "npm run lint --workspace=server --if-present",
+    "lint:frontend": "npm run lint --workspace=web --if-present",
+    "lint:sh": "shellcheck packaging/DEBIAN/preinst packaging/DEBIAN/postinst packaging/DEBIAN/prerm packaging/DEBIAN/postrm",
+    "lint:yaml": "yamllint '**/*.yml' '**/*.yaml' --ignore=node_modules",
+    "lint:md": "markdownlint '**/*.md' --ignore node_modules --ignore CHANGELOG.md",
+    "lint:all": "npm run lint:root && npm run lint:backend && npm run lint:frontend && npm run lint:sh && npm run lint:yaml && npm run lint:md",
+    "lint": "npm run lint:all",
+    "lint:fix:root": "eslint . --fix",
+    "lint:fix:backend": "npm run lint:fix --workspace=server --if-present",
+    "lint:fix:frontend": "npm run lint:fix --workspace=web --if-present",
+    "lint:fix:md": "markdownlint '**/*.md' --ignore node_modules --ignore CHANGELOG.md --fix",
+    "lint:fix:all": "npm run lint:fix:root && npm run lint:fix:backend && npm run lint:fix:frontend && npm run lint:fix:md",
+    "lint:fix": "npm run lint:fix:all",
+    "format:check": "prettier --check .",
+    "format:fix": "prettier --write . && npm run lint:fix:md",
+    "fix": "npm run lint:fix && npm run format:fix",
+    "cinstall:all": "npm ci",
+    "cinstall:nodev": "npm ci --omit=dev --workspaces --include-workspace-root",
+    "cinstall:backend": "npm ci --workspace=server",
+    "cinstall:backend:nodev": "npm ci --workspace=server --omit=dev --include-workspace-root",
+    "cinstall:frontend": "npm ci --workspace=web",
+    "security:audit": "better-npm-audit audit",
+    "security:vulnerabilities": "better-npm-audit audit",
+    "security:licenses": "license-checker-rseidelsohn --onlyAllow 'MIT;Apache-2.0;BSD;BSD-2-Clause;BSD-3-Clause;ISC;GPL-3.0;LGPL-2.1;LGPL-3.0;MPL-2.0;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Unlicense;Python-2.0;Unicode-DFS-2016;Apache 2.0;BlueOak-1.0.0' --excludePackages '@highcharts/map-collection;highcharts' --excludePrivatePackages",
+    "security:licenses-report": "license-checker-rseidelsohn --out licenses.json --json",
+    "security:supply-chain": "audit-ci --config ./audit-ci.jsonc",
+    "security:signatures": "npm audit signatures",
+    "security:all": "npm run security:vulnerabilities && npm run security:licenses && npm run security:supply-chain"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@eslint/markdown": "^7.3.0",
+    "audit-ci": "^7.1.0",
+    "better-npm-audit": "^3.11.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "globals": "^17.4.0",
+    "license-checker-rseidelsohn": "^4.4.2",
+    "markdownlint-cli": "^0.48.0",
+    "prettier": "^3.8.3",
+    "shellcheck": "^3.1.0",
+    "yaml-lint": "^1.7.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

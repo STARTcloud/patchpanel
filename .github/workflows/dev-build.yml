@@ -1,0 +1,219 @@
+name: Development Build
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Development version to build (optional - auto-calculated if not provided)'
+        required: false
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Development version to build (optional - auto-calculated if not provided)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-development-packages:
+    name: Packages
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set development version
+        id: version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            DEV_VERSION="${{ inputs.version }}"
+            echo "Using provided version: $DEV_VERSION"
+          else
+            CURRENT_VERSION=$(node -p "require('./package.json').version")
+            IFS='.' read -ra VERSION_PARTS <<< "$CURRENT_VERSION"
+            MAJOR=${VERSION_PARTS[0]}
+            MINOR=${VERSION_PARTS[1]}
+            PATCH=${VERSION_PARTS[2]}
+            NEW_PATCH=$((PATCH + 1))
+            DEV_VERSION="${MAJOR}.${MINOR}.${NEW_PATCH}"
+            echo "Current version: $CURRENT_VERSION"
+            echo "Auto-calculated development version: $DEV_VERSION"
+          fi
+          echo "VERSION=$DEV_VERSION" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=patchpanel-dev" >> $GITHUB_ENV
+          echo "ARCH=amd64" >> $GITHUB_ENV
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies (workspaces)
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Strip dev dependencies for packaging
+        run: |
+          rm -rf node_modules server/node_modules web/node_modules
+          npm ci --omit=dev --workspaces --include-workspace-root
+
+      - name: Create Debian package tree
+        run: |
+          mkdir -p "${PACKAGE_NAME}_${VERSION}_${ARCH}"/{opt/patchpanel/web,opt/patchpanel/config-templates,etc/systemd/system,var/lib/patchpanel,var/log/patchpanel,usr/share/man/man8,usr/share/man/man5,DEBIAN}
+
+      - name: Copy application files
+        run: |
+          cp -r package.json package-lock.json node_modules "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/"
+          cp -r server "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/"
+          cp -r web/dist "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/web/dist"
+          cp web/package.json "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/web/"
+
+      - name: Copy config template
+        run: |
+          cp packaging/config/production-config.yaml "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/config-templates/production-config.yaml"
+
+      - name: Copy systemd + maintainer scripts
+        run: |
+          cp packaging/DEBIAN/systemd/patchpanel.service "${PACKAGE_NAME}_${VERSION}_${ARCH}/etc/systemd/system/"
+          cp packaging/DEBIAN/preinst packaging/DEBIAN/postinst packaging/DEBIAN/prerm packaging/DEBIAN/postrm "${PACKAGE_NAME}_${VERSION}_${ARCH}/DEBIAN/"
+
+      - name: Install man pages
+        run: |
+          gzip -9 -c packaging/DEBIAN/man/patchpanel.8 > "${PACKAGE_NAME}_${VERSION}_${ARCH}/usr/share/man/man8/patchpanel.8.gz"
+          gzip -9 -c packaging/DEBIAN/man/patchpanel.yaml.5 > "${PACKAGE_NAME}_${VERSION}_${ARCH}/usr/share/man/man5/patchpanel.yaml.5.gz"
+
+      - name: Generate DEBIAN/control
+        run: |
+          cat > "${PACKAGE_NAME}_${VERSION}_${ARCH}/DEBIAN/control" << EOF
+          Package: patchpanel-dev
+          Version: ${VERSION}
+          Section: net
+          Priority: optional
+          Architecture: ${ARCH}
+          Maintainer: MarkProminic <MarkProminic@users.noreply.github.com>
+          Depends: nodejs (>= 22.0.0), haproxy (>= 2.6), certbot, openssl
+          Recommends: python3-certbot-dns-cloudflare, python3-certbot-dns-route53, python3-certbot-dns-google, python3-certbot-dns-digitalocean
+          Conflicts: patchpanel
+          Description: Development build of PatchPanel
+           Development snapshot of patchpanel. State-driven HAProxy management UI.
+           Conflicts with the stable patchpanel package.
+          Homepage: https://github.com/STARTcloud/patchpanel
+          EOF
+
+      - name: Set Debian package permissions
+        run: |
+          find "${PACKAGE_NAME}_${VERSION}_${ARCH}" -type d -exec chmod 755 {} \;
+          find "${PACKAGE_NAME}_${VERSION}_${ARCH}" -type f -exec chmod 644 {} \;
+          chmod 755 "${PACKAGE_NAME}_${VERSION}_${ARCH}/DEBIAN"/{preinst,postinst,prerm,postrm}
+
+      - name: Build Debian package
+        run: |
+          dpkg-deb --build "${PACKAGE_NAME}_${VERSION}_${ARCH}" "${PACKAGE_NAME}_${VERSION}_${ARCH}.deb"
+
+      - name: Upload Debian package to repository server
+        run: |
+          rsync -av ${PACKAGE_NAME}_*.deb startcloud@packages.debian.startcloud.com:/tmp/
+
+      - name: Add package to repository pool
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            mkdir -p /local/public/debian/pool/main/p/patchpanel-dev
+            cp /tmp/${PACKAGE_NAME}_*.deb /local/public/debian/pool/main/p/patchpanel-dev/
+          "
+
+      - name: Update repository Packages files for all suites
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            cd /local/public/debian
+            for suite in bookworm trixie; do
+              dpkg-scanpackages --arch amd64 pool/ > dists/\$suite/main/binary-amd64/Packages
+              gzip -c dists/\$suite/main/binary-amd64/Packages > dists/\$suite/main/binary-amd64/Packages.gz
+            done
+          "
+
+      - name: Generate Release files for all suites
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            cd /local/public/debian
+            for suite in bookworm trixie; do
+              cd dists/\$suite
+              /local/generate-release.sh \$suite > Release
+              cd ../..
+            done
+          "
+
+      - name: Create stable distribution
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            cd /local/public/debian/dists
+            rm -rf stable 2>/dev/null || true
+            cp -r trixie stable
+            cd stable
+            /local/generate-release.sh stable > Release
+          "
+
+      - name: Sign repository (bookworm + trixie + stable)
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            cd /local/public/debian
+            for suite in bookworm trixie stable; do
+              cd dists/\$suite
+              export GNUPGHOME=\$(mktemp -d /local/pgp/pgpkeys-XXXXXX)
+              cat /local/pgp/pgp-key.private | gpg --import
+              cat Release | gpg --default-key startcloud -abs > Release.gpg
+              cat Release | gpg --default-key startcloud -abs --clearsign > InRelease
+              rm -rf \$GNUPGHOME
+              cd ../..
+            done
+          "
+
+      - name: Create development draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="v${VERSION}-dev"
+          RELEASE_TITLE="Development Release ${VERSION}"
+          RELEASE_NOTES="Automated development build from main.
+
+          **Version**: ${VERSION}
+          **Build Date**: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          **Commit**: ${{ github.sha }}
+
+          Development snapshot for testing only. Use stable releases for production.
+
+          ## Packages
+          - \`patchpanel-dev_${VERSION}_amd64.deb\` - Debian package"
+
+          gh release delete "$RELEASE_TAG" --yes || true
+          gh release create "$RELEASE_TAG" --draft --title "$RELEASE_TITLE" --notes "$RELEASE_NOTES"
+
+      - name: Upload development packages to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="v${VERSION}-dev"
+          gh release upload "$RELEASE_TAG" "${PACKAGE_NAME}_${VERSION}_${ARCH}.deb" --clobber
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: 'development-packages'
+          path: '*.deb'
+          retention-days: 30
+
+      - name: Cleanup
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "rm -f /tmp/${PACKAGE_NAME}_*.deb"
+
+      - name: Summary
+        run: |
+          echo "Development packages built and published:"
+          echo "- Version: ${VERSION}"
+          echo "- Debian package: ${PACKAGE_NAME}_${VERSION}_${ARCH}.deb"
+          echo "- Draft release: v${VERSION}-dev"

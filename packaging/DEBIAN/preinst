@@ -1,0 +1,21 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    install)
+        echo "Installing PatchPanel..."
+        ;;
+    upgrade)
+        echo "Upgrading PatchPanel..."
+        # Configs in /etc/patchpanel/ are preserved; the in-app configMigrator
+        # will merge any new template keys on next startup.
+        ;;
+    abort-upgrade)
+        ;;
+    *)
+        echo "preinst called with unknown argument: $1" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#

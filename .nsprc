@@ -1,0 +1,7 @@
+{
+  "GHSA-qpx9-hpmf-5gmw": {
+    "active": true,
+    "notes": "underscore DoS via _.flatten/_.isEqual recursion. Reachable only via json-merger in server/src/config/configMigrator.js, which consumes the packaged template at /opt/patchpanel/config-templates/production-config.yaml plus the root-owned /etc/patchpanel/config.yaml. No attacker-controllable input reaches json-merger. jsonpath 1.3.0 still pins underscore 1.13.6 transitively; no upstream fix available.",
+    "expiry": "2027-04-22"
+  }
+}

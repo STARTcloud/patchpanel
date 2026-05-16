@@ -1,0 +1,278 @@
+import { useEffect, useRef, useState } from 'react';
+import { Button, Card, Form, InputGroup, Table } from 'react-bootstrap';
+import { useSearchParams } from 'react-router';
+
+import { BackendEditModal } from '../components/BackendEditModal.jsx';
+import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
+import { SortableHeader } from '../components/SortableHeader.jsx';
+import { useTableControls } from '../hooks/useTableControls.jsx';
+import { onSavePropType, stateDocShape } from '../prop-shapes.js';
+
+export const BackendsPage = ({ doc = null, onSave = null }) => {
+  const [editing, setEditing] = useState(null);
+  const [showNew, setShowNew] = useState(false);
+  const [deleting, setDeleting] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [searchParams] = useSearchParams();
+  const focusId = searchParams.get('focus');
+  const focusedRowRef = useRef(null);
+
+  useEffect(() => {
+    if (focusedRowRef.current) {
+      focusedRowRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [focusId]);
+
+  const controls = useTableControls(doc?.backends ?? [], {
+    searchFields: [
+      'name',
+      'id',
+      'mode',
+      'balance',
+      row => row.servers?.map(s => `${s.name} ${s.address}`).join(' ') ?? '',
+    ],
+    initialSort: { field: 'name', direction: 'asc' },
+  });
+
+  if (!doc) {
+    return null;
+  }
+
+  const persist = async nextBackends => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSave({ ...doc, backends: nextBackends });
+    } catch (err) {
+      setSaveError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAdd = backend => {
+    setShowNew(false);
+    persist([...doc.backends, backend]);
+  };
+
+  const handleUpdate = backend => {
+    setEditing(null);
+    persist(doc.backends.map(b => (b.id === backend.id ? backend : b)));
+  };
+
+  const handleDelete = () => {
+    const { id } = deleting;
+    setDeleting(null);
+    persist(doc.backends.filter(b => b.id !== id));
+  };
+
+  const handleClone = backend => {
+    const existingIds = new Set(doc.backends.map(b => b.id));
+    let candidate = `${backend.id}-copy`;
+    let suffix = 1;
+    while (existingIds.has(candidate)) {
+      suffix += 1;
+      candidate = `${backend.id}-copy-${suffix}`;
+    }
+    const cloned = { ...backend, id: candidate, name: candidate };
+    persist([...doc.backends, cloned]);
+  };
+
+  const isInUse = backendId => {
+    for (const fe of doc.frontends ?? []) {
+      for (const rule of fe.rulePhases?.httpRequest ?? []) {
+        if (rule.action?.type === 'use-backend' && rule.action.backendId === backendId) {
+          return true;
+        }
+      }
+      if (fe.httpOpts?.defaultBackendId === backendId) {
+        return true;
+      }
+      if (fe.tcpOpts?.defaultBackendId === backendId) {
+        return true;
+      }
+      for (const m of fe.tcpOpts?.sniRouter?.sniMap ?? []) {
+        if (m.backendId === backendId) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  return (
+    <Card>
+      <Card.Body>
+        <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+          <Card.Title className="mb-0">Backends</Card.Title>
+          <div className="d-flex gap-2 align-items-center">
+            <InputGroup size="sm" style={{ width: '20rem' }}>
+              <InputGroup.Text>
+                <i className="bi bi-search" />
+              </InputGroup.Text>
+              <Form.Control
+                placeholder="Filter by name, id, mode, server…"
+                value={controls.search}
+                onChange={e => controls.setSearch(e.target.value)}
+              />
+              {controls.search ? (
+                <Button variant="outline-secondary" onClick={() => controls.setSearch('')}>
+                  ×
+                </Button>
+              ) : null}
+            </InputGroup>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowNew(true)}
+              disabled={saving || !onSave}
+            >
+              Add backend
+            </Button>
+          </div>
+        </div>
+        <Card.Text className="text-muted">
+          {controls.view.length} of {doc.backends.length} backend
+          {doc.backends.length === 1 ? '' : 's'} shown. {saving ? 'Saving…' : null}
+          {saveError ? <span className="text-danger">Save failed: {saveError.message}</span> : null}
+        </Card.Text>
+        <Table striped bordered hover responsive size="sm">
+          <thead>
+            <tr>
+              <SortableHeader
+                label="Name"
+                field="name"
+                sort={controls.sort}
+                onToggle={controls.toggleSort}
+              />
+              <SortableHeader
+                label="Mode"
+                field="mode"
+                sort={controls.sort}
+                onToggle={controls.toggleSort}
+              />
+              <SortableHeader
+                label="Balance"
+                field="balance"
+                sort={controls.sort}
+                onToggle={controls.toggleSort}
+              />
+              <th>Servers</th>
+              <th className="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {controls.view.map(backend => {
+              const isFocused = focusId === backend.id;
+              return (
+                <tr
+                  key={backend.id}
+                  ref={isFocused ? focusedRowRef : null}
+                  className={isFocused ? 'table-warning' : undefined}
+                >
+                  <td>
+                    <code>{backend.name}</code>
+                  </td>
+                  <td>{backend.mode}</td>
+                  <td>{backend.balance}</td>
+                  <td>
+                    <ul className="list-unstyled mb-0">
+                      {backend.servers.map(server => (
+                        <li key={server.name}>
+                          <code>
+                            {server.name} {server.address}
+                            {server.ssl ? ' (ssl)' : ''}
+                            {server.backup ? ' (backup)' : ''}
+                          </code>
+                        </li>
+                      ))}
+                    </ul>
+                  </td>
+                  <td className="text-end text-nowrap">
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      className="me-1"
+                      onClick={() => setEditing(backend)}
+                      disabled={saving || !onSave}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline-info"
+                      size="sm"
+                      className="me-1"
+                      onClick={() => handleClone(backend)}
+                      disabled={saving || !onSave}
+                      title="Duplicate this backend with a fresh id/name. Useful when several vhosts share the same upstream pool but you want per-vhost stats rows."
+                    >
+                      Clone
+                    </Button>
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => setDeleting(backend)}
+                      disabled={saving || !onSave || isInUse(backend.id)}
+                      title={
+                        isInUse(backend.id)
+                          ? 'In use by at least one rule, default_backend, or SNI mapping; remove the reference first.'
+                          : ''
+                      }
+                    >
+                      Delete
+                    </Button>
+                  </td>
+                </tr>
+              );
+            })}
+            {controls.view.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="text-center text-muted small py-3">
+                  No backends match the current filter.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </Table>
+      </Card.Body>
+      {showNew ? (
+        <BackendEditModal
+          show
+          trustedCas={doc.trustedCas ?? []}
+          onSave={handleAdd}
+          onCancel={() => setShowNew(false)}
+        />
+      ) : null}
+      {editing ? (
+        <BackendEditModal
+          show
+          backend={editing}
+          trustedCas={doc.trustedCas ?? []}
+          onSave={handleUpdate}
+          onCancel={() => setEditing(null)}
+        />
+      ) : null}
+      {deleting ? (
+        <ConfirmDialog
+          show
+          title="Delete backend?"
+          body={
+            <>
+              Delete backend <strong>{deleting.name}</strong> ({deleting.id})? This change applies
+              immediately on save.
+            </>
+          }
+          confirmLabel="Delete"
+          onConfirm={handleDelete}
+          onCancel={() => setDeleting(null)}
+        />
+      ) : null}
+    </Card>
+  );
+};
+
+BackendsPage.propTypes = {
+  doc: stateDocShape,
+  onSave: onSavePropType,
+};

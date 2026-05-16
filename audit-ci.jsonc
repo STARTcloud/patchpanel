@@ -1,0 +1,16 @@
+{
+  // Fail CI on moderate+ vulnerabilities.
+  "moderate": true,
+
+  // Allowlisted advisories. Each entry must come with a written
+  // rationale in .nsprc explaining why the advisory is not exploitable
+  // in PatchPanel's threat model.
+  //
+  // GHSA-qpx9-hpmf-5gmw — underscore DoS via _.flatten / _.isEqual
+  // recursion. Reachable only through json-merger in
+  // server/src/config/configMigrator.js, which consumes the
+  // package-shipped template + the root-owned /etc/patchpanel/config.yaml
+  // (no attacker-controllable input). jsonpath 1.3.0 still pins
+  // underscore 1.13.6 transitively. No upstream fix available.
+  "allowlist": ["GHSA-qpx9-hpmf-5gmw"],
+}

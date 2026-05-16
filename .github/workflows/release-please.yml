@@ -1,0 +1,69 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+  security-events: write
+  packages: read
+
+jobs:
+  ci-checks:
+    name: CI Checks
+    uses: ./.github/workflows/ci.yml
+
+  release-please:
+    name: Release Please
+    needs: ci-checks
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      major: ${{ steps.release.outputs.major }}
+      minor: ${{ steps.release.outputs.minor }}
+      patch: ${{ steps.release.outputs.patch }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Release Please
+        uses: googleapis/release-please-action@v4
+        id: release
+
+  build-production:
+    name: Production
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    uses: ./.github/workflows/prod-build.yml
+    with:
+      version: ${{ needs.release-please.outputs.major }}.${{ needs.release-please.outputs.minor }}.${{ needs.release-please.outputs.patch }}
+      tag_name: ${{ needs.release-please.outputs.tag_name }}
+
+  build-dev-packages:
+    name: Development
+    needs: release-please
+    if: ${{ !needs.release-please.outputs.release_created }}
+    uses: ./.github/workflows/dev-build.yml
+
+  deploy-documentation:
+    name: Publish Documentation
+    needs: build-production
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Documentation Build
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'docs.yml',
+              ref: 'main'
+            });

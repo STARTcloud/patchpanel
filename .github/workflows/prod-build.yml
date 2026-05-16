@@ -1,0 +1,200 @@
+name: Production Build
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: true
+        type: string
+      tag_name:
+        description: 'GitHub release tag'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build'
+        required: true
+        type: string
+      tag_name:
+        description: 'GitHub release tag'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-production-packages:
+    name: Packages
+    runs-on: self-hosted
+    steps:
+      - name: Checkout for Debian build
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies (workspaces)
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Strip dev dependencies for packaging
+        run: |
+          rm -rf node_modules server/node_modules web/node_modules
+          npm ci --omit=dev --workspaces --include-workspace-root
+
+      - name: Set Debian package variables
+        run: |
+          echo "VERSION=${{ inputs.version }}" >> $GITHUB_ENV
+          echo "PACKAGE_NAME=patchpanel" >> $GITHUB_ENV
+          echo "ARCH=amd64" >> $GITHUB_ENV
+          echo "TAG_NAME=${{ inputs.tag_name }}" >> $GITHUB_ENV
+
+      - name: Create Debian package tree
+        run: |
+          mkdir -p "${PACKAGE_NAME}_${VERSION}_${ARCH}"/{opt/patchpanel/web,opt/patchpanel/config-templates,etc/systemd/system,var/lib/patchpanel,var/log/patchpanel,usr/share/man/man8,usr/share/man/man5,DEBIAN}
+
+      - name: Copy application files
+        run: |
+          # Root workspace files + hoisted node_modules
+          cp -r package.json package-lock.json node_modules "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/"
+          # Server workspace (backend code)
+          cp -r server "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/"
+          # Built frontend (static, no runtime deps)
+          cp -r web/dist "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/web/dist"
+          cp web/package.json "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/web/"
+
+      - name: Copy config template
+        run: |
+          cp packaging/config/production-config.yaml "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/config-templates/production-config.yaml"
+
+      - name: Copy systemd + maintainer scripts
+        run: |
+          cp packaging/DEBIAN/systemd/patchpanel.service "${PACKAGE_NAME}_${VERSION}_${ARCH}/etc/systemd/system/"
+          cp packaging/DEBIAN/preinst packaging/DEBIAN/postinst packaging/DEBIAN/prerm packaging/DEBIAN/postrm "${PACKAGE_NAME}_${VERSION}_${ARCH}/DEBIAN/"
+
+      - name: Install man pages
+        run: |
+          gzip -9 -c packaging/DEBIAN/man/patchpanel.8 > "${PACKAGE_NAME}_${VERSION}_${ARCH}/usr/share/man/man8/patchpanel.8.gz"
+          gzip -9 -c packaging/DEBIAN/man/patchpanel.yaml.5 > "${PACKAGE_NAME}_${VERSION}_${ARCH}/usr/share/man/man5/patchpanel.yaml.5.gz"
+
+      - name: Generate DEBIAN/control
+        run: |
+          cat > "${PACKAGE_NAME}_${VERSION}_${ARCH}/DEBIAN/control" << EOF
+          Package: patchpanel
+          Version: ${VERSION}
+          Section: net
+          Priority: optional
+          Architecture: ${ARCH}
+          Maintainer: MarkProminic <MarkProminic@users.noreply.github.com>
+          Depends: nodejs (>= 22.0.0), haproxy (>= 2.6), certbot, openssl
+          Recommends: python3-certbot-dns-cloudflare, python3-certbot-dns-route53, python3-certbot-dns-google, python3-certbot-dns-digitalocean
+          Description: State-driven web UI and config manager for HAProxy
+           PatchPanel renders haproxy.cfg from a validated JSON state document,
+           validates it with haproxy -c, atomically swaps the file, and reloads
+           via the master CLI socket. Bundles Let's Encrypt (certbot, DNS-01
+           plugins), trusted CA / CRL upload, and a REST API for remote control.
+          Homepage: https://github.com/STARTcloud/patchpanel
+          EOF
+
+      - name: Set Debian package permissions
+        run: |
+          find "${PACKAGE_NAME}_${VERSION}_${ARCH}" -type d -exec chmod 755 {} \;
+          find "${PACKAGE_NAME}_${VERSION}_${ARCH}" -type f -exec chmod 644 {} \;
+          chmod 755 "${PACKAGE_NAME}_${VERSION}_${ARCH}/DEBIAN"/{preinst,postinst,prerm,postrm}
+
+      - name: Build Debian package
+        run: |
+          dpkg-deb --build "${PACKAGE_NAME}_${VERSION}_${ARCH}" "${PACKAGE_NAME}_${VERSION}_${ARCH}.deb"
+
+      - name: Install GitHub CLI
+        run: |
+          if ! command -v gh &> /dev/null; then
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            sudo apt update
+            sudo apt install gh -y
+          fi
+
+      - name: Upload Debian package to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload ${{ github.event.inputs.tag_name || env.TAG_NAME }} "${PACKAGE_NAME}_${VERSION}_${ARCH}.deb" --clobber
+
+      - name: Upload Debian package to repository server
+        run: |
+          rsync -av patchpanel_*.deb startcloud@packages.debian.startcloud.com:/tmp/
+
+      - name: Add package to repository pool
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            mkdir -p /local/public/debian/pool/main/p/patchpanel
+            cp /tmp/patchpanel_*.deb /local/public/debian/pool/main/p/patchpanel/
+          "
+
+      - name: Create multi-suite directory structure
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            cd /local/public/debian
+            mkdir -p dists/bookworm/main/binary-amd64
+            mkdir -p dists/trixie/main/binary-amd64
+          "
+
+      - name: Update repository Packages files for all suites
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            cd /local/public/debian
+            for suite in bookworm trixie; do
+              dpkg-scanpackages --arch amd64 pool/ > dists/\$suite/main/binary-amd64/Packages
+              gzip -c dists/\$suite/main/binary-amd64/Packages > dists/\$suite/main/binary-amd64/Packages.gz
+            done
+          "
+
+      - name: Generate Release files for all suites
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            cd /local/public/debian
+            for suite in bookworm trixie; do
+              cd dists/\$suite
+              /local/generate-release.sh \$suite > Release
+              cd ../..
+            done
+          "
+
+      - name: Create stable distribution
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            cd /local/public/debian/dists
+            rm -rf stable 2>/dev/null || true
+            cp -r trixie stable
+            cd stable
+            /local/generate-release.sh stable > Release
+          "
+
+      - name: Sign repository (bookworm + trixie + stable)
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "
+            cd /local/public/debian
+            for suite in bookworm trixie stable; do
+              cd dists/\$suite
+              export GNUPGHOME=\$(mktemp -d /local/pgp/pgpkeys-XXXXXX)
+              cat /local/pgp/pgp-key.private | gpg --import
+              cat Release | gpg --default-key startcloud -abs > Release.gpg
+              cat Release | gpg --default-key startcloud -abs --clearsign > InRelease
+              rm -rf \$GNUPGHOME
+              cd ../..
+            done
+          "
+
+      - name: Cleanup
+        run: |
+          ssh startcloud@packages.debian.startcloud.com "rm -f /tmp/patchpanel_*.deb"

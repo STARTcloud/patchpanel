@@ -1,0 +1,14 @@
+# Shellcheck configuration for PatchPanel
+# Enforces best practices for postinst / preinst / prerm / postrm + scripts
+
+# Enable all checks for maximum strictness
+enable=all
+
+# Shell dialect (Debian maintainer scripts target bash)
+shell=bash
+
+# Follow sourced files relative to script
+source-path=SCRIPTDIR
+
+# Severity threshold (catch style suggestions too)
+severity=style

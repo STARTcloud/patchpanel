@@ -1,0 +1,58 @@
+# Default: LF line endings for all text files
+* text=auto eol=lf
+
+# Explicitly set LF for all text files
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.sh text eol=lf
+*.bash text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+
+# Config files
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.editorconfig text eol=lf
+.eslintrc* text eol=lf
+.prettierrc text eol=lf
+.prettierignore text eol=lf
+.shellcheckrc text eol=lf
+.markdownlint.json text eol=lf
+.yaml-lint.json text eol=lf
+.nvmrc text eol=lf
+
+# Debian maintainer scripts MUST be LF — shell parser breaks on CRLF
+packaging/**/*.sh text eol=lf
+packaging/DEBIAN/preinst text eol=lf
+packaging/DEBIAN/postinst text eol=lf
+packaging/DEBIAN/prerm text eol=lf
+packaging/DEBIAN/postrm text eol=lf
+packaging/DEBIAN/systemd/*.service text eol=lf
+
+# Man pages
+packaging/DEBIAN/man/*.8 text eol=lf
+packaging/DEBIAN/man/*.5 text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.db binary
+*.sqlite binary
+*.mmdb binary
+*.deb binary

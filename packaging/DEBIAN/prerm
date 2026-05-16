@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+# Stop and disable service before removal
+if systemctl is-active --quiet patchpanel; then
+    echo "Stopping PatchPanel service..."
+    systemctl stop patchpanel
+fi
+
+if systemctl is-enabled --quiet patchpanel; then
+    echo "Disabling PatchPanel service..."
+    systemctl disable patchpanel
+fi
+
+#DEBHELPER#
