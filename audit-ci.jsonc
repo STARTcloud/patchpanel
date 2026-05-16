@@ -5,5 +5,5 @@
   // Allowlisted advisories. Each entry must come with a written
   // rationale in .nsprc explaining why the advisory is not exploitable
   // in PatchPanel's threat model.
-  "allowlist": []
+  "allowlist": [],
 }

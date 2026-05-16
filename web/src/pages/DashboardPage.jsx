@@ -1446,7 +1446,7 @@ export const DashboardPage = ({ doc = null, theme = 'light' }) => {
     return <p className="text-muted">No state document loaded.</p>;
   }
   const statsReady = !error && info !== null;
-  const routeRows = doc ? deriveRouteRows(doc) : [];
+  const routeRows = deriveRouteRows(doc);
   const ctx = { info, rows, theme, statsReady, liveCerts, routeRows };
   const isDragging = drag.dragState.sourceId !== null;
 
