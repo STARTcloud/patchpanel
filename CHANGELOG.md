@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.5](https://github.com/STARTcloud/patchpanel/compare/v0.3.4...v0.3.5) (2026-05-17)
+
+
+### Bug Fixes
+
+* move conffigs from homeassistat add ons ([7c80c72](https://github.com/STARTcloud/patchpanel/commit/7c80c724c6636407c9c4ae8030e952c8b192ae3d))
+
 ## [0.3.4](https://github.com/STARTcloud/patchpanel/compare/v0.3.3...v0.3.4) (2026-05-17)
 
 
