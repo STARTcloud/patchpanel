@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+#
+# patchpanel: CLI dispatcher for the HAProxy management UI.
+#
+# Subcommands are implemented as individual Node.js modules under
+# server/src/cli/. This script just selects which one to invoke.
+# Designed to work identically in the Home Assistant addon and in a
+# standalone apt-installed deployment.
+#
+set -eu
+
+PATCHPANEL_HOME="${PATCHPANEL_HOME:-/opt/patchpanel}"
+NODE_BIN="${NODE_BIN:-/usr/bin/node}"
+
+run_node() {
+    local script="$1"
+    shift
+    if [ ! -f "${PATCHPANEL_HOME}/${script}" ]; then
+        printf 'patchpanel: missing module %s\n' "${PATCHPANEL_HOME}/${script}" >&2
+        exit 70
+    fi
+    exec "${NODE_BIN}" "${PATCHPANEL_HOME}/${script}" "$@"
+}
+
+print_help() {
+    cat <<'EOF'
+patchpanel: HAProxy configuration manager
+
+Usage: patchpanel <command> [args...]
+
+Commands:
+  server                Start the management HTTP server (Express).
+  bootstrap             First-run init: seed state.json, render initial cfg.
+  render                Render haproxy.cfg from state.json to stdout (or --out).
+  validate              Validate the rendered cfg without applying.
+  certs-renew           Run certbot renewal; on success rebuild certs.list + reload.
+  reload                Validate cfg, then trigger reload via master socket.
+  next-renewal-slot     Print epoch seconds of next scheduled renewal.
+  backup-pre            Hook: quiesce state before backup.
+  backup-post           Hook: resume after backup.
+  version               Print package version.
+  help                  Show this message.
+
+Environment:
+  CONFIG_PATH             Path to the YAML config file. The configLoader
+                          resolves it in this order: --config CLI flag,
+                          CONFIG_PATH env, <install>/dev.config.yaml,
+                          /etc/patchpanel/config.yaml (Debian default;
+                          /config/config.yaml inside the HA addon).
+  PATCHPANEL_HOME         Installation root. Defaults to /opt/patchpanel.
+  NODE_BIN                Node interpreter path. Defaults to /usr/bin/node.
+EOF
+}
+
+cmd="${1:-help}"
+shift || true
+
+case "${cmd}" in
+    server)            run_node server/src/server.js "$@" ;;
+    bootstrap)         run_node server/src/cli/bootstrap.js "$@" ;;
+    render)            run_node server/src/cli/render.js "$@" ;;
+    validate)          run_node server/src/cli/validate.js "$@" ;;
+    certs-renew)       run_node server/src/cli/certs-renew.js "$@" ;;
+    reload)            run_node server/src/cli/reload.js "$@" ;;
+    next-renewal-slot) run_node server/src/cli/next-renewal-slot.js "$@" ;;
+    backup-pre)        run_node server/src/cli/backup-pre.js "$@" ;;
+    backup-post)       run_node server/src/cli/backup-post.js "$@" ;;
+    version)           run_node server/src/cli/version.js "$@" ;;
+    help|--help|-h|"") print_help ;;
+    *)
+        printf 'patchpanel: unknown command %q\n' "${cmd}" >&2
+        printf "Run 'patchpanel help' for usage.\n" >&2
+        exit 64
+        ;;
+esac

@@ -65,7 +65,7 @@ jobs:
 
       - name: Create Debian package tree
         run: |
-          mkdir -p "${PACKAGE_NAME}_${VERSION}_${ARCH}"/{opt/patchpanel/web,opt/patchpanel/config-templates,etc/systemd/system,var/lib/patchpanel,var/log/patchpanel,usr/share/man/man8,usr/share/man/man5,DEBIAN}
+          mkdir -p "${PACKAGE_NAME}_${VERSION}_${ARCH}"/{opt/patchpanel/web,opt/patchpanel/bin,opt/patchpanel/config-templates,etc/systemd/system,usr/bin,var/lib/patchpanel,var/log/patchpanel,usr/share/man/man8,usr/share/man/man5,DEBIAN}
 
       - name: Copy application files
         run: |
@@ -77,6 +77,14 @@ jobs:
       - name: Copy config template
         run: |
           cp packaging/config/production-config.yaml "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/config-templates/production-config.yaml"
+
+      - name: Install CLI dispatcher (bin/patchpanel)
+        run: |
+          # The dispatcher lives at /opt/patchpanel/bin/patchpanel; /usr/bin/patchpanel
+          # is a symlink to it so the s6 init scripts (init-haproxy/up, certbot-cron/run,
+          # backup hooks) and command-line use both find it via PATH.
+          install -m 0755 packaging/DEBIAN/bin/patchpanel "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/bin/patchpanel"
+          ln -sf /opt/patchpanel/bin/patchpanel "${PACKAGE_NAME}_${VERSION}_${ARCH}/usr/bin/patchpanel"
 
       - name: Copy systemd + maintainer scripts
         run: |
@@ -111,6 +119,7 @@ jobs:
           find "${PACKAGE_NAME}_${VERSION}_${ARCH}" -type d -exec chmod 755 {} \;
           find "${PACKAGE_NAME}_${VERSION}_${ARCH}" -type f -exec chmod 644 {} \;
           chmod 755 "${PACKAGE_NAME}_${VERSION}_${ARCH}/DEBIAN"/{preinst,postinst,prerm,postrm}
+          chmod 755 "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/bin/patchpanel"
 
       - name: Build Debian package
         run: |
