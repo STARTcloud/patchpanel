@@ -5,7 +5,7 @@ import * as audit from './audit.js';
 import { buildCertsList } from './cert-lineage.js';
 import { ReloadError } from './errors.js';
 import { parseValidationOutput } from './haproxy-error-parser.js';
-import { ensureDir, fileExists, writeAtomic } from './files.js';
+import { ensureDir, fileExists, readText, writeAtomic } from './files.js';
 import { assertValidRenderedCfg } from './haproxy-validate.js';
 import * as haproxyMaster from './haproxy-master.js';
 import * as keepalivedControl from './keepalived-control.js';
@@ -20,6 +20,47 @@ import { saveState } from './state.js';
 import { StateSchema } from './state-schema.js';
 
 const reloadLockPath = config => `${config.paths.haproxyConfig}.reload.lock`;
+
+// Watermark stamped onto every config file patchpanel renders. The first line
+// of a managed haproxy.cfg / keepalived.conf starts with WATERMARK_PREFIX so
+// we can tell at a glance whether the on-disk file is ours or hand-written.
+// Both formats treat `#` as a line comment, so the marker is inert.
+const WATERMARK_PREFIX = '# patchpanel-managed';
+const WATERMARK_LINE = `${WATERMARK_PREFIX} - do not edit by hand (regenerated on every state apply)`;
+
+const isManagedConfig = content => {
+  if (typeof content !== 'string' || content.length === 0) {
+    return false;
+  }
+  const firstNewline = content.indexOf('\n');
+  const firstLine = firstNewline === -1 ? content : content.slice(0, firstNewline);
+  return firstLine.startsWith(WATERMARK_PREFIX);
+};
+
+const withWatermark = rendered => `${WATERMARK_LINE}\n${rendered}`;
+
+// One-shot preservation of an operator's hand-written config the first time
+// patchpanel takes over a file. If the existing file on disk doesn't carry
+// our watermark, copy it to a permanent timestamped `.preserved-<iso>` sidecar
+// so the operator can salvage their original directives / comments later.
+// Returns the preserved path (or null when no preservation was needed).
+const preserveForeignConfig = async cfgPath => {
+  if (!(await fileExists(cfgPath))) {
+    return null;
+  }
+  const existing = await readText(cfgPath);
+  if (isManagedConfig(existing)) {
+    return null;
+  }
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const preservedPath = `${cfgPath}.preserved-${stamp}`;
+  await fs.copyFile(cfgPath, preservedPath);
+  logger.info('preserved foreign config before first patchpanel write', {
+    from: cfgPath,
+    to: preservedPath,
+  });
+  return preservedPath;
+};
 
 const backupCfg = async cfgPath => {
   const backupPath = `${cfgPath}.bak`;
@@ -165,6 +206,42 @@ const persistMaps = async (config, candidateParsed) => {
   logger.info('wrote map files', { count: maps.length, dir });
 };
 
+// Render + validate keepalived.conf in isolation, returning the rendered
+// string (with watermark) when keepalived is enabled, or null when it's not.
+// Extracted from applyState so the main pipeline stays under the cyclomatic
+// complexity ceiling — semantics are unchanged: any failure here aborts the
+// apply BEFORE any on-disk file is touched.
+const renderAndValidateKeepalivedConfig = async (config, candidateParsed) => {
+  if (!candidateParsed.keepalived?.enabled) {
+    return null;
+  }
+  let rendered;
+  try {
+    const nodeConfig = await loadNodeConfig(config.paths.nodeConfig);
+    rendered = withWatermark(renderKeepalivedConfig(candidateParsed, nodeConfig));
+  } catch (err) {
+    throw new Error(`keepalived render failed: ${err.message}`);
+  }
+  // Validate via a temp file — keepalived -t needs an actual path.
+  const tmpKeepalived = `${config.paths.keepalivedConfig}.candidate`;
+  try {
+    await ensureDir(
+      config.paths.keepalivedConfig.slice(0, config.paths.keepalivedConfig.lastIndexOf('/'))
+    );
+    await writeAtomic(tmpKeepalived, rendered, { mode: 0o644 });
+    const validation = await keepalivedControl.validateConfigFile(
+      config.paths.keepalivedBin,
+      tmpKeepalived
+    );
+    if (!validation.ok) {
+      throw new Error(`keepalived -t rejected the rendered config: ${validation.output}`);
+    }
+  } finally {
+    await fs.rm(tmpKeepalived, { force: true }).catch(() => undefined);
+  }
+  return rendered;
+};
+
 export const applyState = (config, candidate, options = {}) =>
   withLock(reloadLockPath(config), async () => {
     const editor = options.editor ?? null;
@@ -179,12 +256,14 @@ export const applyState = (config, candidate, options = {}) =>
     );
     const loadableCertCount = emitted.length;
 
-    const rendered = renderHaproxyConfig(candidateParsed, {
-      certsListPath: config.paths.haproxyCertsList,
-      trustedCasDir: config.paths.trustedCasDir,
-      trustedCrlsDir: config.paths.trustedCrlsDir,
-      loadableCertCount,
-    });
+    const rendered = withWatermark(
+      renderHaproxyConfig(candidateParsed, {
+        certsListPath: config.paths.haproxyCertsList,
+        trustedCasDir: config.paths.trustedCasDir,
+        trustedCrlsDir: config.paths.trustedCrlsDir,
+        loadableCertCount,
+      })
+    );
 
     try {
       await assertValidRenderedCfg(config.paths.haproxyBin, rendered);
@@ -195,35 +274,15 @@ export const applyState = (config, candidate, options = {}) =>
       throw err;
     }
 
-    // Render keepalived.conf (if keepalived is enabled in state) and validate
-    // BEFORE we touch any on-disk file. If either render fails validation,
-    // the whole apply aborts with no side effects.
-    let renderedKeepalived = null;
+    const renderedKeepalived = await renderAndValidateKeepalivedConfig(config, candidateParsed);
     let keepalivedBackupPath = null;
-    if (candidateParsed.keepalived?.enabled) {
-      try {
-        const nodeConfig = await loadNodeConfig(config.paths.nodeConfig);
-        renderedKeepalived = renderKeepalivedConfig(candidateParsed, nodeConfig);
-      } catch (err) {
-        throw new Error(`keepalived render failed: ${err.message}`);
-      }
-      // Validate via a temp file — keepalived -t needs an actual path.
-      const tmpKeepalived = `${config.paths.keepalivedConfig}.candidate`;
-      try {
-        await ensureDir(
-          config.paths.keepalivedConfig.slice(0, config.paths.keepalivedConfig.lastIndexOf('/'))
-        );
-        await writeAtomic(tmpKeepalived, renderedKeepalived, { mode: 0o644 });
-        const validation = await keepalivedControl.validateConfigFile(
-          config.paths.keepalivedBin,
-          tmpKeepalived
-        );
-        if (!validation.ok) {
-          throw new Error(`keepalived -t rejected the rendered config: ${validation.output}`);
-        }
-      } finally {
-        await fs.rm(tmpKeepalived, { force: true }).catch(() => undefined);
-      }
+
+    // One-shot: preserve the operator's hand-written configs (no watermark)
+    // before we overwrite them. After the first successful write the files
+    // carry our marker and preservation is a no-op on subsequent applies.
+    await preserveForeignConfig(config.paths.haproxyConfig);
+    if (renderedKeepalived !== null) {
+      await preserveForeignConfig(config.paths.keepalivedConfig);
     }
 
     const backupPath = await backupCfg(config.paths.haproxyConfig);

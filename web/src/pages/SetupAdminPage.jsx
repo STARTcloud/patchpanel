@@ -6,12 +6,16 @@ import { apiGet, apiPost } from '../api/client.js';
 import { LogoMark } from '../components/LogoMark.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 
-// /setup-admin?token=... — first-run wizard for creating the initial
-// admin on a fresh standalone install. Postinst prints the setup token in
-// the install banner; the operator opens the URL with the token in the
-// query string. The page:
+// /setup-admin — first-run wizard for creating the initial admin on a
+// fresh standalone install. Postinst writes /etc/patchpanel/setup.token
+// and prints a banner URL with `?token=...`. Two entry paths are supported:
+//   a) operator clicks the banner URL → token prefilled from the query string
+//   b) operator just navigates to the host → token field is empty, they
+//      paste the value from /etc/patchpanel/setup.token themselves
+//
+// The page:
 //   1. Probes GET /api/setup/status to confirm setup is still available.
-//   2. Renders username + password + confirm-password form.
+//   2. Renders token + username + password + confirm-password form.
 //   3. POSTs /api/setup/complete with { token, username, password }.
 //   4. Server creates the admin, consumes the token, sets the cookie.
 //   5. We refresh useAuth and navigate to /.
@@ -21,6 +25,7 @@ export const SetupAdminPage = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [status, setStatus] = useState({ loading: true, needsSetup: false, hasToken: false });
+  const [token, setToken] = useState(params.get('token') ?? '');
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -84,14 +89,9 @@ export const SetupAdminPage = () => {
       setError('passwords do not match');
       return;
     }
-    const token = params.get('token');
-    if (!token) {
-      setError('missing ?token= in the URL — re-open the link from the install banner');
-      return;
-    }
     setSubmitting(true);
     try {
-      await apiPost('api/setup/complete', { token, username, password });
+      await apiPost('api/setup/complete', { token: token.trim(), username, password });
       await auth.refresh();
       navigate('/', { replace: true });
     } catch (err) {
@@ -114,8 +114,9 @@ export const SetupAdminPage = () => {
             <small className="text-muted">Create the first admin account</small>
           </div>
           <Alert variant="info" className="py-2 small mb-3">
-            This wizard runs once on first install. The setup token from the install banner is in
-            the URL — submitting this form consumes it.
+            Paste the one-time setup token from the install banner, or read it off the host with{' '}
+            <code>cat /etc/patchpanel/setup.token</code>. The token is consumed on success and the
+            file is deleted.
           </Alert>
           {error ? (
             <Alert variant="danger" className="py-2 small mb-3">
@@ -123,6 +124,21 @@ export const SetupAdminPage = () => {
             </Alert>
           ) : null}
           <Form onSubmit={submit}>
+            <Form.Group className="mb-3">
+              <Form.Label>Setup token</Form.Label>
+              <Form.Control
+                type="text"
+                value={token}
+                onChange={e => setToken(e.target.value)}
+                placeholder="64 hex characters"
+                required
+                style={{ fontFamily: 'monospace' }}
+              />
+              <Form.Text className="text-muted">
+                Prefilled when you opened this page from the banner URL; paste it manually
+                otherwise.
+              </Form.Text>
+            </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Username</Form.Label>
               <Form.Control

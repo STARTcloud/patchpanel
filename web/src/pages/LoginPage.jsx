@@ -11,6 +11,11 @@ import { useAuth } from '../hooks/useAuth.jsx';
 //
 // Already-authenticated users get bounced to / (refresh leftovers, or
 // landing here directly via a stale browser tab).
+//
+// On a fresh standalone install, /api/setup/status reports needsSetup=true
+// until the first admin is created. In that state nobody can log in, so we
+// redirect to /setup-admin instead of showing the form. Render is held
+// until the probe resolves to avoid a momentary flash of the login form.
 
 export const LoginPage = () => {
   const auth = useAuth();
@@ -20,21 +25,32 @@ export const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [needsSetup, setNeedsSetup] = useState(false);
+  const [setupProbe, setSetupProbe] = useState({ done: false, needsSetup: false });
 
-  // Probe setup status on mount — if a fresh install hasn't been completed
-  // yet, the user is on /login by accident (they typed the host directly
-  // instead of following the install banner's URL). Surface a "Run setup"
-  // link so they don't stare at an empty form.
   useEffect(() => {
     apiGet('api/setup/status')
-      .then(data => setNeedsSetup(Boolean(data?.needsSetup)))
-      .catch(() => {});
+      .then(data => setSetupProbe({ done: true, needsSetup: Boolean(data?.needsSetup) }))
+      .catch(() => setSetupProbe({ done: true, needsSetup: false }));
   }, []);
 
-  if (!auth.loading && auth.authenticated) {
+  if (auth.loading || !setupProbe.done) {
+    return (
+      <Container
+        className="d-flex align-items-center justify-content-center"
+        style={{ minHeight: '100vh' }}
+      >
+        <Spinner animation="border" />
+      </Container>
+    );
+  }
+
+  if (auth.authenticated) {
     const ret = params.get('return');
     return <Navigate to={ret || '/'} replace />;
+  }
+
+  if (setupProbe.needsSetup) {
+    return <Navigate to="/setup-admin" replace />;
   }
 
   const submit = async event => {
@@ -64,14 +80,6 @@ export const LoginPage = () => {
             <h4 className="mb-0">patchpanel</h4>
             <small className="text-muted">Sign in</small>
           </div>
-          {needsSetup ? (
-            <Alert variant="warning" className="py-2 small mb-3">
-              <strong>First-run setup not complete.</strong> Open the setup URL from the install
-              banner (printed at install time, includes the one-time token), or run{' '}
-              <code>cat /etc/patchpanel/setup.token</code> on the host and paste the token at{' '}
-              <a href="setup-admin">/setup-admin</a>.
-            </Alert>
-          ) : null}
           {error ? (
             <Alert variant="danger" className="py-2 small mb-3">
               {error}
