@@ -334,6 +334,47 @@ paths:
     section: Paths
     subsection: HAProxy
     order: 9
+  keepalivedConfig:
+    type: string
+    value: /etc/keepalived/keepalived.conf
+    description: Where the rendered keepalived.conf is atomically swapped.
+    section: Paths
+    subsection: Keepalived
+    order: 1
+  keepalivedPidFile:
+    type: string
+    value: /run/keepalived.pid
+    description: Keepalived pid file (used by the direct/signal control strategy).
+    section: Paths
+    subsection: Keepalived
+    order: 2
+  keepalivedBin:
+    type: string
+    value: /usr/sbin/keepalived
+    description: Keepalived binary (used for `keepalived -t -f` config validation).
+    section: Paths
+    subsection: Keepalived
+    order: 3
+  nodeConfig:
+    type: string
+    value: /etc/patchpanel/node.yaml
+    description: |
+      Per-node identity file. Carries this node's nodeId + per-VRRP-instance
+      priority/state/interface overrides. Never synced between cluster peers;
+      each node owns its own copy.
+    section: Paths
+    subsection: Cluster
+    order: 1
+  peersStore:
+    type: string
+    value: /etc/patchpanel/peers.json
+    description: |
+      Paired-peer relationships + their API tokens (mode 0600). Each entry
+      records a peer's URL, name, and the token used for outbound peer-API
+      calls. Never synced between nodes.
+    section: Paths
+    subsection: Cluster
+    order: 2
   trustedCasDir:
     type: string
     value: /var/lib/patchpanel/trusted-cas

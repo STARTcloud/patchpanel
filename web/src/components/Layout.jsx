@@ -9,6 +9,7 @@ import { useHaproxyLive } from '../hooks/useHaproxyLive.jsx';
 
 import { ErrorBoundary } from './ErrorBoundary.jsx';
 import { HaproxyStatusBadge } from './HaproxyStatusBadge.jsx';
+import { KeepalivedPowerControl } from './KeepalivedPowerControl.jsx';
 import { LogoMark } from './LogoMark.jsx';
 
 // HAProxy-flow ordered primary tabs. Dashboard is reachable via the brand
@@ -49,6 +50,7 @@ const SETTINGS_TABS = Object.freeze([
   { path: '/providers', label: 'Providers', icon: 'diagram-3' },
   { path: '/error-pages', label: 'Error pages', icon: 'exclamation-octagon' },
   { path: '/geoip', label: 'GeoIP', icon: 'globe-americas' },
+  { path: '/ha', label: 'HA / Failover', icon: 'broadcast-pin' },
   { path: '/rendered-cfg', label: 'Rendered cfg', icon: 'file-code' },
   { path: '/advanced', label: 'Advanced', icon: 'sliders' },
   { path: '/raw-state', label: 'Raw State', icon: 'code' },
@@ -233,6 +235,10 @@ const HaproxyPowerControl = () => {
             <Spinner as="span" animation="border" size="sm" className="me-2" /> Checking…
           </NavDropdown.ItemText>
         ) : null}
+        <NavDropdown.Divider />
+        <NavDropdown.ItemText className="small text-muted">
+          patchpanel v{__APP_VERSION__}
+        </NavDropdown.ItemText>
       </NavDropdown>
       <ConfirmationDialog />
     </>
@@ -418,6 +424,9 @@ export const Layout = ({
           ) : null}
           <ErrorBoundary>
             <HaproxyPowerControl />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <KeepalivedPowerControl />
           </ErrorBoundary>
           <ErrorBoundary>
             <UserMenu />

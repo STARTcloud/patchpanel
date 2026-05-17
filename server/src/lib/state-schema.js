@@ -1138,6 +1138,118 @@ export const TrustedCRLSchema = z.object({
   addedAt: TimestampSchema,
 });
 
+// =====================================================================
+// Keepalived / VRRP. Shared (cluster-wide) instance + sync-group +
+// track-script definitions live in state and sync between peer nodes.
+// Per-node fields (priority, MASTER/BACKUP state, interface name) live
+// in /etc/patchpanel/node.yaml and never sync. Each node renders its own
+// keepalived.conf from state.keepalived + node.yaml.
+// =====================================================================
+
+const VrrpStateSchema = z.enum(['MASTER', 'BACKUP']);
+const VrrpAuthTypeSchema = z.enum(['PASS', 'AH']);
+
+export const KeepalivedTrackScriptSchema = z.object({
+  id: IdSchema,
+  name: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/u, 'keepalived script name')
+    .optional(),
+  script: z.string().min(1).max(2048),
+  interval: z.number().int().min(1).max(3600).default(2),
+  timeout: z.number().int().min(1).max(60).optional(),
+  weight: z.number().int().min(-254).max(254).default(0),
+  fall: z.number().int().min(1).max(255).optional(),
+  rise: z.number().int().min(1).max(255).optional(),
+  initFail: z.boolean().default(false),
+});
+
+export const KeepalivedSyncGroupSchema = z.object({
+  id: IdSchema,
+  name: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/u, 'keepalived sync_group name'),
+  description: z.string().max(256).optional(),
+  instanceIds: z.array(IdSchema).default([]),
+  notifyMaster: z.string().min(1).optional(),
+  notifyBackup: z.string().min(1).optional(),
+  notifyFault: z.string().min(1).optional(),
+});
+
+export const KeepalivedInstanceSchema = z.object({
+  id: IdSchema,
+  name: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/u, 'keepalived vrrp_instance name'),
+  description: z.string().max(256).optional(),
+  enabled: z.boolean().default(true),
+  // The floating IP itself.
+  vip: z.string().min(1),
+  prefix: z.number().int().min(0).max(128).default(24),
+  // VRRP-protocol-level identity. Must match across all nodes participating
+  // in the same VIP. 1-255.
+  virtualRouterId: z.number().int().min(1).max(255),
+  // Shared auth. authType=AH is rare; PASS is the common case.
+  authType: VrrpAuthTypeSchema.default('PASS'),
+  authPass: z.string().min(1).max(8),
+  advertInt: z.number().int().min(1).max(60).default(1),
+  // Optional sync group + track script refs.
+  syncGroupId: IdSchema.nullable().default(null),
+  trackScriptIds: z.array(IdSchema).default([]),
+  // Optional advanced VRRP knobs.
+  preempt: z.boolean().default(true),
+  preemptDelay: z.number().int().min(0).max(1000).optional(),
+  garpMasterDelay: z.number().int().min(0).max(60).optional(),
+  // Free-form extra notes for the operator.
+  notes: z.string().max(512).optional(),
+});
+
+export const KeepalivedGlobalDefsSchema = z.object({
+  routerId: z.string().min(1).max(64).optional(),
+  // Optional notification email config — almost never used in patchpanel
+  // deployments, but it's part of keepalived so we expose it.
+  notificationEmail: z.array(z.string().email()).default([]),
+  notificationEmailFrom: z.string().email().optional(),
+  smtpServer: z.string().min(1).optional(),
+  smtpConnectTimeout: z.number().int().min(1).max(300).optional(),
+  vrrpStrict: z.boolean().default(false),
+  vrrpSkipCheckAdvAddr: z.boolean().default(true),
+  vrrpGarpInterval: z.number().int().min(0).max(60).optional(),
+  vrrpGnaInterval: z.number().int().min(0).max(60).optional(),
+});
+
+export const KeepalivedSchema = z.object({
+  enabled: z.boolean().default(false),
+  globalDefs: KeepalivedGlobalDefsSchema.default({}),
+  trackScripts: z.array(KeepalivedTrackScriptSchema).default([]),
+  instances: z.array(KeepalivedInstanceSchema).default([]),
+  syncGroups: z.array(KeepalivedSyncGroupSchema).default([]),
+});
+
+export { VrrpStateSchema };
+
+// =====================================================================
+// UI-side convenience storage. Lives in state.json so it syncs between
+// peer nodes (operator saves a preset on node 1, sees it on node 2 after
+// next sync push). Render layer ignores this entirely — it's purely
+// UI sugar with no HAProxy or keepalived side effects.
+// =====================================================================
+
+export const SavedBindAddressSchema = z.object({
+  address: z.string().min(1).max(256),
+  label: z.string().min(1).max(128),
+});
+
+export const UiSchema = z.object({
+  savedBindAddresses: z.array(SavedBindAddressSchema).default([]),
+});
+
 export const MetaSchema = z.object({
   createdAt: TimestampSchema,
   lastEditedAt: TimestampSchema,
@@ -1229,6 +1341,10 @@ export const BindSchema = z.object({
   deferAccept: z.boolean().optional(),
   tfo: z.boolean().optional(),
   ipFamily: z.enum(['v4', 'v6', 'dual']).optional(),
+  // Optional reference to state.keepalived.instances[].id. Metadata only —
+  // does NOT change bind.address rendering. Tells the UI "this bind's
+  // address is managed as a VRRP VIP" and informs keepalived.conf rendering.
+  floatingIpInstanceId: IdSchema.nullable().default(null),
   ssl: BindSslSchema.default({}),
   quic: BindQuicSchema.default({}),
 });
@@ -1440,6 +1556,8 @@ const StateBaseSchema = z.object({
   backends: z.array(BackendSchema).default([]),
   notifications: NotificationsSchema.default({}),
   geoip: GeoIpSchema.default({}),
+  keepalived: KeepalivedSchema.default({}),
+  ui: UiSchema.default({}),
 });
 
 // =====================================================================
@@ -1703,9 +1821,9 @@ const validateCertRefs = (ctx, idx, cert, refs, providerTypeById) => {
   );
 };
 
-export const StateSchema = StateBaseSchema.superRefine((state, ctx) => {
-  // Uniqueness checks within each collection. Schema parsing accepts
-  // duplicates; we surface them here so the UI can point at the offender.
+// Uniqueness checks within each top-level collection. Schema parsing accepts
+// duplicates; we surface them here so the UI can point at the offender.
+const checkTopLevelUniqueness = (state, ctx) => {
   checkUniqueBy(ctx, ['defaultsBlocks'], state.defaultsBlocks, 'id', 'defaults block');
   checkUniqueBy(ctx, ['defaultsBlocks'], state.defaultsBlocks, 'name', 'defaults block');
   checkUniqueBy(ctx, ['httpErrorsSections'], state.httpErrorsSections, 'id', 'http-errors section');
@@ -1738,10 +1856,12 @@ export const StateSchema = StateBaseSchema.superRefine((state, ctx) => {
   checkUniqueBy(ctx, ['rings'], state.rings, 'id', 'ring');
   checkUniqueBy(ctx, ['crtStores'], state.crtStores, 'id', 'crt-store');
   checkUniqueBy(ctx, ['maps'], state.maps, 'id', 'map');
+};
 
-  // Per-rule duplicate-id check inside each frontend's rulePhases. Rule
-  // ids are scoped per frontend per phase; we still check uniqueness so
-  // the UI can rely on (frontendId, phase, ruleId) being a stable key.
+// Per-rule duplicate-id check inside each frontend's rulePhases. Rule ids
+// are scoped per (frontend, phase); UI relies on (frontendId, phase, ruleId)
+// being a stable composite key.
+const checkRuleUniqueness = (state, ctx) => {
   for (let fi = 0; fi < state.frontends.length; fi += 1) {
     const fe = state.frontends[fi];
     for (const phase of RULE_PHASE_KEYS) {
@@ -1749,26 +1869,113 @@ export const StateSchema = StateBaseSchema.superRefine((state, ctx) => {
       checkUniqueBy(ctx, ['frontends', fi, 'rulePhases', phase], rules, 'id', 'rule');
     }
   }
+};
 
-  const refs = {
-    defaultsBlockIds: new Set(state.defaultsBlocks.map(b => b.id)),
-    httpErrorsSectionIds: new Set(state.httpErrorsSections.map(s => s.id)),
-    aclNames: new Set(state.acls.map(a => a.name)),
-    backendIds: new Set(state.backends.map(b => b.id)),
-    tlsProviderIds: new Set(state.tls.providers.map(p => p.id)),
-    profileIds: new Set(state.securityProfiles.map(p => p.id)),
-    authProviderIds: new Set(state.authProviders.map(p => p.id)),
-    acmeAccountIds: new Set(state.acmeAccounts.map(a => a.id)),
-    trustedCaIds: new Set(state.trustedCas.map(t => t.id)),
-    trustedCrlIds: new Set(state.trustedCrls.map(t => t.id)),
-  };
+const buildRefSets = state => ({
+  defaultsBlockIds: new Set(state.defaultsBlocks.map(b => b.id)),
+  httpErrorsSectionIds: new Set(state.httpErrorsSections.map(s => s.id)),
+  aclNames: new Set(state.acls.map(a => a.name)),
+  backendIds: new Set(state.backends.map(b => b.id)),
+  tlsProviderIds: new Set(state.tls.providers.map(p => p.id)),
+  profileIds: new Set(state.securityProfiles.map(p => p.id)),
+  authProviderIds: new Set(state.authProviders.map(p => p.id)),
+  acmeAccountIds: new Set(state.acmeAccounts.map(a => a.id)),
+  trustedCaIds: new Set(state.trustedCas.map(t => t.id)),
+  trustedCrlIds: new Set(state.trustedCrls.map(t => t.id)),
+  keepalivedInstanceIds: new Set((state.keepalived?.instances ?? []).map(i => i.id)),
+  keepalivedTrackScriptIds: new Set((state.keepalived?.trackScripts ?? []).map(s => s.id)),
+  keepalivedSyncGroupIds: new Set((state.keepalived?.syncGroups ?? []).map(g => g.id)),
+});
 
-  const acmeAccountTupleSeen = new Set();
-  for (let i = 0; i < state.acmeAccounts.length; i += 1) {
-    validateAcmeAccount(ctx, i, state.acmeAccounts[i], acmeAccountTupleSeen);
+const checkKeepalivedUniqueness = (state, ctx) => {
+  const instances = state.keepalived?.instances ?? [];
+  const syncGroups = state.keepalived?.syncGroups ?? [];
+  const trackScripts = state.keepalived?.trackScripts ?? [];
+  checkUniqueBy(ctx, ['keepalived', 'instances'], instances, 'id', 'keepalived instance');
+  checkUniqueBy(ctx, ['keepalived', 'instances'], instances, 'name', 'keepalived instance');
+  checkUniqueBy(
+    ctx,
+    ['keepalived', 'instances'],
+    instances,
+    'virtualRouterId',
+    'keepalived virtualRouterId'
+  );
+  checkUniqueBy(ctx, ['keepalived', 'syncGroups'], syncGroups, 'id', 'keepalived sync_group');
+  checkUniqueBy(ctx, ['keepalived', 'syncGroups'], syncGroups, 'name', 'keepalived sync_group');
+  checkUniqueBy(ctx, ['keepalived', 'trackScripts'], trackScripts, 'id', 'keepalived track_script');
+};
+
+const checkKeepalivedInstanceRefs = (state, ctx, refs) => {
+  const instances = state.keepalived?.instances ?? [];
+  for (let i = 0; i < instances.length; i += 1) {
+    const inst = instances[i];
+    if (inst.syncGroupId) {
+      checkRef(
+        ctx,
+        ['keepalived', 'instances', i, 'syncGroupId'],
+        inst.syncGroupId,
+        refs.keepalivedSyncGroupIds,
+        'keepalived sync_group'
+      );
+    }
+    const trackIds = inst.trackScriptIds ?? [];
+    for (let ti = 0; ti < trackIds.length; ti += 1) {
+      checkRef(
+        ctx,
+        ['keepalived', 'instances', i, 'trackScriptIds', ti],
+        trackIds[ti],
+        refs.keepalivedTrackScriptIds,
+        'keepalived track_script'
+      );
+    }
   }
+};
 
-  // defaults blocks → http-errors section
+const checkKeepalivedSyncGroupRefs = (state, ctx, refs) => {
+  const syncGroups = state.keepalived?.syncGroups ?? [];
+  for (let i = 0; i < syncGroups.length; i += 1) {
+    const grp = syncGroups[i];
+    const instanceIds = grp.instanceIds ?? [];
+    for (let ii = 0; ii < instanceIds.length; ii += 1) {
+      checkRef(
+        ctx,
+        ['keepalived', 'syncGroups', i, 'instanceIds', ii],
+        instanceIds[ii],
+        refs.keepalivedInstanceIds,
+        'keepalived instance'
+      );
+    }
+  }
+};
+
+// bind.floatingIpInstanceId → keepalived.instances[].id
+const checkBindFloatingIpRefs = (state, ctx, refs) => {
+  for (let fi = 0; fi < state.frontends.length; fi += 1) {
+    const fe = state.frontends[fi];
+    const binds = fe.binds ?? [];
+    for (let bi = 0; bi < binds.length; bi += 1) {
+      const bind = binds[bi];
+      if (bind.floatingIpInstanceId) {
+        checkRef(
+          ctx,
+          ['frontends', fi, 'binds', bi, 'floatingIpInstanceId'],
+          bind.floatingIpInstanceId,
+          refs.keepalivedInstanceIds,
+          'keepalived instance'
+        );
+      }
+    }
+  }
+};
+
+const checkAcmeAccounts = (state, ctx) => {
+  const seen = new Set();
+  for (let i = 0; i < state.acmeAccounts.length; i += 1) {
+    validateAcmeAccount(ctx, i, state.acmeAccounts[i], seen);
+  }
+};
+
+const checkDefaultsBlocksRefs = (state, ctx, refs) => {
   for (let i = 0; i < state.defaultsBlocks.length; i += 1) {
     checkRef(
       ctx,
@@ -1778,24 +1985,30 @@ export const StateSchema = StateBaseSchema.superRefine((state, ctx) => {
       'http-errors section'
     );
   }
+};
 
+const checkCertProviderRefs = (state, ctx, refs) => {
   const providerTypeById = new Map(state.tls.providers.map(p => [p.id, p.type]));
   for (let i = 0; i < state.tls.certs.length; i += 1) {
     validateCertRefs(ctx, i, state.tls.certs[i], refs, providerTypeById);
   }
+};
 
-  // frontends → defaults, error-files sections, backends, acls, profiles, auth providers, trusted CAs
+const checkFrontendRefs = (state, ctx, refs) => {
   for (let i = 0; i < state.frontends.length; i += 1) {
     validateFrontend(ctx, i, state.frontends[i], refs);
   }
+};
 
-  // backends → server lines → trusted CAs (upstream TLS verification chain)
+const checkBackendRefs = (state, ctx, refs) => {
   for (let i = 0; i < state.backends.length; i += 1) {
     validateBackendServerCaRefs(ctx, i, state.backends[i], refs);
   }
+};
 
-  // authProviders → backend (for sidecar kinds whose lua probe targets a real backend)
-  const SIDECAR_AUTH_KINDS = new Set(['authelia', 'ldap', 'saml', 'entra', 'jwt-verify']);
+const SIDECAR_AUTH_KINDS = new Set(['authelia', 'ldap', 'saml', 'entra', 'jwt-verify']);
+
+const checkAuthProviderRefs = (state, ctx, refs) => {
   for (let i = 0; i < state.authProviders.length; i += 1) {
     const provider = state.authProviders[i];
     if (SIDECAR_AUTH_KINDS.has(provider.type)) {
@@ -1808,6 +2021,22 @@ export const StateSchema = StateBaseSchema.superRefine((state, ctx) => {
       );
     }
   }
+};
+
+export const StateSchema = StateBaseSchema.superRefine((state, ctx) => {
+  checkTopLevelUniqueness(state, ctx);
+  checkRuleUniqueness(state, ctx);
+  checkKeepalivedUniqueness(state, ctx);
+  const refs = buildRefSets(state);
+  checkKeepalivedInstanceRefs(state, ctx, refs);
+  checkKeepalivedSyncGroupRefs(state, ctx, refs);
+  checkBindFloatingIpRefs(state, ctx, refs);
+  checkAcmeAccounts(state, ctx);
+  checkDefaultsBlocksRefs(state, ctx, refs);
+  checkCertProviderRefs(state, ctx, refs);
+  checkFrontendRefs(state, ctx, refs);
+  checkBackendRefs(state, ctx, refs);
+  checkAuthProviderRefs(state, ctx, refs);
 });
 
 export const validateState = stateObj => {
@@ -1844,5 +2073,7 @@ export const emptyState = () => {
     backends: [],
     notifications: {},
     geoip: {},
+    keepalived: {},
+    ui: {},
   });
 };

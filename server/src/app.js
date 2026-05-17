@@ -15,10 +15,13 @@ import { errorPagesRouter } from './routes/error-pages.js';
 import { geoipRouter } from './routes/geoip.js';
 import { haproxyRouter } from './routes/haproxy.js';
 import { healthRouter } from './routes/health.js';
+import { keepalivedRouter } from './routes/keepalived.js';
 import { logsRouter } from './routes/logs.js';
 import { luaPluginsRouter } from './routes/lua-plugins.js';
+import { nodeConfigRouter } from './routes/node-config.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { openapiRouter } from './routes/openapi.js';
+import { peerRouter } from './routes/peer.js';
 import { providersRouter } from './routes/providers.js';
 import { runtimeRouter } from './routes/runtime.js';
 import { setupRouter } from './routes/setup.js';
@@ -26,6 +29,7 @@ import { snapshotsRouter } from './routes/snapshots.js';
 import { spaRouter } from './routes/spa.js';
 import { statsRouter } from './routes/stats.js';
 import { stateRouter } from './routes/state.js';
+import { systemRouter } from './routes/system.js';
 import { trustedCasRouter } from './routes/trusted-cas.js';
 import { trustedCrlsRouter } from './routes/trusted-crls.js';
 
@@ -65,6 +69,10 @@ export const createApp = async config => {
   app.use('/api', notificationsRouter(config));
   app.use('/api', providersRouter(config));
   app.use('/api', luaPluginsRouter(config));
+  app.use('/api', keepalivedRouter(config));
+  app.use('/api', nodeConfigRouter(config));
+  app.use('/api', systemRouter());
+  app.use('/api', peerRouter(config));
   app.use('/api', openapiRouter());
 
   app.use(spaRouter(config));

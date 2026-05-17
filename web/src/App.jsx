@@ -8,6 +8,7 @@ import { Layout } from './components/Layout.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import { AuthProvider } from './hooks/useAuth.jsx';
 import { HaproxyLiveProvider } from './hooks/useHaproxyLive.jsx';
+import { KeepalivedLiveProvider } from './hooks/useKeepalivedLive.jsx';
 import { PendingChangesProvider, usePendingChanges } from './hooks/usePendingChanges.jsx';
 import { useStateDoc } from './hooks/useState.jsx';
 import { useTheme } from './hooks/useTheme.jsx';
@@ -22,6 +23,7 @@ import { ErrorPagesPage } from './pages/ErrorPagesPage.jsx';
 import { FrontendsPage } from './pages/FrontendsPage.jsx';
 import { GeoIPPage } from './pages/GeoIPPage.jsx';
 import { GlobalPage } from './pages/GlobalPage.jsx';
+import { HaproxyHaPage } from './pages/HaproxyHaPage.jsx';
 import { LoginPage } from './pages/LoginPage.jsx';
 import { LogsPage } from './pages/LogsPage.jsx';
 import { NotificationsPage } from './pages/NotificationsPage.jsx';
@@ -147,6 +149,10 @@ const AppContent = () => {
             element={wrap(<SetupPage doc={stateDoc.doc} onSave={stateDoc.save} />)}
           />
           <Route path="profile" element={wrap(<ProfilePage />)} />
+          <Route
+            path="ha"
+            element={wrap(<HaproxyHaPage doc={stateDoc.doc} onSave={stateDoc.save} />)}
+          />
           <Route path="stats" element={wrap(<StatsPage theme={themeApi.effective} />)} />
           <Route path="topology" element={wrap(<TopologyPage doc={stateDoc.doc} />)} />
           <Route path="runtime" element={wrap(<RuntimePage />)} />
@@ -184,7 +190,9 @@ const ProtectedApp = () => (
   <ProtectedRoute>
     <PendingChangesProvider>
       <HaproxyLiveProvider>
-        <AppContent />
+        <KeepalivedLiveProvider>
+          <AppContent />
+        </KeepalivedLiveProvider>
       </HaproxyLiveProvider>
     </PendingChangesProvider>
   </ProtectedRoute>

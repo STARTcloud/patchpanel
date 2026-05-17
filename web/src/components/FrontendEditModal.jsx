@@ -7,6 +7,8 @@ import { Alert, Badge, Button, Col, Form, Modal, Row, Tab, Table, Tabs } from 'r
 
 import { genKey } from '../utils/keys.js';
 
+import { BindAddressPicker } from './BindAddressPicker.jsx';
+
 const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
 const SECTION_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_-]*$/u;
 
@@ -878,13 +880,21 @@ BindQuicSection.propTypes = {
 // Bind row (per-bind base + tuning + SSL + QUIC).
 // =====================================================================
 
-const BindBaseFields = ({ bind, onChange }) => (
+const BindBaseFields = ({ bind, onChange, floatingIps, savedAddresses }) => (
   <Row className="g-2">
-    <Field label="Address" md={6} helpText="*:443, [::]:443, 127.0.0.1:5432, quic4@*:443, etc.">
-      <Form.Control
-        type="text"
+    <Field
+      label="Address"
+      md={6}
+      helpText="*:443, [::]:443, 127.0.0.1:5432, quic4@*:443, /var/run/haproxy.sock, etc."
+    >
+      <BindAddressPicker
         value={bind.address ?? ''}
-        onChange={e => onChange({ ...bind, address: e.target.value })}
+        floatingIpInstanceId={bind.floatingIpInstanceId ?? null}
+        floatingIps={floatingIps}
+        savedAddresses={savedAddresses}
+        onChange={({ address, floatingIpInstanceId }) =>
+          onChange({ ...bind, address, floatingIpInstanceId })
+        }
       />
     </Field>
     <Field label="bind name (shows in stats)" md={3}>
@@ -939,6 +949,8 @@ const BindBaseFields = ({ bind, onChange }) => (
 BindBaseFields.propTypes = {
   bind: PropTypes.object.isRequired,
   onChange: PropTypes.func.isRequired,
+  floatingIps: PropTypes.array.isRequired,
+  savedAddresses: PropTypes.array.isRequired,
 };
 
 const BindTuningFields = ({ bind, onChange }) => (
@@ -1059,7 +1071,17 @@ BindTuningFields.propTypes = {
   onChange: PropTypes.func.isRequired,
 };
 
-const BindRow = ({ bind, idx, onChange, onRemove, canRemove, trustedCas, trustedCrls }) => (
+const BindRow = ({
+  bind,
+  idx,
+  onChange,
+  onRemove,
+  canRemove,
+  trustedCas,
+  trustedCrls,
+  floatingIps,
+  savedAddresses,
+}) => (
   <div className="border rounded p-3 mb-2">
     <div className="d-flex justify-content-between align-items-center mb-2">
       <Badge bg="secondary">Bind #{idx + 1}</Badge>
@@ -1073,7 +1095,12 @@ const BindRow = ({ bind, idx, onChange, onRemove, canRemove, trustedCas, trusted
         Remove bind
       </Button>
     </div>
-    <BindBaseFields bind={bind} onChange={onChange} />
+    <BindBaseFields
+      bind={bind}
+      onChange={onChange}
+      floatingIps={floatingIps}
+      savedAddresses={savedAddresses}
+    />
     <BindTuningFields bind={bind} onChange={onChange} />
     <BindSslSection
       bind={bind}
@@ -1093,9 +1120,11 @@ BindRow.propTypes = {
   canRemove: PropTypes.bool.isRequired,
   trustedCas: PropTypes.array.isRequired,
   trustedCrls: PropTypes.array.isRequired,
+  floatingIps: PropTypes.array.isRequired,
+  savedAddresses: PropTypes.array.isRequired,
 };
 
-const BindsTab = ({ draft, update, trustedCas, trustedCrls }) => {
+const BindsTab = ({ draft, update, trustedCas, trustedCrls, floatingIps, savedAddresses }) => {
   const binds = draft.binds ?? [];
   const updateBind = (idx, next) => update({ binds: binds.map((b, i) => (i === idx ? next : b)) });
   const removeBind = idx => {
@@ -1110,6 +1139,7 @@ const BindsTab = ({ draft, update, trustedCas, trustedCrls }) => {
         {
           id: `b${genKey()}`,
           address: '',
+          floatingIpInstanceId: null,
           ssl: { enabled: false },
           quic: {},
         },
@@ -1127,6 +1157,8 @@ const BindsTab = ({ draft, update, trustedCas, trustedCrls }) => {
           canRemove={binds.length > 1}
           trustedCas={trustedCas}
           trustedCrls={trustedCrls}
+          floatingIps={floatingIps}
+          savedAddresses={savedAddresses}
         />
       ))}
       <Button variant="outline-primary" size="sm" onClick={addBind}>
@@ -1142,6 +1174,8 @@ BindsTab.propTypes = {
   update: PropTypes.func.isRequired,
   trustedCas: PropTypes.array.isRequired,
   trustedCrls: PropTypes.array.isRequired,
+  floatingIps: PropTypes.array.isRequired,
+  savedAddresses: PropTypes.array.isRequired,
 };
 
 // =====================================================================
@@ -2353,6 +2387,8 @@ export const FrontendEditModal = ({ show, frontend = null, doc, onSave, onCancel
               update={update}
               trustedCas={doc.trustedCas ?? []}
               trustedCrls={doc.trustedCrls ?? []}
+              floatingIps={doc.keepalived?.instances ?? []}
+              savedAddresses={doc.ui?.savedBindAddresses ?? []}
             />
           </Tab>
           <Tab eventKey="options" title="Options">

@@ -1,5 +1,13 @@
+import { readFileSync } from 'node:fs';
+
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+
+// Read package.json synchronously at config-load time. Vite's config file
+// runs in Node ESM; the `import … with { type: 'json' }` attribute form is
+// stage-4 but not universally recognised by the project's eslint parser, so
+// we read the file directly instead.
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
 const splitChunks = id => {
   // Keep highcharts + @highcharts/* + our setup wrapper together in one chunk
@@ -42,7 +50,10 @@ export default defineConfig(({ mode }) => {
   return {
     base: './',
     plugins: [react()],
-    define: isDevBuild ? { 'process.env.NODE_ENV': JSON.stringify('development') } : {},
+    define: {
+      __APP_VERSION__: JSON.stringify(pkg.version),
+      ...(isDevBuild ? { 'process.env.NODE_ENV': JSON.stringify('development') } : {}),
+    },
     build: {
       outDir: 'dist',
       sourcemap: true,

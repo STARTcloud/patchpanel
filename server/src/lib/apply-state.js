@@ -5,12 +5,16 @@ import * as audit from './audit.js';
 import { buildCertsList } from './cert-lineage.js';
 import { ReloadError } from './errors.js';
 import { parseValidationOutput } from './haproxy-error-parser.js';
-import { ensureDir, writeAtomic } from './files.js';
+import { ensureDir, fileExists, writeAtomic } from './files.js';
 import { assertValidRenderedCfg } from './haproxy-validate.js';
 import * as haproxyMaster from './haproxy-master.js';
+import * as keepalivedControl from './keepalived-control.js';
 import { withLock } from './lock.js';
 import * as logger from './logger.js';
+import { loadNodeConfig } from './node-config.js';
+import { pushStateToAllPeers } from './peer-sync.js';
 import { renderHaproxyConfig } from './render.js';
+import { renderKeepalivedConfig } from './render-keepalived.js';
 import { writeSnapshot } from './snapshots.js';
 import { saveState } from './state.js';
 import { StateSchema } from './state-schema.js';
@@ -191,24 +195,69 @@ export const applyState = (config, candidate, options = {}) =>
       throw err;
     }
 
+    // Render keepalived.conf (if keepalived is enabled in state) and validate
+    // BEFORE we touch any on-disk file. If either render fails validation,
+    // the whole apply aborts with no side effects.
+    let renderedKeepalived = null;
+    let keepalivedBackupPath = null;
+    if (candidateParsed.keepalived?.enabled) {
+      try {
+        const nodeConfig = await loadNodeConfig(config.paths.nodeConfig);
+        renderedKeepalived = renderKeepalivedConfig(candidateParsed, nodeConfig);
+      } catch (err) {
+        throw new Error(`keepalived render failed: ${err.message}`);
+      }
+      // Validate via a temp file — keepalived -t needs an actual path.
+      const tmpKeepalived = `${config.paths.keepalivedConfig}.candidate`;
+      try {
+        await ensureDir(
+          config.paths.keepalivedConfig.slice(0, config.paths.keepalivedConfig.lastIndexOf('/'))
+        );
+        await writeAtomic(tmpKeepalived, renderedKeepalived, { mode: 0o644 });
+        const validation = await keepalivedControl.validateConfigFile(
+          config.paths.keepalivedBin,
+          tmpKeepalived
+        );
+        if (!validation.ok) {
+          throw new Error(`keepalived -t rejected the rendered config: ${validation.output}`);
+        }
+      } finally {
+        await fs.rm(tmpKeepalived, { force: true }).catch(() => undefined);
+      }
+    }
+
     const backupPath = await backupCfg(config.paths.haproxyConfig);
+    if (renderedKeepalived !== null && (await fileExists(config.paths.keepalivedConfig))) {
+      keepalivedBackupPath = `${config.paths.keepalivedConfig}.bak`;
+      await fs.copyFile(config.paths.keepalivedConfig, keepalivedBackupPath).catch(() => undefined);
+    }
 
     await writeAtomic(config.paths.haproxyConfig, rendered, { mode: 0o644 });
     logger.info('haproxy.cfg written', {
       path: config.paths.haproxyConfig,
       loadableCertCount,
     });
+    if (renderedKeepalived !== null) {
+      await writeAtomic(config.paths.keepalivedConfig, renderedKeepalived, { mode: 0o644 });
+      logger.info('keepalived.conf written', { path: config.paths.keepalivedConfig });
+    }
 
     try {
       await haproxyMaster.reload(config.paths.haproxyMasterSocket);
     } catch (err) {
       await restoreCfgFromBackup(config.paths.haproxyConfig, backupPath);
+      if (keepalivedBackupPath) {
+        await fs
+          .copyFile(keepalivedBackupPath, config.paths.keepalivedConfig)
+          .catch(() => undefined);
+      }
       await haproxyMaster.reload(config.paths.haproxyMasterSocket).catch(rollbackErr => {
         logger.error('reload after rollback also failed; HAProxy may be in inconsistent state', {
           error: rollbackErr.message,
         });
       });
       await cleanupBackup(backupPath);
+      await cleanupBackup(keepalivedBackupPath);
       audit.record({
         actor: editor,
         category: 'state',
@@ -219,7 +268,25 @@ export const applyState = (config, candidate, options = {}) =>
       throw new ReloadError(`reload failed after applying state: ${err.message}`, { cause: err });
     }
 
+    if (renderedKeepalived !== null) {
+      try {
+        await keepalivedControl.reload({ pidPath: config.paths.keepalivedPidFile });
+      } catch (err) {
+        logger.warning('keepalived reload failed (non-fatal — config is on disk)', {
+          error: err.message,
+        });
+        audit.record({
+          actor: editor,
+          category: 'keepalived',
+          action: 'reload',
+          outcome: 'error',
+          details: { trigger: 'auto-after-apply', error: err.message },
+        });
+      }
+    }
+
     await cleanupBackup(backupPath);
+    await cleanupBackup(keepalivedBackupPath);
 
     // Persist the original candidate (with errorPageContents intact, original
     // errorFiles map) — the overridden errorFiles map is a render-time detail.
@@ -240,6 +307,15 @@ export const applyState = (config, candidate, options = {}) =>
       outcome: 'ok',
       details: { loadableCertCount, reason: options.reason ?? null },
     });
+
+    // Fire-and-forget peer sync. We only push when the editor is NOT a peer
+    // (avoid sync loops on inbound peer-pushed applies). Errors are logged
+    // + audited inside pushStateToAllPeers; this never throws.
+    if (typeof editor !== 'string' || !editor.startsWith('peer:')) {
+      pushStateToAllPeers(config, next, {}).catch(err =>
+        logger.warning('peer sync push failed (non-fatal)', { error: err.message })
+      );
+    }
 
     return next;
   });
