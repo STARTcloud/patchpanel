@@ -1,23 +1,4 @@
-# PatchPanel production configuration template.
-#
-# This file is shipped inside the .deb at
-#   /opt/patchpanel/config-templates/production-config.yaml
-# The postinst (fresh install) or the in-app configMigrator (upgrade)
-# materialise it as /etc/patchpanel/config.yaml. On upgrade the user's
-# values are preserved while new template keys are merged in.
-#
-# Every leaf is metadata-wrapped:
-#   { type, value, description, section, subsection, order, ...optional }
-# This drives the auto-generated Settings UI. Sentinel values like
-# __JWT_SECRET_FROM_FILE__ are substituted by the configMigrator on
-# first run with the contents of /etc/patchpanel/.jwt-secret.
-#
-# Key names are camelCase to match the existing patchpanel code path
-# (which deep-merges this onto the runtime defaults). Section ordering
-# is presentation-only — driven by the `order` field, not file order.
-
-version: 0.3.1
-
+version: 0.3.2
 _sections:
   Server:
     description: HTTP server bind, TLS termination, deployment mode
@@ -59,12 +40,12 @@ _sections:
     description: Authentication strategy
     icon: fas fa-key
     order: 10
-
-# ─────────────────────────── mode (top-level) ───────────────────────────
 mode:
   type: select
   value: standalone
-  options: [homeassistant, standalone]
+  options:
+    - homeassistant
+    - standalone
   description: |
     Deployment surface. homeassistant: trust supervisor proxy, read
     X-Ingress-Path and X-Remote-User-* headers, no local auth.
@@ -73,8 +54,6 @@ mode:
   subsection: Mode
   order: 1
   required: true
-
-# ─────────────────────────── server ───────────────────────────
 server:
   host:
     type: host
@@ -98,8 +77,10 @@ server:
   trustProxy:
     type: array
     value: []
-    description: |
-      Trusted upstream proxies (CIDR list, or "loopback"/"linklocal"/"uniquelocal").
+    description: >
+      Trusted upstream proxies (CIDR list, or
+      "loopback"/"linklocal"/"uniquelocal").
+
       Required for X-Forwarded-* and HA ingress headers to be respected.
     section: Server
     subsection: Bind
@@ -117,7 +98,9 @@ server:
   ingressPathHeader:
     type: string
     value: X-Ingress-Path
-    description: Header carrying the HA ingress URL prefix. Only used when mode = homeassistant.
+    description: >-
+      Header carrying the HA ingress URL prefix. Only used when mode =
+      homeassistant.
     section: Server
     subsection: Home Assistant
     order: 1
@@ -134,8 +117,6 @@ server:
     conditional:
       field: mode
       value: homeassistant
-
-# ─────────────────────────── ssl ───────────────────────────
 ssl:
   enabled:
     type: boolean
@@ -152,7 +133,8 @@ ssl:
     subsection: TLS
     order: 2
     depends_on: enabled
-    show_when: [true]
+    show_when:
+      - true
   certPath:
     type: string
     value: /etc/patchpanel/ssl/cert.pem
@@ -161,7 +143,8 @@ ssl:
     subsection: TLS
     order: 3
     depends_on: enabled
-    show_when: [true]
+    show_when:
+      - true
   keyPath:
     type: string
     value: /etc/patchpanel/ssl/key.pem
@@ -170,36 +153,45 @@ ssl:
     subsection: TLS
     order: 4
     depends_on: enabled
-    show_when: [true]
+    show_when:
+      - true
   minVersion:
     type: select
     value: TLSv1.2
-    options: [TLSv1.2, TLSv1.3]
+    options:
+      - TLSv1.2
+      - TLSv1.3
     description: Minimum TLS protocol version.
     section: Server
     subsection: TLS
     order: 5
     depends_on: enabled
-    show_when: [true]
+    show_when:
+      - true
   maxVersion:
     type: select
     value: TLSv1.3
-    options: [TLSv1.2, TLSv1.3]
+    options:
+      - TLSv1.2
+      - TLSv1.3
     description: Maximum TLS protocol version.
     section: Server
     subsection: TLS
     order: 6
     depends_on: enabled
-    show_when: [true]
+    show_when:
+      - true
   ciphers:
     type: textarea
-    value: ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305
+    value: >-
+      ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305
     description: OpenSSL cipher list (ECDHE only by default).
     section: Server
     subsection: TLS
     order: 7
     depends_on: enabled
-    show_when: [true]
+    show_when:
+      - true
   honorCipherOrder:
     type: boolean
     value: true
@@ -208,9 +200,8 @@ ssl:
     subsection: TLS
     order: 8
     depends_on: enabled
-    show_when: [true]
-
-# ─────────────────────────── paths ───────────────────────────
+    show_when:
+      - true
 paths:
   state:
     type: string
@@ -375,14 +366,15 @@ paths:
     section: Paths
     subsection: Internal
     order: 2
-
-# ─────────────────────────── haproxy ───────────────────────────
 haproxy:
   reload:
     method:
       type: select
       value: master-socket
-      options: [master-socket, systemctl, child-process]
+      options:
+        - master-socket
+        - systemctl
+        - child-process
       description: How patchpanel reloads HAProxy after a config swap.
       section: HAProxy
       subsection: Reload
@@ -408,12 +400,10 @@ haproxy:
       section: HAProxy
       subsection: Reload
       order: 4
-
-# ─────────────────────────── renewal ───────────────────────────
 renewal:
   schedule:
     type: string
-    value: '5 8 * * 1,4'
+    value: 5 8 * * 1,4
     description: Cron expression for the renewal scheduler (Mon/Thu 08:05 default).
     section: Certificates
     subsection: Renewal
@@ -428,22 +418,24 @@ renewal:
     validation:
       min: 0
       max: 3600
-
-# ─────────────────────────── auth ───────────────────────────
 auth:
   strategy:
     type: select
     value: none
-    options: [none, ha-ingress, basic, oidc]
-    description: |
+    options:
+      - none
+      - ha-ingress
+      - basic
+      - oidc
+    description: >
       Authentication strategy. none = no auth (dev only); ha-ingress = trust HA
-      supervisor headers; basic = HTTP basic; oidc = OIDC discovery (not wired yet).
+
+      supervisor headers; basic = HTTP basic; oidc = OIDC discovery (not wired
+      yet).
     section: Authentication
     subsection: Strategy
     order: 1
     required: true
-
-# ─────────────────────────── security ───────────────────────────
 security:
   jwtSecret:
     type: password
@@ -479,7 +471,10 @@ security:
   sessionSameSite:
     type: select
     value: lax
-    options: [lax, strict, none]
+    options:
+      - lax
+      - strict
+      - none
     description: SameSite policy for the session cookie.
     section: Security
     subsection: Session / JWT
@@ -525,7 +520,8 @@ security:
     subsection: Helmet
     order: 2
     depends_on: helmetEnabled
-    show_when: [true]
+    show_when:
+      - true
   hstsMaxAge:
     type: integer
     value: 31536000
@@ -534,7 +530,8 @@ security:
     subsection: Helmet
     order: 3
     depends_on: hstsEnabled
-    show_when: [true]
+    show_when:
+      - true
   hstsIncludeSubdomains:
     type: boolean
     value: true
@@ -543,23 +540,27 @@ security:
     subsection: Helmet
     order: 4
     depends_on: hstsEnabled
-    show_when: [true]
+    show_when:
+      - true
   hstsPreload:
     type: boolean
     value: false
-    description: Include the preload directive (only enable after submission to hstspreload.org).
+    description: >-
+      Include the preload directive (only enable after submission to
+      hstspreload.org).
     section: Security
     subsection: Helmet
     order: 5
     depends_on: hstsEnabled
-    show_when: [true]
-
-# ─────────────────────────── cors ───────────────────────────
+    show_when:
+      - true
 cors:
   enabled:
     type: boolean
     value: true
-    description: Enable CORS middleware. Required for browser API clients on a different origin.
+    description: >-
+      Enable CORS middleware. Required for browser API clients on a different
+      origin.
     section: CORS
     subsection: Policy
     order: 1
@@ -573,7 +574,8 @@ cors:
     subsection: Policy
     order: 2
     depends_on: enabled
-    show_when: [true]
+    show_when:
+      - true
   credentials:
     type: boolean
     value: true
@@ -582,9 +584,8 @@ cors:
     subsection: Policy
     order: 3
     depends_on: enabled
-    show_when: [true]
-
-# ─────────────────────────── rateLimit ───────────────────────────
+    show_when:
+      - true
 rateLimit:
   authWindowMs:
     type: integer
@@ -634,13 +635,16 @@ rateLimit:
     section: Rate Limiting
     subsection: Read
     order: 2
-
-# ─────────────────────────── logging ───────────────────────────
 logging:
   level:
     type: select
     value: info
-    options: [error, warn, info, debug, trace]
+    options:
+      - error
+      - warn
+      - info
+      - debug
+      - trace
     description: Minimum log level.
     section: Logging
     subsection: General
@@ -648,7 +652,9 @@ logging:
   format:
     type: select
     value: pretty
-    options: [pretty, json]
+    options:
+      - pretty
+      - json
     description: Log line format. Use json for log aggregators.
     section: Logging
     subsection: General
@@ -670,8 +676,6 @@ logging:
     validation:
       min: 30
       max: 3650
-
-# ─────────────────────────── geoip ───────────────────────────
 geoip:
   enabled:
     type: boolean
@@ -688,23 +692,29 @@ geoip:
     subsection: Database
     order: 2
     depends_on: enabled
-    show_when: [true]
+    show_when:
+      - true
   fallbackProvider:
     type: select
     value: none
-    options: [none, ip-api, ipinfo]
+    options:
+      - none
+      - ip-api
+      - ipinfo
     description: HTTP fallback when MMDB lookup misses.
     section: GeoIP
     subsection: Database
     order: 3
     depends_on: enabled
-    show_when: [true]
+    show_when:
+      - true
   updateSchedule:
     type: string
-    value: '0 4 * * 0'
+    value: 0 4 * * 0
     description: Cron expression for MMDB auto-update (default weekly Sun 04:00).
     section: GeoIP
     subsection: Database
     order: 4
     depends_on: enabled
-    show_when: [true]
+    show_when:
+      - true
