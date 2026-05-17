@@ -51,7 +51,7 @@
     "cinstall:frontend": "npm ci --workspace=web",
     "security:audit": "better-npm-audit audit",
     "security:vulnerabilities": "better-npm-audit audit",
-    "security:licenses": "license-checker-rseidelsohn --onlyAllow 'MIT;Apache-2.0;BSD;BSD-2-Clause;BSD-3-Clause;ISC;GPL-3.0;LGPL-2.1;LGPL-3.0;MPL-2.0;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Unlicense;Python-2.0;Unicode-DFS-2016;Apache 2.0;BlueOak-1.0.0' --excludePackages '@highcharts/map-collection;highcharts' --excludePrivatePackages",
+    "security:licenses": "license-checker-rseidelsohn --onlyAllow 'MIT;Apache-2.0;BSD;BSD-2-Clause;BSD-3-Clause;ISC;GPL-3.0;LGPL-2.1;LGPL-3.0;MPL-2.0;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Unlicense;Python-2.0;Unicode-DFS-2016;Apache 2.0;BlueOak-1.0.0' --excludePackages '@highcharts/map-collection;@highcharts/react;highcharts' --excludePrivatePackages",
     "security:licenses-report": "license-checker-rseidelsohn --out licenses.json --json",
     "security:supply-chain": "audit-ci --config ./audit-ci.jsonc",
     "security:signatures": "npm audit signatures",
