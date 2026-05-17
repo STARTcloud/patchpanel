@@ -6,7 +6,9 @@ export const useSSE = (path, { events = {}, enabled = true } = {}) => {
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState(null);
   const handlersRef = useRef(events);
-  handlersRef.current = events;
+  useEffect(() => {
+    handlersRef.current = events;
+  });
 
   useEffect(() => {
     if (!enabled || !path) {

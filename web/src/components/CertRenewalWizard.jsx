@@ -291,10 +291,47 @@ export const CertRenewalWizard = ({ show, doc, onCancel, onComplete = null }) =>
   }, [doc, draft.certId]);
 
   useEffect(() => {
-    if (step === 1 && draft.certId) {
-      runProviderTest().catch(() => undefined);
+    if (step !== 1 || !draft.certId) {
+      return undefined;
     }
-  }, [step, draft.certId, runProviderTest]);
+    const cert = doc.tls.certs.find(c => c.id === draft.certId);
+    if (!cert) {
+      return undefined;
+    }
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) {
+        return;
+      }
+      setTesting(true);
+      setTestResult(null);
+      apiPost(`api/tls-providers/${cert.providerId}/test`)
+        .then(data => {
+          if (cancelled) {
+            return;
+          }
+          setTestResult({ ok: true, details: data });
+        })
+        .catch(err => {
+          if (cancelled) {
+            return;
+          }
+          setTestResult({
+            ok: false,
+            message: err.message ?? 'provider test failed',
+            details: err.payload ?? null,
+          });
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setTesting(false);
+          }
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, draft.certId, doc]);
 
   const runRenewal = async () => {
     setRunning(true);

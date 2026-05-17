@@ -74,41 +74,44 @@ export const LogsPage = () => {
   }, []);
 
   useEffect(() => {
-    if (live) {
-      load();
-      return undefined;
-    }
-    let active = true;
-    let intervalHandle = null;
-    const run = async () => {
-      try {
-        const fetched = await fetchLogs();
-        if (active) {
+    let cancelled = false;
+    const run = () => {
+      fetchLogs()
+        .then(fetched => {
+          if (cancelled) {
+            return;
+          }
           setText(fetched);
           setError(null);
-        }
-      } catch (err) {
-        if (active) {
-          setError(err);
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+        })
+        .catch(err => {
+          if (!cancelled) {
+            setError(err);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setLoading(false);
+          }
+        });
     };
-    setLoading(true);
-    run();
-    if (refreshMs > 0) {
-      intervalHandle = setInterval(run, refreshMs);
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        setLoading(true);
+        run();
+      }
+    });
+    if (live || refreshMs <= 0) {
+      return () => {
+        cancelled = true;
+      };
     }
+    const intervalHandle = setInterval(run, refreshMs);
     return () => {
-      active = false;
-      if (intervalHandle) {
-        clearInterval(intervalHandle);
-      }
+      cancelled = true;
+      clearInterval(intervalHandle);
     };
-  }, [refreshMs, live, load]);
+  }, [refreshMs, live]);
 
   const handleLines = useCallback(payload => {
     if (!payload?.lines?.length) {

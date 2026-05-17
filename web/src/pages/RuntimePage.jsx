@@ -38,7 +38,15 @@ const TablesSubtab = () => {
   }, []);
 
   useEffect(() => {
-    loadTables();
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        loadTables();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [loadTables]);
 
   const loadEntries = async name => {
@@ -237,7 +245,15 @@ const AclMapSubtabImpl = ({ kind }) => {
   }, [kind]);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        load();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   const loadEntries = async ref => {
@@ -472,7 +488,15 @@ const SessionsSubtab = () => {
   }, []);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        load();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   const shutdown = async id => {
@@ -573,7 +597,15 @@ const RawCommandSubtabImpl = ({ path, label, refreshLabel = 'Refresh' }) => {
   }, [path]);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        load();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   return (

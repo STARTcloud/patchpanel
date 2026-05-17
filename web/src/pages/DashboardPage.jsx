@@ -485,6 +485,7 @@ const RecentActivity = () => {
 
 const CertStatusCard = () => {
   const [data, setData] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     let active = true;
     const fetchOnce = () =>
@@ -501,6 +502,10 @@ const CertStatusCard = () => {
       active = false;
       clearInterval(interval);
     };
+  }, []);
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(tick);
   }, []);
   if (!data || !data.certs) {
     return null;
@@ -520,9 +525,7 @@ const CertStatusCard = () => {
               {data.certs.map(cert => {
                 const { newest } = cert;
                 const days = newest?.notAfter
-                  ? Math.round(
-                      (new Date(newest.notAfter).getTime() - Date.now()) / (24 * 60 * 60 * 1000)
-                    )
+                  ? Math.round((new Date(newest.notAfter).getTime() - now) / (24 * 60 * 60 * 1000))
                   : null;
                 let variant = 'secondary';
                 let label = 'missing';
@@ -1419,19 +1422,19 @@ export const DashboardPage = ({ doc = null, theme = 'light' }) => {
   const liveCerts = useCertSummary();
   const [expandedPanel, setExpandedPanel] = useState(null);
 
-  const [knownFrontendNames, setKnownFrontendNames] = useState([]);
-  useEffect(() => {
-    const names = Object.keys(stats.history ?? {})
-      .filter(key => key.endsWith('/FRONTEND'))
-      .map(key => key.replace('/FRONTEND', ''))
-      .sort();
-    setKnownFrontendNames(prev => {
-      if (prev.length === names.length && prev.every((n, i) => n === names[i])) {
-        return prev;
-      }
-      return names;
-    });
-  }, [stats.history]);
+  const frontendNamesKey = useMemo(
+    () =>
+      Object.keys(stats.history ?? {})
+        .filter(key => key.endsWith('/FRONTEND'))
+        .map(key => key.replace('/FRONTEND', ''))
+        .sort()
+        .join('|'),
+    [stats.history]
+  );
+  const knownFrontendNames = useMemo(
+    () => (frontendNamesKey ? frontendNamesKey.split('|') : []),
+    [frontendNamesKey]
+  );
 
   const allPanelDefs = useMemo(
     () => [...PANEL_DEFS, ...knownFrontendNames.map(buildTrafficPanelDef)],

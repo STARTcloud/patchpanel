@@ -139,7 +139,15 @@ export const useDashboardLayout = (knownIds = DEFAULT_DASHBOARD_ORDER) => {
   });
 
   useEffect(() => {
-    setOrder(prev => mergeOrderWithKnown(prev, knownIds));
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        setOrder(prev => mergeOrderWithKnown(prev, knownIds));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [knownIds]);
 
   const moveTo = useCallback(

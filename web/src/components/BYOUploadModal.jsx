@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
 
 import { apiPost } from '../api/client.js';
@@ -217,15 +217,6 @@ export const BYOUploadModal = ({ show, doc, onUploaded, onCancel, suggestedName 
   const [networkError, setNetworkError] = useState(null);
   const [nameAutoFilled, setNameAutoFilled] = useState(false);
 
-  // When validation succeeds and the user hasn't touched the name field
-  // yet, fill it from the cert's first SAN. After that the user can edit.
-  useEffect(() => {
-    if (validation?.ok && !nameAutoFilled && !name) {
-      setName(deriveDefaultName(validation.info));
-      setNameAutoFilled(true);
-    }
-  }, [validation, nameAutoFilled, name]);
-
   const nameValid = NAME_REGEX.test(name);
   const pemsPresent = fullchainPem.trim().length > 0 && privkeyPem.trim().length > 0;
   const canValidate = pemsPresent;
@@ -237,6 +228,10 @@ export const BYOUploadModal = ({ show, doc, onUploaded, onCancel, suggestedName 
     try {
       const result = await apiPost('api/byo-certs/validate', { fullchainPem, privkeyPem });
       setValidation(result);
+      if (result?.ok && !nameAutoFilled && !name) {
+        setName(deriveDefaultName(result.info));
+        setNameAutoFilled(true);
+      }
     } catch (err) {
       setNetworkError(err.message ?? 'validation request failed');
     }

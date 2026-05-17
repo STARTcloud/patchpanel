@@ -28,15 +28,39 @@ export const useStateDoc = ({ pollMs = DEFAULT_POLL_MS } = {}) => {
   }, [fetchOnce, setLoading]);
 
   useEffect(() => {
-    fetchOnce().catch(() => undefined);
+    let cancelled = false;
+    const run = () => {
+      apiGet('api/state')
+        .then(fresh => {
+          if (cancelled) {
+            return;
+          }
+          setDoc(fresh);
+          setError(null);
+        })
+        .catch(err => {
+          if (!cancelled) {
+            setError(err);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setLoading(false);
+          }
+        });
+    };
+    run();
     if (pollMs <= 0) {
-      return undefined;
+      return () => {
+        cancelled = true;
+      };
     }
-    const interval = setInterval(() => {
-      fetchOnce().catch(() => undefined);
-    }, pollMs);
-    return () => clearInterval(interval);
-  }, [fetchOnce, pollMs]);
+    const interval = setInterval(run, pollMs);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [pollMs, setDoc, setError, setLoading]);
 
   const save = useCallback(
     async next => {

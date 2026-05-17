@@ -885,7 +885,9 @@ const AnimatedFlowEdge = ({
     targetPosition,
   });
   const liveRef = useRef(extractLivePacketValues(data));
-  liveRef.current = extractLivePacketValues(data);
+  useEffect(() => {
+    liveRef.current = extractLivePacketValues(data);
+  });
   const [packets, setPackets] = useState([]);
   const nextIdRef = useRef(0);
   const registry = useMemo(

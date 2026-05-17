@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
 
 import { apiPost } from '../api/client.js';
@@ -166,13 +166,6 @@ export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
     [doc?.trustedCrls]
   );
 
-  useEffect(() => {
-    if (validation?.ok && !autoFilled && !id && name) {
-      setId(uniqueId(deriveIdFromName(name), takenIds));
-      setAutoFilled(true);
-    }
-  }, [validation, autoFilled, id, name, takenIds]);
-
   const idValid = ID_REGEX.test(id) && !takenIds.has(id);
   const nameValid = NAME_REGEX.test(name) && !takenNames.has(name);
   const canValidate = pem.trim().length > 0;
@@ -185,6 +178,10 @@ export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
     try {
       const result = await apiPost('api/trusted-crls/validate', { pem });
       setValidation(result);
+      if (result?.ok && !autoFilled && !id && name) {
+        setId(uniqueId(deriveIdFromName(name), takenIds));
+        setAutoFilled(true);
+      }
     } catch (err) {
       setNetworkError(err.message ?? 'validation request failed');
     }

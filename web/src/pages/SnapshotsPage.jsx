@@ -52,7 +52,15 @@ export const SnapshotsPage = () => {
   }, []);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        load();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   const handleRestore = async () => {

@@ -280,7 +280,15 @@ export const RenderedCfgPage = ({ onSave = null }) => {
   }, [source]);
 
   useEffect(() => {
-    load();
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        load();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   const handleCopy = async () => {

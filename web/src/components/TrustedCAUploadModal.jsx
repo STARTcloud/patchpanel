@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
 
 import { apiPost } from '../api/client.js';
@@ -198,15 +198,6 @@ export const TrustedCAUploadModal = ({ show, doc, onUploaded, onCancel }) => {
     [doc?.trustedCas]
   );
 
-  // Auto-derive id from name after validation when the user hasn't typed
-  // an id of their own. Same UX as BYOUploadModal.
-  useEffect(() => {
-    if (validation?.ok && !autoFilled && !id && name) {
-      setId(uniqueId(deriveIdFromName(name), takenIds));
-      setAutoFilled(true);
-    }
-  }, [validation, autoFilled, id, name, takenIds]);
-
   const idValid = ID_REGEX.test(id) && !takenIds.has(id);
   const nameValid = NAME_REGEX.test(name) && !takenNames.has(name);
   const canValidate = pem.trim().length > 0;
@@ -219,6 +210,10 @@ export const TrustedCAUploadModal = ({ show, doc, onUploaded, onCancel }) => {
     try {
       const result = await apiPost('api/trusted-cas/validate', { pem });
       setValidation(result);
+      if (result?.ok && !autoFilled && !id && name) {
+        setId(uniqueId(deriveIdFromName(name), takenIds));
+        setAutoFilled(true);
+      }
     } catch (err) {
       setNetworkError(err.message ?? 'validation request failed');
     }
