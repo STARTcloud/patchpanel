@@ -75,7 +75,8 @@
     "underscore": "1.13.8",
     "jsonpath": {
       "underscore": "1.13.8"
-    }
+    },
+    "file-type": "^21.3.4"
   },
   "engines": {
     "node": ">=22.0.0"
