@@ -57,18 +57,18 @@
     "security:all": "npm run security:vulnerabilities && npm run security:licenses && npm run security:supply-chain"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.2",
-    "@eslint/markdown": "^7.3.0",
+    "@eslint/js": "^9.39.4",
+    "@eslint/markdown": "^8.0.1",
     "audit-ci": "^7.1.0",
     "better-npm-audit": "^3.11.0",
-    "eslint": "^9.39.2",
+    "eslint": "^9.39.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
     "globals": "^17.4.0",
     "license-checker-rseidelsohn": "^4.4.2",
     "markdownlint-cli": "^0.48.0",
     "prettier": "^3.8.3",
-    "shellcheck": "^3.1.0",
+    "shellcheck": "^4.1.0",
     "yaml-lint": "^1.7.0"
   },
   "overrides": {
