@@ -1,6 +1,6 @@
 {
   "name": "patchpanel",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "private": true,
   "description": "PatchPanel - HAProxy management UI (Express backend + React frontend). Ships inside the Home Assistant HAProxy addon today; standalone Debian package built and published to packages.debian.startcloud.com.",
   "license": "GPL-3.0",
