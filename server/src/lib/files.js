@@ -3,22 +3,27 @@ import { promises as fs } from 'node:fs';
 import { dirname, resolve as resolvePath, sep } from 'node:path';
 
 // safePathUnder is the single, well-known path-containment check for any
-// user-derived filename under a known root. Resolves the candidate then
-// verifies it equals the root or sits strictly under `root + sep`. This is
-// the exact shape CodeQL's js/path-injection query recognizes as a barrier
-// (see https://codeql.github.com/codeql-query-help/javascript/js-path-injection/),
-// so callers can pass user input (after their own id-shape validation) into
-// the result without further flagging downstream. Throws on traversal.
+// user-derived filename under a known root. Mirrors the "GOOD" pattern from
+// CodeQL's js/path-injection query help (path.resolve + .startsWith(ROOT))
+// so the dataflow query recognises this as a barrier and stops flagging
+// downstream fs.* sinks.
+//
+// See https://codeql.github.com/codeql-query-help/javascript/js-path-injection/
 export const safePathUnder = (rootDir, name) => {
   if (typeof name !== 'string' || name.length === 0) {
     throw new Error('name must be a non-empty string');
   }
   const root = resolvePath(rootDir);
   const candidate = resolvePath(root, name);
-  if (candidate === root || candidate.startsWith(root + sep)) {
-    return candidate;
+  if (!candidate.startsWith(root)) {
+    throw new Error(`name resolves outside root: ${name}`);
   }
-  throw new Error(`name resolves outside root: ${name}`);
+  // Sibling-prefix guard: reject root=/foo, candidate=/foobar/baz. The check
+  // above accepts that pair because '/foobar'.startsWith('/foo') is true.
+  if (candidate.length > root.length && candidate[root.length] !== sep) {
+    throw new Error(`name resolves outside root: ${name}`);
+  }
+  return candidate;
 };
 
 export const ensureDir = async (dirPath, mode = 0o755) => {
