@@ -1,11 +1,11 @@
 import { promises as fs } from 'node:fs';
-import { join as joinPath, resolve as resolvePath, sep } from 'node:path';
+import { join as joinPath } from 'node:path';
 
 import { Router } from 'express';
 
 import * as audit from '../lib/audit.js';
 import { validateByoBundle, validateLineageName } from '../lib/byo-cert-validator.js';
-import { fileExists, writeAtomic } from '../lib/files.js';
+import { fileExists, safePathUnder, writeAtomic } from '../lib/files.js';
 import * as logger from '../lib/logger.js';
 import { findCertificatePemBlocks } from '../lib/pem.js';
 
@@ -27,12 +27,7 @@ const sanitizeCertPath = (byoCertsDir, name) => {
   if (validationError) {
     throw new Error(validationError);
   }
-  const resolved = resolvePath(joinPath(byoCertsDir, name));
-  const expectedPrefix = resolvePath(byoCertsDir);
-  if (!resolved.startsWith(`${expectedPrefix}${sep}`) && resolved !== expectedPrefix) {
-    throw new Error('name resolves outside byoCertsDir');
-  }
-  return resolved;
+  return safePathUnder(byoCertsDir, name);
 };
 
 const listCerts = async byoCertsDir => {

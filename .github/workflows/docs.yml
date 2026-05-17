@@ -41,11 +41,22 @@ jobs:
           # Generate version info JSON
           echo "{\"version\": \"${{ github.event.release.tag_name }}\", \"release_date\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\", \"release_url\": \"${{ github.event.release.html_url }}\"}" > docs/version.json
 
-          # Append real changelog content to the Jekyll template
-          echo "" >> docs/changelog.md
-          echo "---" >> docs/changelog.md
-          echo "" >> docs/changelog.md
-          tail -n +1 CHANGELOG.md >> docs/changelog.md
+      - name: Stage repo-root markdown into Jekyll _includes
+        run: |
+          # docs/*.md uses {% include FOO.md %} for each canonical repo-root
+          # markdown file. Jekyll resolves includes against docs/_includes,
+          # so copy them in before the build.
+          mkdir -p docs/_includes
+          cp \
+            ACKNOWLEDGMENTS.md \
+            AUTHORS.md \
+            CHANGELOG.md \
+            CODE_OF_CONDUCT.md \
+            CONTRIBUTING.md \
+            LICENSE.md \
+            SECURITY.md \
+            SUPPORT.md \
+            docs/_includes/
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1

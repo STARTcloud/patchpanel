@@ -1,8 +1,7 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { join as joinPath, resolve as resolvePath, sep } from 'node:path';
 
-import { ensureDir, fileExists, removeIfExists, writeAtomic } from './files.js';
+import { ensureDir, fileExists, removeIfExists, safePathUnder, writeAtomic } from './files.js';
 import { findCrlPemBlocks } from './pem.js';
 
 // Trusted X.509 CRLs (Certificate Revocation Lists). Referenced from a
@@ -86,12 +85,7 @@ const sanitizeTrustedCrlPath = (trustedCrlsDir, id) => {
   if (idError) {
     throw new Error(idError);
   }
-  const filePath = resolvePath(joinPath(trustedCrlsDir, `${id}.pem`));
-  const expectedPrefix = resolvePath(trustedCrlsDir);
-  if (!filePath.startsWith(`${expectedPrefix}${sep}`) && filePath !== expectedPrefix) {
-    throw new Error('id resolves outside trustedCrlsDir');
-  }
-  return filePath;
+  return safePathUnder(trustedCrlsDir, `${id}.pem`);
 };
 
 export const trustedCrlPath = (trustedCrlsDir, id) => sanitizeTrustedCrlPath(trustedCrlsDir, id);

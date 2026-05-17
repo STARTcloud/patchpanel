@@ -1,8 +1,7 @@
 import { createHash, X509Certificate } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { join as joinPath, resolve as resolvePath, sep } from 'node:path';
 
-import { ensureDir, fileExists, removeIfExists, writeAtomic } from './files.js';
+import { ensureDir, fileExists, removeIfExists, safePathUnder, writeAtomic } from './files.js';
 import { findCertificatePemBlocks } from './pem.js';
 
 // Trusted CA bundles uploaded by the user. A "trusted CA" entry is a PEM file
@@ -131,12 +130,7 @@ const sanitizeTrustedCaPath = (trustedCasDir, id) => {
   if (idError) {
     throw new Error(idError);
   }
-  const filePath = resolvePath(joinPath(trustedCasDir, `${id}.pem`));
-  const expectedPrefix = resolvePath(trustedCasDir);
-  if (!filePath.startsWith(`${expectedPrefix}${sep}`) && filePath !== expectedPrefix) {
-    throw new Error('id resolves outside trustedCasDir');
-  }
-  return filePath;
+  return safePathUnder(trustedCasDir, `${id}.pem`);
 };
 
 export const trustedCaPath = (trustedCasDir, id) => sanitizeTrustedCaPath(trustedCasDir, id);

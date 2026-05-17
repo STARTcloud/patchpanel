@@ -1,7 +1,6 @@
 import { promises as fs } from 'node:fs';
-import { join as joinPath, resolve as resolvePath, sep } from 'node:path';
 
-import { ensureDir, fileExists, removeIfExists, writeAtomic } from './files.js';
+import { ensureDir, fileExists, removeIfExists, safePathUnder, writeAtomic } from './files.js';
 
 // Disk side of the DNS-provider credential lifecycle. The TLSProviderSchema
 // in state-schema.js carries only `credentialsRef` (a path string); the
@@ -27,12 +26,7 @@ const sanitizeCredentialPath = (credentialsDir, id) => {
   if (idError) {
     throw new Error(idError);
   }
-  const filePath = resolvePath(joinPath(credentialsDir, `${id}.ini`));
-  const expectedPrefix = resolvePath(credentialsDir);
-  if (!filePath.startsWith(`${expectedPrefix}${sep}`) && filePath !== expectedPrefix) {
-    throw new Error('id resolves outside credentialsDir');
-  }
-  return filePath;
+  return safePathUnder(credentialsDir, `${id}.ini`);
 };
 
 export const credentialPath = (credentialsDir, id) => sanitizeCredentialPath(credentialsDir, id);
