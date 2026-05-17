@@ -16,7 +16,7 @@
 # (which deep-merges this onto the runtime defaults). Section ordering
 # is presentation-only — driven by the `order` field, not file order.
 
-version: 0.3.0
+version: 0.3.1
 
 _sections:
   Server:

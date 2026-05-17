@@ -59,7 +59,7 @@ const initialDraft = doc => {
     null;
   return {
     providerId: 'authelia',
-    backendServerAddress: 'assistant.m4kr.net:9091',
+    backendServerAddress: 'authelia.example.com:9091',
     portalHost: 'auth.example.com',
     portalFrontendId: httpsFrontend?.id ?? '',
     apiVerifyPath: '/api/authz/forward-auth',
