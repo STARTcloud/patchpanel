@@ -1,4 +1,4 @@
-version: 0.3.3
+version: 0.3.4
 _sections:
   Server:
     description: HTTP server bind, TLS termination, deployment mode
