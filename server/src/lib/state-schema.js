@@ -890,6 +890,16 @@ export const DefaultsBlockSchema = z.object({
   errorPageContents: z
     .record(z.string().regex(/^\d{3}$/u, 'status code must be 3 digits'), z.string().max(65_536))
     .default({}),
+  // Parallel to errorPageContents, but for `http-error … lf-file <path>`
+  // — content here is served via HAProxy's log-format evaluator, so tokens
+  // like %[unique-id], %[var(…)], %[hdr(…)] get expanded at serve time.
+  // Persisted to disk in `<haproxyErrorPagesDir>/<blockId>/lf/<code>.html`
+  // and an `http-error status <code> content-type "text/html; charset=utf-8"
+  // lf-file <path>` directive is injected into the block's httpErrors[]
+  // at render time.
+  lfFileContents: z
+    .record(z.string().regex(/^\d{3}$/u, 'status code must be 3 digits'), z.string().max(65_536))
+    .default({}),
   httpErrors: z.array(HttpErrorDirectiveSchema).default([]),
   useErrorFilesId: IdSchema.nullable().default(null),
   defaultServer: DefaultServerSchema.default({}),

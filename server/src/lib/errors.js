@@ -45,3 +45,17 @@ export class ReloadError extends Error {
     this.name = 'ReloadError';
   }
 }
+
+export class AuthError extends Error {
+  constructor(message, options) {
+    super(message, options);
+    this.name = 'AuthError';
+  }
+}
+
+export class ForbiddenError extends Error {
+  constructor(message, options) {
+    super(message, options);
+    this.name = 'ForbiddenError';
+  }
+}

@@ -1,11 +1,14 @@
+import cookieParser from 'cookie-parser';
 import express from 'express';
 
 import { openAudit } from './lib/audit.js';
 import { createStatsSampler } from './lib/stats-sampler.js';
 import { apiError } from './middleware/api-error.js';
-import { ingressAuth } from './middleware/ingress-auth.js';
+import { authMiddleware } from './middleware/auth.js';
 import { globalRateLimit } from './middleware/rate-limit.js';
+import { apiTokensRouter } from './routes/api-tokens.js';
 import { auditRouter } from './routes/audit.js';
+import { authRouter } from './routes/auth.js';
 import { byoCertsRouter } from './routes/byo-certs.js';
 import { certificatesRouter } from './routes/certificates.js';
 import { errorPagesRouter } from './routes/error-pages.js';
@@ -13,10 +16,12 @@ import { geoipRouter } from './routes/geoip.js';
 import { haproxyRouter } from './routes/haproxy.js';
 import { healthRouter } from './routes/health.js';
 import { logsRouter } from './routes/logs.js';
+import { luaPluginsRouter } from './routes/lua-plugins.js';
 import { notificationsRouter } from './routes/notifications.js';
 import { openapiRouter } from './routes/openapi.js';
 import { providersRouter } from './routes/providers.js';
 import { runtimeRouter } from './routes/runtime.js';
+import { setupRouter } from './routes/setup.js';
 import { snapshotsRouter } from './routes/snapshots.js';
 import { spaRouter } from './routes/spa.js';
 import { statsRouter } from './routes/stats.js';
@@ -37,9 +42,13 @@ export const createApp = async config => {
   app.use(globalRateLimit(config.server.rateLimit ?? {}));
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
-  app.use(ingressAuth(config));
+  app.use(cookieParser());
+  app.use(authMiddleware(config));
 
   app.use(healthRouter());
+  app.use('/api', authRouter(config));
+  app.use('/api', setupRouter(config));
+  app.use('/api', apiTokensRouter(config));
   app.use('/api', stateRouter(config));
   app.use('/api', certificatesRouter(config));
   app.use('/api', byoCertsRouter(config));
@@ -55,6 +64,7 @@ export const createApp = async config => {
   app.use('/api', runtimeRouter(config));
   app.use('/api', notificationsRouter(config));
   app.use('/api', providersRouter(config));
+  app.use('/api', luaPluginsRouter(config));
   app.use('/api', openapiRouter());
 
   app.use(spaRouter(config));

@@ -5,6 +5,8 @@ import { Alert, Button, Card, Form, Table } from 'react-bootstrap';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 import { genKey } from '../utils/keys.js';
 
+import { LuaPluginUploadModal } from './LuaPluginUploadModal.jsx';
+
 const newPlugin = () => ({ name: '', path: '', prependPath: '' });
 
 const cleanForSave = plugins =>
@@ -61,6 +63,7 @@ PluginRow.propTypes = {
 export const LuaPluginsCard = ({ doc, onSave }) => {
   const [draft, setDraft] = useState(null);
   const [status, setStatus] = useState(null);
+  const [showUpload, setShowUpload] = useState(false);
 
   const initial = useMemo(() => {
     const plugins = doc.globalSettings.luaPlugins ?? [];
@@ -89,6 +92,15 @@ export const LuaPluginsCard = ({ doc, onSave }) => {
     setDraft({
       keys: [...current.keys, genKey()],
       plugins: [...current.plugins, newPlugin()],
+    });
+  };
+
+  const handleUploaded = ({ name, path }) => {
+    setStatus({ kind: 'success', message: `Uploaded ${name}. Click Save to apply.` });
+    setShowUpload(false);
+    setDraft({
+      keys: [...current.keys, genKey()],
+      plugins: [...current.plugins, { name, path, prependPath: '' }],
     });
   };
 
@@ -143,10 +155,19 @@ export const LuaPluginsCard = ({ doc, onSave }) => {
               </tbody>
             </Table>
           )}
-          <div className="d-flex gap-2">
+          <div className="d-flex gap-2 flex-wrap">
             <Button variant="outline-primary" size="sm" type="button" onClick={addRow}>
               <i className="bi bi-plus-lg me-1" />
               Add Lua plugin
+            </Button>
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              type="button"
+              onClick={() => setShowUpload(true)}
+            >
+              <i className="bi bi-cloud-upload me-1" />
+              Upload .lua file
             </Button>
             <Button type="submit" variant="primary" size="sm" disabled={!draft}>
               Save Lua plugins
@@ -154,6 +175,11 @@ export const LuaPluginsCard = ({ doc, onSave }) => {
           </div>
         </Form>
       </Card.Body>
+      <LuaPluginUploadModal
+        show={showUpload}
+        onUploaded={handleUploaded}
+        onCancel={() => setShowUpload(false)}
+      />
     </Card>
   );
 };

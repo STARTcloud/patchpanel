@@ -224,7 +224,7 @@ const CRT_STORE_FIELDS = Object.freeze([
     type: 'list',
     itemLabel: 'entry',
     itemFields: CRT_STORE_ENTRY_FIELDS,
-    help: 'Optional in Phase 1. Wave L wires `crt @store/alias` references into frontend binds.',
+    help: 'Each entry registers a cert file with an alias that frontend `bind` lines can reference as `crt @store/alias`.',
   },
 ]);
 
@@ -345,7 +345,7 @@ const SECURITY_PROFILE_FIELDS = Object.freeze([
       { value: 'geo-block', label: 'Geo block', fields: GEO_BLOCK_CONFIG_FIELDS },
       { value: 'bot-defense', label: 'Bot defense', fields: BOT_DEFENSE_CONFIG_FIELDS },
     ],
-    help: 'Phase 2 (v0.2.33+) wires the renderer for routes that reference this profile.',
+    help: 'Selects which built-in policy this profile applies. Routes invoke the profile via the `apply-security-profile` action.',
   },
 ]);
 
@@ -442,7 +442,7 @@ export const PEERS_SECTION = Object.freeze({
   title: 'Peers',
   docPath: ['peers'],
   description:
-    'Stick-table synchronization across HAProxy instances (HA pair or cluster). Each peer group is rendered as `peers NAME { peer ... }` and can be referenced from backend stick-tables (Wave L).',
+    'Stick-table synchronization across HAProxy instances (HA pair or cluster). Each peer group is rendered as `peers NAME { peer ... }` and can be referenced from backend stick-tables.',
   emptyTemplate: PEER_TEMPLATE,
   fields: PEER_FIELDS,
   columns: [idColumn, nameColumn, summaryColumn(row => `${row.peers?.length ?? 0} peers`)],
@@ -455,7 +455,7 @@ export const MAILERS_SECTION = Object.freeze({
   title: 'Mailers',
   docPath: ['mailers'],
   description:
-    'SMTP relay groups for HAProxy `email-alert` notifications on server up/down. Phase 2 wires per-backend `email-alert` directives that reference these.',
+    'SMTP relay groups for HAProxy `email-alert` notifications on server up/down. Backends reference a mailer group via `email-alert mailers <id>` to fire on state transitions.',
   emptyTemplate: MAILER_TEMPLATE,
   fields: MAILER_FIELDS,
   columns: [idColumn, nameColumn, summaryColumn(row => `${row.mailers?.length ?? 0} mailers`)],
@@ -468,7 +468,7 @@ export const RINGS_SECTION = Object.freeze({
   title: 'Rings',
   docPath: ['rings'],
   description:
-    'Buffered async log shipping over TCP syslog (RFC 5424 / RFC 3164). Phase 2 lets the logs page point at a ring for shipping to Loki / Vector / Fluent-Bit collectors.',
+    'Buffered async log shipping over TCP syslog (RFC 5424 / RFC 3164). Frontends and backends point at a ring via `log ring@<name>` to forward to Loki / Vector / Fluent-Bit collectors.',
   emptyTemplate: RING_TEMPLATE,
   fields: RING_FIELDS,
   columns: [
@@ -490,7 +490,7 @@ export const CRT_STORES_SECTION = Object.freeze({
   title: 'Cert stores',
   docPath: ['crtStores'],
   description:
-    'HAProxy 3.3 `crt-store NAME { ... }` sections decouple cert file paths from frontend references via aliases. Wave L wires these into frontend `crt @store/alias` references and the native ACME flow.',
+    'HAProxy 3.3 `crt-store NAME { ... }` sections decouple cert file paths from frontend references via aliases. Frontend `bind` lines reference entries with `crt @store/alias`.',
   emptyTemplate: CRT_STORE_TEMPLATE,
   fields: CRT_STORE_FIELDS,
   columns: [

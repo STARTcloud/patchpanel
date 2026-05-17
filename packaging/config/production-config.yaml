@@ -247,6 +247,30 @@ paths:
     section: Paths
     subsection: Data
     order: 6
+  users:
+    type: string
+    value: /var/lib/patchpanel/users.json
+    description: Local user accounts (bcrypt-hashed passwords). Mode 0600.
+    section: Paths
+    subsection: Data
+    order: 7
+  apiTokens:
+    type: string
+    value: /var/lib/patchpanel/api-tokens.json
+    description: API tokens for programmatic access (bcrypt-hashed secrets). Mode 0600.
+    section: Paths
+    subsection: Data
+    order: 8
+  setupToken:
+    type: string
+    value: /etc/patchpanel/setup.token
+    description: |
+      One-time setup token file. Postinst generates this on fresh install;
+      the first-run wizard consumes and deletes it after creating the
+      initial admin user. Empty/missing after first run.
+    section: Paths
+    subsection: Data
+    order: 9
   haproxyConfig:
     type: string
     value: /etc/haproxy/haproxy.cfg
@@ -331,6 +355,18 @@ paths:
     section: Paths
     subsection: Certificates
     order: 3
+  luaPluginsDirs:
+    type: array
+    value:
+      - /var/lib/patchpanel/lua-plugins
+    description: |
+      Whitelist of directories where the UI may upload Lua plugin source
+      files. Users select from this list in the upload dialog; uploads
+      outside these roots are rejected. Add more entries to expose
+      additional safe locations (e.g. /etc/haproxy/lua-plugins).
+    section: Paths
+    subsection: Lua plugins
+    order: 1
   letsencryptDir:
     type: string
     value: /etc/letsencrypt
@@ -431,17 +467,18 @@ renewal:
 auth:
   strategy:
     type: select
-    value: none
+    value: local
     options:
       - none
       - ha-ingress
-      - basic
-      - oidc
+      - local
     description: >
-      Authentication strategy. none = no auth (dev only); ha-ingress = trust HA
-
-      supervisor headers; basic = HTTP basic; oidc = OIDC discovery (not wired
-      yet).
+      Authentication strategy. local = local password (cookie session) + API
+      tokens (bearer) — the default for Debian baremetal. ha-ingress = trust
+      the HA supervisor proxy IP listed in server.trustProxy; users
+      authenticate to Home Assistant upstream, requests through ingress are
+      treated as admin. none = no auth (dev only — anyone with network access
+      can read and modify state).
     section: Authentication
     subsection: Strategy
     order: 1

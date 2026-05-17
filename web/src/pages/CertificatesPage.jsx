@@ -17,7 +17,6 @@ import { Link, useSearchParams } from 'react-router';
 
 import { apiDelete, apiGet } from '../api/client.js';
 import { AcmeAccountsCard } from '../components/AcmeAccountsCard.jsx';
-import { BYOUploadModal } from '../components/BYOUploadModal.jsx';
 import { CertEditModal } from '../components/CertEditModal.jsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { EntitySectionCard } from '../components/EntitySectionCard.jsx';
@@ -449,7 +448,6 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
   const [deleting, setDeleting] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
-  const [showUpload, setShowUpload] = useState(false);
   const [uploadedFilesBump, setUploadedFilesBump] = useState(0);
   const [searchParams] = useSearchParams();
   const focusId = searchParams.get('focus');
@@ -505,14 +503,28 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
     }
   };
 
-  const handleAdd = cert => {
-    setShowNew(false);
-    persist([...doc.tls.certs, cert]);
+  // The unified CertEditModal always sends a full doc on save (the ACME
+  // path builds it from the cert draft, the BYO path returns an augmented
+  // doc with the singleton provider auto-created when needed, the BYO
+  // replace path returns the doc with the cert's domains updated to the
+  // new SANs). Parent just forwards to onSave + manages modal close + the
+  // uploaded-files refresh bump for BYO writes.
+  const handleModalSave = async nextDoc => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await onSave(nextDoc);
+      setShowNew(false);
+      setEditing(null);
+      setUploadedFilesBump(n => n + 1);
+    } catch (err) {
+      setSaveError(err);
+      throw err;
+    } finally {
+      setSaving(false);
+    }
   };
-  const handleUpdate = cert => {
-    setEditing(null);
-    persist(doc.tls.certs.map(c => (c.id === cert.id ? cert : c)));
-  };
+
   const handleDelete = () => {
     const { id } = deleting;
     setDeleting(null);
@@ -521,16 +533,6 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
 
   const handleClone = cert => {
     persist([...doc.tls.certs, cloneCertInList(cert, doc.tls.certs)]);
-  };
-
-  const handleUploaded = async nextDoc => {
-    setShowUpload(false);
-    setUploadedFilesBump(n => n + 1);
-    try {
-      await onSave(nextDoc);
-    } catch (err) {
-      setSaveError(err);
-    }
   };
 
   const isBusy = actions.busy !== null;
@@ -552,15 +554,6 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
               >
                 <i className="bi bi-plus-lg me-1" />
                 Add certificate
-              </Button>
-              <Button
-                variant="outline-primary"
-                onClick={() => setShowUpload(true)}
-                disabled={saving || !onSave}
-                title="Upload your own PEM (fullchain + private key) for a cert you already have"
-              >
-                <i className="bi bi-cloud-upload me-1" />
-                Upload existing
               </Button>
               <Button
                 variant="primary"
@@ -619,6 +612,12 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                 const renewBusyKey = `renew-${cert.id}`;
                 const renewing = actions.busy === renewBusyKey;
                 const isFocused = focusId === cert.id;
+                const isByo = isByoCert(cert);
+                const unissued = !liveCert?.newest;
+                const actionLabel = unissued ? 'Issue' : 'Renew';
+                const forceTooltip = unissued
+                  ? `Force issue ${cert.certName}, ignoring certbot's renewal interval`
+                  : `Force renew ${cert.certName}, ignoring certbot's renewal interval`;
                 return (
                   <tr
                     key={cert.id}
@@ -650,19 +649,7 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                     </td>
                     <td>{statusBadge(liveCert?.newest)}</td>
                     <td className="text-end text-nowrap">
-                      {isByoCert(cert) ? (
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          className="me-1"
-                          onClick={() => setShowUpload(true)}
-                          disabled={saving || !onSave}
-                          title="Re-upload a new PEM for this certificate (replaces the files on disk)"
-                        >
-                          <i className="bi bi-cloud-upload me-1" />
-                          Re-upload
-                        </Button>
-                      ) : (
+                      {!isByo ? (
                         <>
                           <Button
                             variant="outline-primary"
@@ -674,12 +661,12 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                                 .catch(() => undefined)
                             }
                             disabled={isBusy}
-                            title={`Renew only ${cert.certName}`}
+                            title={`${actionLabel} ${cert.certName}`}
                           >
                             {renewing ? (
                               <Spinner as="span" animation="border" size="sm" />
                             ) : (
-                              'Renew'
+                              actionLabel
                             )}
                           </Button>
                           <Button
@@ -692,12 +679,12 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                                 .catch(() => undefined)
                             }
                             disabled={isBusy}
-                            title={`Force-renew only ${cert.certName}`}
+                            title={forceTooltip}
                           >
                             Force
                           </Button>
                         </>
-                      )}
+                      ) : null}
                       <Button
                         variant="outline-secondary"
                         size="sm"
@@ -707,16 +694,18 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                       >
                         Edit
                       </Button>
-                      <Button
-                        variant="outline-info"
-                        size="sm"
-                        className="me-1"
-                        onClick={() => handleClone(cert)}
-                        disabled={saving || !onSave}
-                        title="Duplicate this certificate entry with a new id/certName. Useful for splitting one cert into per-host certs, or for staging a renewal against a fresh certName. Edit the SAN list before issuing."
-                      >
-                        Clone
-                      </Button>
+                      {!isByo ? (
+                        <Button
+                          variant="outline-info"
+                          size="sm"
+                          className="me-1"
+                          onClick={() => handleClone(cert)}
+                          disabled={saving || !onSave}
+                          title="Duplicate this certificate entry with a new id/certName. Useful for splitting one cert into per-host certs, or for staging a renewal against a fresh certName. Edit the SAN list before issuing."
+                        >
+                          Clone
+                        </Button>
+                      ) : null}
                       <Button
                         variant="outline-danger"
                         size="sm"
@@ -733,14 +722,20 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
           </Table>
         </Card.Body>
         {showNew ? (
-          <CertEditModal show doc={doc} onSave={handleAdd} onCancel={() => setShowNew(false)} />
+          <CertEditModal
+            show
+            doc={doc}
+            onSave={handleModalSave}
+            onCancel={() => setShowNew(false)}
+          />
         ) : null}
         {editing ? (
           <CertEditModal
             show
             cert={editing}
             doc={doc}
-            onSave={handleUpdate}
+            liveCert={live?.certs?.find(c => c.id === editing.id) ?? null}
+            onSave={handleModalSave}
             onCancel={() => setEditing(null)}
           />
         ) : null}
@@ -758,14 +753,6 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
             confirmLabel="Delete"
             onConfirm={handleDelete}
             onCancel={() => setDeleting(null)}
-          />
-        ) : null}
-        {showUpload ? (
-          <BYOUploadModal
-            show
-            doc={doc}
-            onUploaded={handleUploaded}
-            onCancel={() => setShowUpload(false)}
           />
         ) : null}
       </Card>

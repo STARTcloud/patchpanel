@@ -51,45 +51,94 @@ const cleanupBackup = async backupPath => {
   await fs.rm(backupPath, { force: true }).catch(() => undefined);
 };
 
+const hasAnyContent = block =>
+  Object.keys(block.errorPageContents ?? {}).length > 0 ||
+  Object.keys(block.lfFileContents ?? {}).length > 0;
+
+const persistRawErrorFiles = async (blockDir, contents) => {
+  const codes = Object.keys(contents).filter(
+    code => typeof contents[code] === 'string' && contents[code].length > 0
+  );
+  const written = {};
+  await Promise.all(
+    codes.map(async code => {
+      const target = joinPath(blockDir, `${code}.http`);
+      await writeAtomic(target, contents[code], { mode: 0o644 });
+      written[code] = target;
+    })
+  );
+  return written;
+};
+
+const persistLfFileContents = async (blockDir, contents) => {
+  const codes = Object.keys(contents).filter(
+    code => typeof contents[code] === 'string' && contents[code].length > 0
+  );
+  if (codes.length === 0) {
+    return {};
+  }
+  const lfDir = joinPath(blockDir, 'lf');
+  await ensureDir(lfDir);
+  const written = {};
+  await Promise.all(
+    codes.map(async code => {
+      const target = joinPath(lfDir, `${code}.html`);
+      await writeAtomic(target, contents[code], { mode: 0o644 });
+      written[code] = target;
+    })
+  );
+  return written;
+};
+
+// Inject auto-managed `http-error … lf-file <path>` directives for every
+// code in lfFileContents that has a written file. Existing manual entries
+// in httpErrors[] are preserved unless they target the same status — in
+// that case the auto-managed entry wins (lf-file content owned by patchpanel
+// trumps a manually-pointed external path).
+const mergeHttpErrorsWithLf = (existingHttpErrors, lfPaths) => {
+  const codesManaged = new Set(Object.keys(lfPaths).map(Number));
+  const filtered = (existingHttpErrors ?? []).filter(d => !codesManaged.has(d.status));
+  const injected = Object.entries(lfPaths).map(([code, path]) => ({
+    status: Number(code),
+    contentType: 'text/html; charset=utf-8',
+    lfFile: path,
+  }));
+  return [...filtered, ...injected];
+};
+
 const persistCustomErrorPages = async (config, candidateParsed) => {
   const blocks = candidateParsed.defaultsBlocks ?? [];
   if (blocks.length === 0) {
     return candidateParsed;
   }
   const dir = config.paths.haproxyErrorPagesDir;
-  const blocksNeedingWrites = blocks.filter(
-    block => Object.keys(block.errorPageContents ?? {}).length > 0
-  );
+  const blocksNeedingWrites = blocks.filter(hasAnyContent);
   if (blocksNeedingWrites.length === 0) {
     return candidateParsed;
   }
   if (!dir) {
     logger.warning(
-      'errorPageContents set but config.paths.haproxyErrorPagesDir is missing; skipping'
+      'errorPageContents/lfFileContents set but config.paths.haproxyErrorPagesDir is missing; skipping'
     );
     return candidateParsed;
   }
   await ensureDir(dir);
   const nextBlocks = await Promise.all(
     blocks.map(async block => {
-      const contents = block.errorPageContents ?? {};
-      const codes = Object.keys(contents).filter(
-        code => typeof contents[code] === 'string' && contents[code].length > 0
-      );
-      if (codes.length === 0) {
+      if (!hasAnyContent(block)) {
         return block;
       }
       const blockDir = joinPath(dir, block.id);
       await ensureDir(blockDir);
-      const overriddenErrorFiles = { ...block.errorFiles };
-      await Promise.all(
-        codes.map(async code => {
-          const target = joinPath(blockDir, `${code}.http`);
-          await writeAtomic(target, contents[code], { mode: 0o644 });
-          overriddenErrorFiles[code] = target;
-        })
-      );
-      return { ...block, errorFiles: overriddenErrorFiles };
+      const rawWritten = await persistRawErrorFiles(blockDir, block.errorPageContents ?? {});
+      const lfWritten = await persistLfFileContents(blockDir, block.lfFileContents ?? {});
+      const overriddenErrorFiles = { ...block.errorFiles, ...rawWritten };
+      const mergedHttpErrors = mergeHttpErrorsWithLf(block.httpErrors, lfWritten);
+      return {
+        ...block,
+        errorFiles: overriddenErrorFiles,
+        httpErrors: mergedHttpErrors,
+      };
     })
   );
   return { ...candidateParsed, defaultsBlocks: nextBlocks };

@@ -1,3 +1,24 @@
+/* Brand palette — primary is teal #0d9488 (Tailwind teal-600). Distinct from
+ * the default Bootstrap blue + from the purple already used as an accent
+ * for backend rows. Override Bootstrap's primary CSS custom property so
+ * every `.btn-primary`, `.text-primary`, etc. picks it up without touching
+ * individual components. */
+:root {
+  --bs-primary: #0d9488;
+  --bs-primary-rgb: 13, 148, 136;
+  --pp-primary: #0d9488;
+  --pp-primary-rgb: 13, 148, 136;
+  --pp-primary-hover: #0f766e;
+  --pp-primary-soft: rgba(13, 148, 136, 0.08);
+  --pp-primary-soft-strong: rgba(13, 148, 136, 0.18);
+}
+[data-bs-theme='dark'] {
+  --bs-primary: #14b8a6;
+  --bs-primary-rgb: 20, 184, 166;
+  --pp-primary: #14b8a6;
+  --pp-primary-rgb: 20, 184, 166;
+}
+
 .haproxy-ui {
   min-height: 100vh;
   display: flex;
@@ -60,7 +81,7 @@
  * and too murky in dark mode for the FRONTEND/BACKEND grouping to read at
  * a glance. */
 .patchpanel-stats-group-row {
-  background: rgba(13, 110, 253, 0.08);
+  background: rgba(var(--pp-primary-rgb), 0.08);
   border-top: 2px solid var(--bs-primary);
 }
 .patchpanel-stats-group-row td {
@@ -75,8 +96,8 @@
 }
 
 .patchpanel-stats-frontend-row td {
-  background-color: rgba(13, 110, 253, 0.05) !important;
-  border-left: 3px solid var(--bs-primary);
+  background-color: rgba(var(--pp-primary-rgb), 0.05) !important;
+  border-left: 3px solid var(--pp-primary);
 }
 .patchpanel-stats-backend-row td {
   background-color: rgba(102, 16, 242, 0.06) !important;
@@ -85,10 +106,10 @@
 }
 
 [data-bs-theme='dark'] .patchpanel-stats-group-row {
-  background: rgba(13, 110, 253, 0.18);
+  background: rgba(var(--pp-primary-rgb), 0.18);
 }
 [data-bs-theme='dark'] .patchpanel-stats-frontend-row td {
-  background-color: rgba(13, 110, 253, 0.12) !important;
+  background-color: rgba(var(--pp-primary-rgb), 0.12) !important;
 }
 [data-bs-theme='dark'] .patchpanel-stats-backend-row td {
   background-color: rgba(102, 16, 242, 0.18) !important;
@@ -310,10 +331,10 @@
   border-style: dashed;
 }
 .patchpanel-panel-is-drop-target > .card {
-  background: rgba(13, 110, 253, 0.06);
+  background: rgba(var(--pp-primary-rgb), 0.06);
 }
 [data-bs-theme='dark'] .patchpanel-panel-is-drop-target > .card {
-  background: rgba(13, 110, 253, 0.18);
+  background: rgba(var(--pp-primary-rgb), 0.18);
 }
 
 .patchpanel-panel > .card.patchpanel-kpi-tile {

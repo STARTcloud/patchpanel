@@ -1,30 +1,39 @@
 import PropTypes from 'prop-types';
-import { Badge } from 'react-bootstrap';
 
-// Tri-state HAProxy liveness badge. Reads `alive` directly from
-// useHaproxyLive() — null = "checking…", true = "running", false = "stopped".
-// Used in the navbar power-control toggle and on the dashboard Quick actions
-// card so both reflect the same single source of truth.
-export const HaproxyStatusBadge = ({ alive }) => {
+// HAProxy liveness indicator. Single icon, color reflects state — no pill,
+// no "running" wordmark. `alive === null` is the "checking…" state.
+//   true  → green power icon
+//   false → red power icon (off variant)
+//   null  → muted/spinner
+export const HaproxyStatusBadge = ({ alive, title = null }) => {
   if (alive === null) {
-    return <Badge bg="secondary">checking…</Badge>;
+    return (
+      <i
+        className="bi bi-power text-muted"
+        title={title ?? 'Checking HAProxy status…'}
+        aria-label="HAProxy status checking"
+      />
+    );
   }
   if (alive) {
     return (
-      <Badge bg="success">
-        <i className="bi bi-check-circle me-1" />
-        running
-      </Badge>
+      <i
+        className="bi bi-power text-success"
+        title={title ?? 'HAProxy is running'}
+        aria-label="HAProxy running"
+      />
     );
   }
   return (
-    <Badge bg="danger">
-      <i className="bi bi-x-circle me-1" />
-      stopped
-    </Badge>
+    <i
+      className="bi bi-power text-danger"
+      title={title ?? 'HAProxy is stopped'}
+      aria-label="HAProxy stopped"
+    />
   );
 };
 
 HaproxyStatusBadge.propTypes = {
   alive: PropTypes.bool,
+  title: PropTypes.string,
 };

@@ -198,7 +198,7 @@ const NodeShell = ({ data, selected }) => {
         color: style.color,
         border: selected ? '2px solid #fff' : style.border,
         boxShadow: selected
-          ? '0 0 0 2px #0d6efd, 0 2px 6px rgba(0,0,0,0.2)'
+          ? '0 0 0 2px #0d9488, 0 2px 6px rgba(0,0,0,0.2)'
           : '0 1px 4px rgba(0,0,0,0.1)',
         borderRadius: '0.5rem',
         padding: '0.5rem 0.75rem',

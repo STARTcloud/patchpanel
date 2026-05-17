@@ -37,26 +37,34 @@ import { findCoveringCertsForRoute } from '../utils/certMatch.js';
 // v0.2.40 — Smarter KPI tile. Optional `statusBadge` shows an inline
 // indicator below the count so the four top tiles read as "27 routes
 // · 2 missing cert" instead of just "27".
+// Robust at every grid size: text column shrinks/truncates instead of
+// overflowing; icon hides on very narrow tiles (`d-none d-sm-inline`)
+// so a 1-col tile still shows the value cleanly. fs-1/fs-2 swap depending
+// on width so the number stays legible without overflowing the card.
 const Tile = ({ title, value, icon, variant = 'secondary', to = null, statusBadge = null }) => {
   const body = (
-    <Card.Body>
-      <div className="d-flex align-items-center justify-content-between">
-        <div>
-          <Card.Subtitle className="mb-2 text-muted">{title}</Card.Subtitle>
-          <Card.Title className="display-6 mb-0">{value}</Card.Title>
-          {statusBadge ? (
-            <div className="mt-1">
-              <Badge
-                bg={statusBadge.variant}
-                text={statusBadge.text === 'dark' ? 'dark' : undefined}
-              >
-                {statusBadge.label}
-              </Badge>
-            </div>
-          ) : null}
-        </div>
-        <i className={`bi bi-${icon} display-4 text-${variant}`} />
+    <Card.Body className="d-flex align-items-center justify-content-between gap-2 overflow-hidden">
+      <div className="d-flex flex-column min-w-0">
+        <Card.Subtitle className="mb-1 text-muted text-truncate">{title}</Card.Subtitle>
+        <Card.Title
+          className="fs-1 mb-0 text-truncate fw-semibold"
+          style={{ letterSpacing: '-0.02em' }}
+          title={String(value)}
+        >
+          {value}
+        </Card.Title>
+        {statusBadge ? (
+          <div className="mt-1">
+            <Badge bg={statusBadge.variant} text={statusBadge.text === 'dark' ? 'dark' : undefined}>
+              {statusBadge.label}
+            </Badge>
+          </div>
+        ) : null}
       </div>
+      <i
+        className={`bi bi-${icon} display-5 text-${variant} d-none d-sm-inline flex-shrink-0`}
+        aria-hidden="true"
+      />
     </Card.Body>
   );
   if (!to) {
@@ -173,7 +181,7 @@ const RuntimeCard = ({ info }) => {
     return null;
   }
   return (
-    <Card>
+    <Card className="h-100">
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-speedometer2 me-2" />
@@ -218,21 +226,23 @@ const BackendHealthCard = ({ rows }) => {
   const beBuckets = bucketize(backends);
   const svBuckets = bucketize(servers);
   return (
-    <Card>
+    <Card className="h-100">
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-heart-pulse me-2" />
           Backend health
         </Card.Title>
         <div className="d-flex flex-column gap-2 small">
-          <div>
-            <strong>Backends:</strong> <Badge bg="success">{beBuckets.up} UP</Badge>{' '}
-            <Badge bg="danger">{beBuckets.down} DOWN</Badge>{' '}
+          <div className="d-flex flex-wrap align-items-center gap-1">
+            <strong>Backends:</strong>
+            <Badge bg="success">{beBuckets.up} UP</Badge>
+            <Badge bg="danger">{beBuckets.down} DOWN</Badge>
             <Badge bg="secondary">{beBuckets.other} other</Badge>
           </div>
-          <div>
-            <strong>Servers:</strong> <Badge bg="success">{svBuckets.up} UP</Badge>{' '}
-            <Badge bg="danger">{svBuckets.down} DOWN</Badge>{' '}
+          <div className="d-flex flex-wrap align-items-center gap-1">
+            <strong>Servers:</strong>
+            <Badge bg="success">{svBuckets.up} UP</Badge>
+            <Badge bg="danger">{svBuckets.down} DOWN</Badge>
             <Badge bg="secondary">{svBuckets.other} other</Badge>
           </div>
         </div>
@@ -336,20 +346,20 @@ const QuickActionsCard = () => {
   const handleReload = () => wrap(actions.reloadHaproxy());
   const handleRenew = () => actions.renewCerts({ force: false }).catch(() => undefined);
 
+  const statusTitle =
+    alive === null
+      ? 'Checking HAProxy status…'
+      : `HAProxy ${alive ? 'running' : 'stopped'}${strategy ? ` · strategy: ${strategy}` : ''}`;
+
   return (
-    <Card>
+    <Card className="h-100">
       <Card.Body>
-        <Card.Title className="mb-2">
-          <i className="bi bi-tools me-2" />
-          Quick actions
-          <span className="ms-2 small">
-            <HaproxyStatusBadge alive={alive} />
+        <Card.Title className="mb-2 d-flex align-items-center gap-2">
+          <i className="bi bi-tools" />
+          <span>Quick actions</span>
+          <span className="ms-1 small">
+            <HaproxyStatusBadge alive={alive} title={statusTitle} />
           </span>
-          {strategy ? (
-            <span className="ms-2 small text-muted" title="Process-control strategy">
-              <code>{strategy}</code>
-            </span>
-          ) : null}
         </Card.Title>
         <div className="d-flex gap-2 flex-wrap">
           <ActionButton
@@ -405,17 +415,19 @@ const PerFrontendTrafficCard = ({ name, theme }) => {
   const stats = useStatsHistory();
   const history = stats.history?.[`${name}/FRONTEND`] ?? [];
   return (
-    <Card>
-      <Card.Body>
-        <Card.Title className="mb-2">
+    <Card className="h-100">
+      <Card.Body className="d-flex flex-column" style={{ minHeight: 0 }}>
+        <Card.Title className="mb-2 text-truncate">
           <i className="bi bi-activity me-2" />
           {name}
         </Card.Title>
-        {history.length < 2 ? (
-          <p className="text-muted small mb-0">Sampling… (5s ticks)</p>
-        ) : (
-          <TrafficChart title={name} history={history} theme={theme} height={200} />
-        )}
+        <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
+          {history.length < 2 ? (
+            <p className="text-muted small mb-0">Sampling… (5s ticks)</p>
+          ) : (
+            <TrafficChart title="" history={history} theme={theme} />
+          )}
+        </div>
       </Card.Body>
     </Card>
   );
@@ -446,7 +458,7 @@ const RecentActivity = () => {
     };
   }, []);
   return (
-    <Card>
+    <Card className="h-100">
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-journal-text me-2" />
@@ -512,7 +524,7 @@ const CertStatusCard = () => {
     return null;
   }
   return (
-    <Card>
+    <Card className="h-100">
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-shield-lock me-2" />
@@ -599,7 +611,7 @@ const SlowestBackendsCard = () => {
     };
   }, []);
   return (
-    <Card>
+    <Card className="h-100">
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-stopwatch me-2" />
@@ -676,7 +688,7 @@ const HttpCodePieCard = ({ theme }) => {
   const sum = Object.values(totals).reduce((a, b) => a + b, 0);
   if (sum === 0) {
     return (
-      <Card>
+      <Card className="h-100">
         <Card.Body>
           <Card.Title className="mb-2">
             <i className="bi bi-pie-chart me-2" />
@@ -690,7 +702,7 @@ const HttpCodePieCard = ({ theme }) => {
   const data = Object.entries(totals)
     .filter(([, v]) => v > 0)
     .map(([name, y]) => ({ name, y, color: HTTP_CODE_COLORS[name] }));
-  const base = createChartOptions({ title: '', height: 220, theme, series: [] });
+  const base = createChartOptions({ title: '', height: '100%', theme, series: [] });
   const options = {
     ...base,
     chart: { ...base.chart, type: 'pie' },
@@ -704,16 +716,18 @@ const HttpCodePieCard = ({ theme }) => {
     legend: { enabled: false },
   };
   return (
-    <Card>
-      <Card.Body>
+    <Card className="h-100">
+      <Card.Body className="d-flex flex-column" style={{ minHeight: 0 }}>
         <Card.Title className="mb-2">
           <i className="bi bi-pie-chart me-2" />
           HTTP status codes
         </Card.Title>
-        <Card.Text className="text-muted small mb-2">
+        <Card.Text className="text-muted small mb-2 flex-shrink-0">
           Distribution across all frontends in the last hour (delta-based).
         </Card.Text>
-        <Chart options={options} />
+        <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
+          <Chart options={options} containerProps={{ style: { width: '100%', height: '100%' } }} />
+        </div>
       </Card.Body>
     </Card>
   );
@@ -788,7 +802,7 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 12,
     defaultHeight: 1,
     defaultAutoHeight: true,
-    minWidth: 4,
+    minWidth: 1,
     minHeight: 1,
     requiresStats: true,
     category: 'metric',
@@ -801,8 +815,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 6,
     defaultHeight: 2,
     defaultAutoHeight: true,
-    minWidth: 4,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: true,
     category: 'status',
     link: '/stats',
@@ -814,8 +828,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 3,
     defaultHeight: 2,
     defaultAutoHeight: true,
-    minWidth: 2,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: true,
     category: 'metric',
     link: '/stats',
@@ -827,7 +841,7 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 3,
     defaultHeight: 1,
     defaultAutoHeight: true,
-    minWidth: 2,
+    minWidth: 1,
     minHeight: 1,
     requiresStats: true,
     category: 'metric',
@@ -840,7 +854,7 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 4,
     defaultHeight: 1,
     defaultAutoHeight: true,
-    minWidth: 2,
+    minWidth: 1,
     minHeight: 1,
     requiresStats: true,
     category: 'metric',
@@ -853,8 +867,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 8,
     defaultHeight: 3,
     defaultAutoHeight: true,
-    minWidth: 4,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: true,
     category: 'metric',
     link: '/runtime',
@@ -866,7 +880,7 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 4,
     defaultHeight: 1,
     defaultAutoHeight: true,
-    minWidth: 2,
+    minWidth: 1,
     minHeight: 1,
     requiresStats: true,
     category: 'status',
@@ -879,8 +893,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 4,
     defaultHeight: 2,
     defaultAutoHeight: true,
-    minWidth: 3,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: false,
     category: 'status',
     link: '/certificates',
@@ -892,8 +906,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 6,
     defaultHeight: 3,
     defaultAutoHeight: true,
-    minWidth: 4,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: true,
     category: 'metric',
     link: '/routes',
@@ -905,8 +919,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 6,
     defaultHeight: 3,
     defaultAutoHeight: true,
-    minWidth: 4,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: true,
     category: 'metric',
     link: '/stats',
@@ -916,10 +930,10 @@ const PANEL_DEFS = Object.freeze([
     title: 'Origin map',
     subtitle: 'World choropleth shaded by client session count (requires GeoIP).',
     defaultWidth: 6,
-    defaultHeight: 2,
+    defaultHeight: 4,
     defaultAutoHeight: true,
-    minWidth: 4,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: true,
     category: 'metric',
     link: '/stats',
@@ -931,8 +945,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 6,
     defaultHeight: 3,
     defaultAutoHeight: true,
-    minWidth: 4,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: true,
     category: 'metric',
     link: '/stats',
@@ -944,8 +958,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 6,
     defaultHeight: 3,
     defaultAutoHeight: true,
-    minWidth: 4,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: false,
     category: 'status',
     link: '/snapshots',
@@ -957,8 +971,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 6,
     defaultHeight: 2,
     defaultAutoHeight: true,
-    minWidth: 4,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: true,
     category: 'metric',
     link: '/backends',
@@ -970,8 +984,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 4,
     defaultHeight: 3,
     defaultAutoHeight: true,
-    minWidth: 3,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: true,
     category: 'metric',
     link: '/stats',
@@ -983,7 +997,7 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 4,
     defaultHeight: 1,
     defaultAutoHeight: true,
-    minWidth: 2,
+    minWidth: 1,
     minHeight: 1,
     requiresStats: false,
     category: 'action',
@@ -996,8 +1010,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 6,
     defaultHeight: 2,
     defaultAutoHeight: true,
-    minWidth: 4,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: false,
     category: 'status',
     link: '/certificates',
@@ -1009,8 +1023,8 @@ const PANEL_DEFS = Object.freeze([
     defaultWidth: 12,
     defaultHeight: 3,
     defaultAutoHeight: true,
-    minWidth: 6,
-    minHeight: 2,
+    minWidth: 1,
+    minHeight: 1,
     requiresStats: false,
     category: 'status',
     link: '/audit',

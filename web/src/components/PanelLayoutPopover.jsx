@@ -53,8 +53,11 @@ GridCell.propTypes = {
   onPick: PropTypes.func.isRequired,
 };
 
-const GridPicker = ({ width, heightRows, autoHeight, onPick, minWidth, minHeight }) => {
-  const occupiedRows = autoHeight ? 1 : heightRows;
+const GridPicker = ({ width, heightRows, onPick, minWidth, minHeight }) => {
+  // Highlight the actual rendered size. Earlier this collapsed to 1 row
+  // when autoHeight was on, which made users think their panel was 1-tall
+  // when it was actually 2+ rows.
+  const occupiedRows = heightRows;
   const cells = [];
   for (let row = 0; row < MAX_PANEL_ROWS; row += 1) {
     for (let col = 0; col < MAX_PANEL_WIDTH; col += 1) {
@@ -92,7 +95,6 @@ const GridPicker = ({ width, heightRows, autoHeight, onPick, minWidth, minHeight
 GridPicker.propTypes = {
   width: PropTypes.number.isRequired,
   heightRows: PropTypes.number.isRequired,
-  autoHeight: PropTypes.bool.isRequired,
   onPick: PropTypes.func.isRequired,
   minWidth: PropTypes.number.isRequired,
   minHeight: PropTypes.number.isRequired,
@@ -153,7 +155,6 @@ export const PanelLayoutModal = ({
         <GridPicker
           width={width}
           heightRows={heightRows}
-          autoHeight={autoHeight}
           onPick={handleGridPick}
           minWidth={effectiveMinWidth}
           minHeight={effectiveMinHeight}

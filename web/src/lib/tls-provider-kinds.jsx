@@ -59,8 +59,9 @@ Route53OptionsForm.propTypes = {
 const ByoOptionsHint = () => (
   <Col xs={12}>
     <Alert variant="info" className="mb-0 small">
-      Bring-your-own certs are uploaded from the <strong>Certificates</strong> tab via the{' '}
-      <strong>Upload existing certificate</strong> button. Each upload creates a Certificate entry
+      Bring-your-own certs are uploaded from the <strong>Certificates</strong> tab — in the{' '}
+      <strong>Add certificate</strong> form, pick <strong>Bring-your-own</strong> as the TLS
+      provider to switch the body to PEM upload fields. Each upload creates a Certificate entry
       automatically — you don&apos;t need to configure anything per-provider here.
     </Alert>
   </Col>

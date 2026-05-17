@@ -137,6 +137,55 @@ export const byoCertsRouter = config => {
     }
   });
 
+  // Stream a single PEM file from the cert dir back to the client. Used by
+  // the cert-edit modal's "Download" buttons so users can grab a backup of
+  // their existing fullchain + privkey before replacing. The privkey route
+  // emits an audit record because the bytes are sensitive material; the
+  // fullchain route doesn't (cert is public).
+  const streamPemFile = async (req, res, next, basename, sensitive) => {
+    const actor = req.user?.id ?? null;
+    const { name } = req.params;
+    let certDir;
+    try {
+      certDir = sanitizeCertPath(dir(), name);
+    } catch (err) {
+      res.status(400).json({ ok: false, error: err.message });
+      return;
+    }
+    const filePath = joinPath(certDir, basename);
+    if (!(await fileExists(filePath))) {
+      res.status(404).json({ ok: false, error: `${basename} not found for ${name}` });
+      return;
+    }
+    try {
+      const body = await fs.readFile(filePath);
+      res.set('content-type', 'application/x-pem-file');
+      res.set('content-disposition', `attachment; filename="${name}-${basename}"`);
+      res.set('cache-control', 'no-store');
+      res.send(body);
+      if (sensitive) {
+        audit.record({
+          actor,
+          category: 'cert',
+          action: 'byo-download',
+          target: `${name}/${basename}`,
+          outcome: 'ok',
+        });
+        logger.info('BYO privkey downloaded', { name, ip: req.ip });
+      }
+    } catch (err) {
+      next(err);
+    }
+  };
+
+  router.get('/byo-certs/:name/fullchain.pem', (req, res, next) =>
+    streamPemFile(req, res, next, 'fullchain.pem', false)
+  );
+
+  router.get('/byo-certs/:name/privkey.pem', (req, res, next) =>
+    streamPemFile(req, res, next, 'privkey.pem', true)
+  );
+
   router.delete('/byo-certs/:name', async (req, res, next) => {
     const actor = req.user?.id ?? null;
     const { name } = req.params;

@@ -1,6 +1,8 @@
 import {
+  AuthError,
   CertbotError,
   ConfigError,
+  ForbiddenError,
   HaproxyError,
   ReloadError,
   StateError,
@@ -15,6 +17,8 @@ const STATUS_BY_NAME = Object.freeze({
   CertbotError: 502,
   ReloadError: 503,
   ConfigError: 500,
+  AuthError: 401,
+  ForbiddenError: 403,
 });
 
 const errorTypes = [
@@ -24,6 +28,8 @@ const errorTypes = [
   CertbotError,
   ReloadError,
   ConfigError,
+  AuthError,
+  ForbiddenError,
 ];
 
 const statusForError = err => {

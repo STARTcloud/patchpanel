@@ -1,13 +1,15 @@
 import PropTypes from 'prop-types';
 import { Badge, Button, Container, Nav, Navbar, NavDropdown, Spinner } from 'react-bootstrap';
-import { NavLink, Outlet } from 'react-router';
+import { NavLink, Outlet, useNavigate } from 'react-router';
 
 import { useActions } from '../hooks/useActions.jsx';
+import { useAuth } from '../hooks/useAuth.jsx';
 import { useConfirmation } from '../hooks/useConfirmation.jsx';
 import { useHaproxyLive } from '../hooks/useHaproxyLive.jsx';
 
 import { ErrorBoundary } from './ErrorBoundary.jsx';
 import { HaproxyStatusBadge } from './HaproxyStatusBadge.jsx';
+import { LogoMark } from './LogoMark.jsx';
 
 // HAProxy-flow ordered primary tabs. Dashboard is reachable via the brand
 // link on the far left (the patchpanel logo + wordmark). General is a
@@ -37,7 +39,6 @@ const MONITOR_TABS = Object.freeze([
   { path: '/audit', label: 'Audit', icon: 'journal-text' },
   { path: '/snapshots', label: 'Snapshots', icon: 'clock-history' },
   { path: '/notifications', label: 'Notifications', icon: 'bell' },
-  { path: '/rendered-cfg', label: 'Rendered cfg', icon: 'file-code' },
 ]);
 
 // Settings surfaces — same dropdown treatment.
@@ -48,6 +49,7 @@ const SETTINGS_TABS = Object.freeze([
   { path: '/providers', label: 'Providers', icon: 'diagram-3' },
   { path: '/error-pages', label: 'Error pages', icon: 'exclamation-octagon' },
   { path: '/geoip', label: 'GeoIP', icon: 'globe-americas' },
+  { path: '/rendered-cfg', label: 'Rendered cfg', icon: 'file-code' },
   { path: '/advanced', label: 'Advanced', icon: 'sliders' },
   { path: '/raw-state', label: 'Raw State', icon: 'code' },
 ]);
@@ -138,6 +140,23 @@ PowerMenuItem.propTypes = {
   title: PropTypes.string,
 };
 
+// Tooltip on the toggle shows the resolved strategy so it's still discoverable
+// without taking nav space. Dropdown only shows the actions that make sense
+// for the current state — Reload + Stop when running, Start when stopped,
+// nothing actionable when checking. Avoids the prior "all three buttons,
+// most disabled" look.
+const aliveLabel = alive => {
+  if (alive === null) {
+    return 'checking…';
+  }
+  return alive ? 'running' : 'stopped';
+};
+
+const toggleTitle = (alive, strategy) => {
+  const stratLabel = strategy ? ` · strategy: ${strategy}` : '';
+  return `HAProxy ${aliveLabel(alive)}${stratLabel}`;
+};
+
 const HaproxyPowerControl = () => {
   const actions = useActions();
   const { alive, strategy, refresh } = useHaproxyLive();
@@ -162,13 +181,7 @@ const HaproxyPowerControl = () => {
     }
   };
 
-  const toggle = (
-    <span className="d-inline-flex align-items-center gap-2">
-      <i className="bi bi-power" />
-      <span className="d-none d-md-inline">HAProxy</span>
-      <HaproxyStatusBadge alive={alive} />
-    </span>
-  );
+  const toggle = <HaproxyStatusBadge alive={alive} title={toggleTitle(alive, strategy)} />;
 
   return (
     <>
@@ -177,44 +190,49 @@ const HaproxyPowerControl = () => {
         title={toggle}
         align="end"
         menuVariant="dark"
-        aria-label="HAProxy power control"
+        aria-label={toggleTitle(alive, strategy)}
       >
-        <PowerMenuItem
-          icon="arrow-clockwise"
-          label="Reload"
-          busyLabel="Reloading…"
-          busy={actions.busy === 'reload'}
-          disabled={!isRunning}
-          onSelect={handleReload}
-          title="Zero-downtime reload via the master socket. Does NOT re-render the cfg from state."
-        />
-        <PowerMenuItem
-          icon="stop-circle"
-          label="Stop"
-          busyLabel="Stopping…"
-          busy={actions.busy === 'stop'}
-          disabled={!isRunning}
-          danger
-          onSelect={handleStop}
-          title="Stop the HAProxy process. All connections dropped. Requires confirmation."
-        />
-        <PowerMenuItem
-          icon="play-circle"
-          label="Start"
-          busyLabel="Starting…"
-          busy={actions.busy === 'start'}
-          disabled={!isStopped || directStart}
-          onSelect={handleStart}
-          title={
-            directStart
-              ? 'Direct strategy cannot start HAProxy — no supervisor configured.'
-              : 'Start the HAProxy process via the configured supervisor.'
-          }
-        />
-        <NavDropdown.Divider />
-        <NavDropdown.ItemText className="small text-muted">
-          Strategy: <code>{strategy ?? 'detecting…'}</code>
-        </NavDropdown.ItemText>
+        {isRunning ? (
+          <>
+            <PowerMenuItem
+              icon="arrow-clockwise"
+              label="Reload"
+              busyLabel="Reloading…"
+              busy={actions.busy === 'reload'}
+              onSelect={handleReload}
+              title="Zero-downtime reload via the master socket. Does NOT re-render the cfg from state."
+            />
+            <PowerMenuItem
+              icon="stop-circle"
+              label="Stop"
+              busyLabel="Stopping…"
+              busy={actions.busy === 'stop'}
+              danger
+              onSelect={handleStop}
+              title="Stop the HAProxy process. All connections dropped. Requires confirmation."
+            />
+          </>
+        ) : null}
+        {isStopped ? (
+          <PowerMenuItem
+            icon="play-circle"
+            label="Start"
+            busyLabel="Starting…"
+            busy={actions.busy === 'start'}
+            disabled={directStart}
+            onSelect={handleStart}
+            title={
+              directStart
+                ? 'Direct strategy cannot start HAProxy — no supervisor configured.'
+                : 'Start the HAProxy process via the configured supervisor.'
+            }
+          />
+        ) : null}
+        {alive === null ? (
+          <NavDropdown.ItemText className="small text-muted">
+            <Spinner as="span" animation="border" size="sm" className="me-2" /> Checking…
+          </NavDropdown.ItemText>
+        ) : null}
       </NavDropdown>
       <ConfirmationDialog />
     </>
@@ -270,6 +288,53 @@ PendingChangesIndicator.propTypes = {
 
 const filterSettingsTabs = (tabs, showSetupTab) => tabs.filter(t => !t.freshOnly || showSetupTab);
 
+// Profile/logout menu in the top-right. Hidden entirely when running under
+// HA ingress — the user is authenticated upstream by Home Assistant and
+// has no local session to manage from this UI.
+const UserMenu = () => {
+  const auth = useAuth();
+  const navigate = useNavigate();
+
+  if (!auth.user || auth.source === 'ingress') {
+    return null;
+  }
+
+  const handleLogout = async () => {
+    await auth.logout();
+    navigate('/login', { replace: true });
+  };
+
+  return (
+    <NavDropdown
+      id="user-menu-dropdown"
+      align="end"
+      menuVariant="dark"
+      title={
+        <span className="d-inline-flex align-items-center gap-1 text-light">
+          <i className="bi bi-person-circle" />
+          <span>{auth.user.username}</span>
+        </span>
+      }
+    >
+      <NavDropdown.Item
+        onClick={() => navigate('/profile')}
+        className="d-flex align-items-center gap-2"
+      >
+        <i className="bi bi-person-gear" />
+        <span>Profile &amp; API tokens</span>
+      </NavDropdown.Item>
+      <NavDropdown.Divider />
+      <NavDropdown.Item
+        onClick={handleLogout}
+        className="d-flex align-items-center gap-2 text-danger"
+      >
+        <i className="bi bi-box-arrow-right" />
+        <span>Sign out</span>
+      </NavDropdown.Item>
+    </NavDropdown>
+  );
+};
+
 export const Layout = ({
   status = null,
   themePreference = 'auto',
@@ -291,7 +356,7 @@ export const Layout = ({
         className="d-flex align-items-center gap-2 text-decoration-none"
         title="Dashboard"
       >
-        <i className="bi bi-shield-lock" aria-hidden="true" />
+        <LogoMark size={28} title="patchpanel" />
         <span>patchpanel</span>
       </Navbar.Brand>
       <Navbar.Toggle aria-controls="primary-nav" />
@@ -353,6 +418,9 @@ export const Layout = ({
           ) : null}
           <ErrorBoundary>
             <HaproxyPowerControl />
+          </ErrorBoundary>
+          <ErrorBoundary>
+            <UserMenu />
           </ErrorBoundary>
           {onCycleTheme ? (
             <Button

@@ -5,6 +5,8 @@ import { Route, Routes } from 'react-router';
 
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
 import { Layout } from './components/Layout.jsx';
+import { ProtectedRoute } from './components/ProtectedRoute.jsx';
+import { AuthProvider } from './hooks/useAuth.jsx';
 import { HaproxyLiveProvider } from './hooks/useHaproxyLive.jsx';
 import { PendingChangesProvider, usePendingChanges } from './hooks/usePendingChanges.jsx';
 import { useStateDoc } from './hooks/useState.jsx';
@@ -20,14 +22,17 @@ import { ErrorPagesPage } from './pages/ErrorPagesPage.jsx';
 import { FrontendsPage } from './pages/FrontendsPage.jsx';
 import { GeoIPPage } from './pages/GeoIPPage.jsx';
 import { GlobalPage } from './pages/GlobalPage.jsx';
+import { LoginPage } from './pages/LoginPage.jsx';
 import { LogsPage } from './pages/LogsPage.jsx';
 import { NotificationsPage } from './pages/NotificationsPage.jsx';
+import { ProfilePage } from './pages/ProfilePage.jsx';
 import { ProvidersPage } from './pages/ProvidersPage.jsx';
 import { RawStatePage } from './pages/RawStatePage.jsx';
 import { RenderedCfgPage } from './pages/RenderedCfgPage.jsx';
 import { RoutesPage } from './pages/RoutesPage.jsx';
 import { RulesPage } from './pages/RulesPage.jsx';
 import { RuntimePage } from './pages/RuntimePage.jsx';
+import { SetupAdminPage } from './pages/SetupAdminPage.jsx';
 import { isFreshInstall, SetupPage } from './pages/SetupPage.jsx';
 import { SnapshotsPage } from './pages/SnapshotsPage.jsx';
 import { StatsPage } from './pages/StatsPage.jsx';
@@ -141,6 +146,7 @@ const AppContent = () => {
             path="setup"
             element={wrap(<SetupPage doc={stateDoc.doc} onSave={stateDoc.save} />)}
           />
+          <Route path="profile" element={wrap(<ProfilePage />)} />
           <Route path="stats" element={wrap(<StatsPage theme={themeApi.effective} />)} />
           <Route path="topology" element={wrap(<TopologyPage doc={stateDoc.doc} />)} />
           <Route path="runtime" element={wrap(<RuntimePage />)} />
@@ -174,10 +180,22 @@ const AppContent = () => {
   );
 };
 
+const ProtectedApp = () => (
+  <ProtectedRoute>
+    <PendingChangesProvider>
+      <HaproxyLiveProvider>
+        <AppContent />
+      </HaproxyLiveProvider>
+    </PendingChangesProvider>
+  </ProtectedRoute>
+);
+
 export const App = () => (
-  <PendingChangesProvider>
-    <HaproxyLiveProvider>
-      <AppContent />
-    </HaproxyLiveProvider>
-  </PendingChangesProvider>
+  <AuthProvider>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/setup-admin" element={<SetupAdminPage />} />
+      <Route path="/*" element={<ProtectedApp />} />
+    </Routes>
+  </AuthProvider>
 );

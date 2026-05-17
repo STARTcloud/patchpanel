@@ -81,6 +81,8 @@ if [[ "${FRESH_INSTALL:-0}" = "1" ]] && [[ -f "${CONFIG_DIR}/setup.token" ]]; th
     SETUP_TOKEN=$(cat "${CONFIG_DIR}/setup.token")
 fi
 
+HOSTNAME_FQDN=$(hostname -f 2>/dev/null || hostname)
+
 echo ""
 echo "================================================================="
 echo "  PatchPanel installed."
@@ -89,13 +91,19 @@ echo "  Config:    ${CONFIG_DIR}/config.yaml"
 echo "  Data:      ${DATA_DIR}/"
 echo "  Logs:      journalctl -fu patchpanel"
 echo ""
+echo "  Start:     systemctl enable --now patchpanel"
+echo ""
 if [[ -n "${SETUP_TOKEN}" ]]; then
-    echo "  Setup token (one-time, consumed by first-run wizard):"
-    echo "    ${SETUP_TOKEN}"
+    echo "  First-run setup URL (one-time, consumed by the wizard):"
+    echo "    https://${HOSTNAME_FQDN}:8099/setup-admin?token=${SETUP_TOKEN}"
     echo ""
+    echo "  Or if you forget the URL, the token alone is in:"
+    echo "    ${CONFIG_DIR}/setup.token"
+    echo ""
+    echo "  Recovery (if locked out later):"
+    echo "    patchpanel user-add --username admin"
+    echo "    patchpanel user-reset --username admin"
 fi
-echo "  Start: systemctl enable --now patchpanel"
-echo "  Then open https://<host>:8099/ and complete the setup wizard."
 echo "================================================================="
 echo ""
 

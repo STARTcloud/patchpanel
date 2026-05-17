@@ -292,14 +292,16 @@ export const ConnectionPoolPanel = ({ ctx }) => {
           <i className="bi bi-arrows-collapse-vertical me-2" />
           Connection pool
         </Card.Title>
-        <div className="d-flex justify-content-between align-items-end mb-1">
-          <span className="display-6 fw-semibold">{cur.toLocaleString()}</span>
-          <span className="text-muted small">/ {max.toLocaleString()}</span>
+        <div className="d-flex justify-content-between align-items-end mb-1 gap-2">
+          <span className="fs-3 fw-semibold text-truncate" title={cur.toLocaleString()}>
+            {cur.toLocaleString()}
+          </span>
+          <span className="text-muted small text-nowrap">/ {max.toLocaleString()}</span>
         </div>
         <ProgressBar variant={variant} now={pct} className="mb-1" style={{ height: '0.5rem' }} />
-        <div className="d-flex justify-content-between small text-muted">
-          <span>active sessions</span>
-          <span>{pct}% of cap</span>
+        <div className="d-flex justify-content-between small text-muted gap-2">
+          <span className="text-truncate">active sessions</span>
+          <span className="text-nowrap">{pct}% of cap</span>
         </div>
       </Card.Body>
     </Card>
@@ -344,7 +346,7 @@ export const LiveRatePanel = ({ ctx }) => {
 
   const options = createChartOptions({
     title: '',
-    height: 90,
+    height: '100%',
     theme: ctx.theme,
     yAxisTitle: '',
     yAxisAllowDecimals: false,
@@ -354,7 +356,7 @@ export const LiveRatePanel = ({ ctx }) => {
       {
         name: 'req/s',
         data: aggregated,
-        color: '#0d6efd',
+        color: '#0d9488',
       },
     ],
     animation: false,
@@ -364,20 +366,25 @@ export const LiveRatePanel = ({ ctx }) => {
 
   return (
     <Card className="patchpanel-panel-metric h-100">
-      <Card.Body>
+      <Card.Body className="d-flex flex-column" style={{ minHeight: 0 }}>
         <Card.Title className="mb-2">
           <i className="bi bi-lightning-charge me-2" />
           Live request rate
         </Card.Title>
-        <div className="d-flex justify-content-between align-items-baseline mb-1">
-          <span className="display-6 fw-semibold">{formatRate(total)}</span>
-          <span className="text-muted small">req/s · all frontends</span>
+        <div className="d-flex justify-content-between align-items-baseline mb-1 flex-shrink-0">
+          <span className="fs-3 fw-semibold text-truncate">{formatRate(total)}</span>
+          <span className="text-muted small text-truncate ms-2">req/s · all frontends</span>
         </div>
-        {aggregated.length > 1 ? (
-          <Chart options={options} />
-        ) : (
-          <div className="text-muted small">Sampling… (5s ticks)</div>
-        )}
+        <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
+          {aggregated.length > 1 ? (
+            <Chart
+              options={options}
+              containerProps={{ style: { width: '100%', height: '100%' } }}
+            />
+          ) : (
+            <div className="text-muted small">Sampling… (5s ticks)</div>
+          )}
+        </div>
       </Card.Body>
     </Card>
   );
@@ -445,9 +452,11 @@ export const ErrorRatePanel = () => {
           <i className="bi bi-exclamation-octagon me-2" />
           Error rate
         </Card.Title>
-        <div className="d-flex justify-content-between align-items-baseline mb-1">
-          <span className={`display-6 fw-semibold text-${variant}`}>{pct.toFixed(2)}%</span>
-          <span className="text-muted small">
+        <div className="d-flex justify-content-between align-items-baseline mb-1 gap-2">
+          <span className={`fs-3 fw-semibold text-${variant} text-truncate`}>
+            {pct.toFixed(2)}%
+          </span>
+          <span className="text-muted small text-nowrap">
             {errs.toLocaleString()} / {sum.toLocaleString()}
           </span>
         </div>
@@ -574,7 +583,7 @@ export const TlsCoveragePanel = ({ doc, ctx }) => {
     { name: 'No cert', y: buckets.missing, color: TLS_COLORS.missing },
   ].filter(d => d.y > 0);
 
-  const base = createChartOptions({ title: '', height: 180, theme: ctx.theme, series: [] });
+  const base = createChartOptions({ title: '', height: '100%', theme: ctx.theme, series: [] });
   const options = {
     ...base,
     chart: { ...base.chart, type: 'pie' },
@@ -593,13 +602,15 @@ export const TlsCoveragePanel = ({ doc, ctx }) => {
 
   return (
     <Card className="patchpanel-panel-status h-100">
-      <Card.Body>
+      <Card.Body className="d-flex flex-column" style={{ minHeight: 0 }}>
         <Card.Title className="mb-2">
           <i className="bi bi-shield-check me-2" />
           TLS coverage
         </Card.Title>
-        <Chart options={options} />
-        <div className="text-muted small text-center">
+        <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
+          <Chart options={options} containerProps={{ style: { width: '100%', height: '100%' } }} />
+        </div>
+        <div className="text-muted small text-center flex-shrink-0">
           {total} enabled route{total === 1 ? '' : 's'}
         </div>
       </Card.Body>
@@ -1059,6 +1070,7 @@ const buildOriginMapOptions = (byCountry, theme) => ({
     map: worldMap,
     spacing: [4, 4, 4, 4],
     backgroundColor: 'transparent',
+    height: '100%',
   },
   title: { text: null },
   credits: { enabled: false },
@@ -1066,8 +1078,8 @@ const buildOriginMapOptions = (byCountry, theme) => ({
   legend: { enabled: false },
   colorAxis: {
     min: 0,
-    minColor: theme === 'dark' ? 'rgba(13,110,253,0.08)' : 'rgba(13,110,253,0.05)',
-    maxColor: '#0d6efd',
+    minColor: theme === 'dark' ? 'rgba(13,148,136,0.08)' : 'rgba(13,148,136,0.05)',
+    maxColor: '#0d9488',
   },
   tooltip: {
     headerFormat: '',
@@ -1119,7 +1131,7 @@ export const WorldOriginMapPanel = ({ ctx }) => {
 
   return (
     <Card className="patchpanel-panel-metric h-100">
-      <Card.Body>
+      <Card.Body className="d-flex flex-column" style={{ minHeight: 0 }}>
         <Card.Title className="mb-2">
           <i className="bi bi-globe me-2" />
           Origin map
@@ -1129,7 +1141,12 @@ export const WorldOriginMapPanel = ({ ctx }) => {
             No country-resolved sessions yet. Map populates as GeoIP resolves public-IP clients.
           </p>
         ) : (
-          <MapsChart options={buildOriginMapOptions(byCountry, ctx?.theme ?? 'light')} />
+          <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
+            <MapsChart
+              options={buildOriginMapOptions(byCountry, ctx?.theme ?? 'light')}
+              containerProps={{ style: { width: '100%', height: '100%' } }}
+            />
+          </div>
         )}
       </Card.Body>
     </Card>

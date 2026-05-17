@@ -29,7 +29,7 @@ const pickScale = history => {
   return SCALE_UNITS[SCALE_UNITS.length - 1];
 };
 
-export const TrafficChart = ({ title, history, theme = 'light', height = 260 }) => {
+export const TrafficChart = ({ title, history, theme = 'light', height = '100%' }) => {
   const scale = pickScale(history);
   const options = createChartOptions({
     title,
@@ -52,7 +52,7 @@ export const TrafficChart = ({ title, history, theme = 'light', height = 260 }) 
     ],
   });
 
-  return <Chart options={options} />;
+  return <Chart options={options} containerProps={{ style: { width: '100%', height: '100%' } }} />;
 };
 
 TrafficChart.propTypes = {
@@ -65,5 +65,5 @@ TrafficChart.propTypes = {
     })
   ).isRequired,
   theme: PropTypes.oneOf(['light', 'dark']),
-  height: PropTypes.number,
+  height: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
 };

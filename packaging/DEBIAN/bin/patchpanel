@@ -38,6 +38,8 @@ Commands:
   next-renewal-slot     Print epoch seconds of next scheduled renewal.
   backup-pre            Hook: quiesce state before backup.
   backup-post           Hook: resume after backup.
+  user-add              Create a new admin user (out-of-band, for headless setup).
+  user-reset            Reset a user's password (out-of-band recovery).
   version               Print package version.
   help                  Show this message.
 
@@ -65,6 +67,8 @@ case "${cmd}" in
     next-renewal-slot) run_node server/src/cli/next-renewal-slot.js "$@" ;;
     backup-pre)        run_node server/src/cli/backup-pre.js "$@" ;;
     backup-post)       run_node server/src/cli/backup-post.js "$@" ;;
+    user-add)          run_node server/src/cli/user-add.js "$@" ;;
+    user-reset)        run_node server/src/cli/user-reset.js "$@" ;;
     version)           run_node server/src/cli/version.js "$@" ;;
     help|--help|-h|"") print_help ;;
     *)
