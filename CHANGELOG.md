@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/STARTcloud/patchpanel/compare/v0.3.8...v0.4.0) (2026-05-17)
+
+
+### Features
+
+* authentication ([dd6b018](https://github.com/STARTcloud/patchpanel/commit/dd6b01855bea7117bddb0fd8e1d49294ac33612a))
+
 ## [0.3.8](https://github.com/STARTcloud/patchpanel/compare/v0.3.7...v0.3.8) (2026-05-17)
 
 

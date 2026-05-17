@@ -1,4 +1,4 @@
-version: 0.3.8
+version: 0.4.0
 _sections:
   Server:
     description: HTTP server bind, TLS termination, deployment mode
@@ -474,11 +474,11 @@ auth:
       - local
     description: >
       Authentication strategy. local = local password (cookie session) + API
-      tokens (bearer) — the default for Debian baremetal. ha-ingress = trust
-      the HA supervisor proxy IP listed in server.trustProxy; users
-      authenticate to Home Assistant upstream, requests through ingress are
-      treated as admin. none = no auth (dev only — anyone with network access
-      can read and modify state).
+      tokens (bearer) — the default for Debian baremetal. ha-ingress = trust the
+      HA supervisor proxy IP listed in server.trustProxy; users authenticate to
+      Home Assistant upstream, requests through ingress are treated as admin.
+      none = no auth (dev only — anyone with network access can read and modify
+      state).
     section: Authentication
     subsection: Strategy
     order: 1
