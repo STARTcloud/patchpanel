@@ -68,8 +68,12 @@ case "$1" in
         ;;
 esac
 
-# 5. Reload systemd
-systemctl daemon-reload
+# 5. Reload systemd — skip when there's no running systemd (Docker builds,
+# chroots, schroot, etc.). Lintian recommends this pattern; otherwise
+# `dpkg --configure patchpanel` fails inside any non-systemd container.
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload
+fi
 
 # 6. Banner
 SETUP_TOKEN=""
