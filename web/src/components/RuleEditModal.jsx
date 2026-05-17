@@ -598,9 +598,14 @@ const renderLua = (action, update) => (
     <Col md={4}>
       <Form.Group>
         <Form.Label>Function name</Form.Label>
+        {/* `function` is a reserved word — accessing/assigning it via dot or
+            bare-key inside an arrow body confuses CodeQL's JS parser (the JSX
+            expression brace + reserved-word key looks like a function
+            expression to it). Bracket notation sidesteps that without
+            touching the underlying state-schema property name. */}
         <Form.Control
           value={action.function ?? ''}
-          onChange={e => update({ function: e.target.value })}
+          onChange={e => update({ ['function']: e.target.value })}
           placeholder="my_lua_fn"
         />
       </Form.Group>

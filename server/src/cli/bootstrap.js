@@ -22,38 +22,6 @@ const HA_TO_HAPROXY_LOG_LEVEL = Object.freeze({
   fatal: 'emerg',
 });
 
-const TIMEZONE_PATH = '/etc/localtime';
-const ZONEINFO_BASE = '/usr/share/zoneinfo';
-
-const applyTimezoneFromOptions = async opts => {
-  const tz = opts?.timezone;
-  if (!tz) {
-    return;
-  }
-  const target = joinPath(ZONEINFO_BASE, tz);
-  if (!(await fileExists(target))) {
-    logger.warning('addon timezone not found in zoneinfo; skipping', { tz, target });
-    return;
-  }
-  try {
-    await fs.rm(TIMEZONE_PATH, { force: true });
-    await fs.symlink(target, TIMEZONE_PATH);
-    logger.info('timezone applied', { tz, target });
-  } catch (err) {
-    logger.warning('failed to apply timezone', { tz, error: err.message });
-  }
-};
-
-const readAddonOptions = async config => {
-  if (!config.paths.options) {
-    return null;
-  }
-  if (!(await fileExists(config.paths.options))) {
-    return null;
-  }
-  return readJson(config.paths.options).catch(() => null);
-};
-
 const SAFE_MINIMAL_CFG = `global
     log stdout format raw local0 info
     maxconn 4096
@@ -70,10 +38,10 @@ frontend http-in
     http-request return status 503 content-type text/plain string "patchpanel: safe-mode (state.json renders invalid cfg; fix via Raw State tab)"
 `;
 
-// Addon options seed only operational toggles (staging-style flags, log
-// level, timezone). DNS provider credentials and the ACME account email
-// are managed end-to-end through the patchpanel UI via
-// /api/tls-providers/:id/credentials and state.acmeAccounts[].
+// Addon options only seed the HAProxy log level at first boot — every other
+// operational setting (renewal cadence, propagation timing, staging mode,
+// ACME account, DNS provider credentials) is managed in-app via state.json.
+// Timezone is inherited from the supervisor's TZ env var; no action needed.
 const seedFromAddonOptions = async (config, baseState) => {
   if (!config.paths.options) {
     return baseState;
@@ -82,32 +50,16 @@ const seedFromAddonOptions = async (config, baseState) => {
     return baseState;
   }
   const opts = await readJson(config.paths.options).catch(() => null);
-  if (!opts) {
+  if (!opts?.log_level || !HA_TO_HAPROXY_LOG_LEVEL[opts.log_level]) {
     return baseState;
   }
-
-  let seeded = {
+  return {
     ...baseState,
-    letsencrypt: {
-      ...baseState.letsencrypt,
-      forceRenewal: opts.force_renewal ?? baseState.letsencrypt.forceRenewal,
-      skipRenewal: opts.skip_renewal ?? baseState.letsencrypt.skipRenewal,
-      defaultPropagationSeconds:
-        opts.dns_propagation_seconds ?? baseState.letsencrypt.defaultPropagationSeconds,
+    globalSettings: {
+      ...baseState.globalSettings,
+      logLevel: HA_TO_HAPROXY_LOG_LEVEL[opts.log_level],
     },
   };
-
-  if (opts.log_level && HA_TO_HAPROXY_LOG_LEVEL[opts.log_level]) {
-    seeded = {
-      ...seeded,
-      globalSettings: {
-        ...seeded.globalSettings,
-        logLevel: HA_TO_HAPROXY_LOG_LEVEL[opts.log_level],
-      },
-    };
-  }
-
-  return seeded;
 };
 
 const tryRender = (state, config, loadableCertCount) => {
@@ -149,9 +101,6 @@ const main = async () => {
     config: { type: 'string', default: null },
   });
   const config = configLoader.load(args.config);
-
-  const opts = await readAddonOptions(config);
-  await applyTimezoneFromOptions(opts);
 
   await ensureCertsDirs(config.paths);
 
