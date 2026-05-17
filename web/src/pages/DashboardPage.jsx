@@ -1,4 +1,4 @@
-import HighchartsReact from 'highcharts-react-official';
+import { Chart } from '@highcharts/react';
 import PropTypes from 'prop-types';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, Col, Row, Spinner, Table } from 'react-bootstrap';
@@ -22,7 +22,7 @@ import {
 import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
 import { ExpandedChartModal } from '../components/ExpandedChartModal.jsx';
 import { HaproxyStatusBadge } from '../components/HaproxyStatusBadge.jsx';
-import Highcharts from '../components/Highcharts.jsx';
+import '../components/Highcharts.jsx';
 import { PanelLayoutPopover } from '../components/PanelLayoutPopover.jsx';
 import { deriveRouteRows } from '../components/RouteWizard.jsx';
 import { TrafficChart } from '../components/TrafficChart.jsx';
@@ -713,7 +713,7 @@ const HttpCodePieCard = ({ theme }) => {
         <Card.Text className="text-muted small mb-2">
           Distribution across all frontends in the last hour (delta-based).
         </Card.Text>
-        <HighchartsReact highcharts={Highcharts} options={options} />
+        <Chart options={options} />
       </Card.Body>
     </Card>
   );

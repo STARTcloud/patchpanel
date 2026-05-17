@@ -1,8 +1,8 @@
-import HighchartsReact from 'highcharts-react-official';
+import { Chart } from '@highcharts/react';
 import PropTypes from 'prop-types';
 
 import { createChartOptions } from './chartDefaults.js';
-import Highcharts from './Highcharts.jsx';
+import './Highcharts.jsx';
 
 const SCALE_UNITS = [
   { divisor: 1024 * 1024 * 1024, suffix: ' GB/s' },
@@ -52,7 +52,7 @@ export const TrafficChart = ({ title, history, theme = 'light', height = 260 }) 
     ],
   });
 
-  return <HighchartsReact highcharts={Highcharts} options={options} />;
+  return <Chart options={options} />;
 };
 
 TrafficChart.propTypes = {

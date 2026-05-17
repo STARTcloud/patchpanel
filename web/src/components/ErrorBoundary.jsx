@@ -7,7 +7,7 @@ import { Alert, Button, Card } from 'react-bootstrap';
 // https://github.com/facebook/react/blob/main/scripts/error-codes/codes.json
 const REACT_ERROR_TEMPLATES = {
   31: 'Objects are not valid as a React child (found: %s). If you meant to render a collection of children, use an array instead.',
-  130: 'Objects are not valid as a React child (found: %s). If you meant to render a collection of children, use an array instead.',
+  130: 'Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: %s.%s',
   152: '%s(...): Nothing was returned from render. This usually means a return statement is missing. Or, to render nothing, return null.',
   185: 'Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate. React limits the number of nested updates to prevent infinite loops.',
   321: 'Invalid hook call. Hooks can only be called inside the body of a function component. This could happen for one of the following reasons:\n1. You might have mismatching versions of React and the renderer (such as React DOM)\n2. You might be breaking the Rules of Hooks\n3. You might have more than one copy of React in the same app',

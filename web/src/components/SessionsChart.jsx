@@ -1,8 +1,8 @@
-import HighchartsReact from 'highcharts-react-official';
+import { Chart } from '@highcharts/react';
 import PropTypes from 'prop-types';
 
 import { createChartOptions, seriesColor } from './chartDefaults.js';
-import Highcharts from './Highcharts.jsx';
+import './Highcharts.jsx';
 
 export const SessionsChart = ({ histories, theme = 'light', height = 260 }) => {
   const series = histories.map((entry, idx) => ({
@@ -21,7 +21,7 @@ export const SessionsChart = ({ histories, theme = 'light', height = 260 }) => {
     series,
   });
 
-  return <HighchartsReact highcharts={Highcharts} options={options} />;
+  return <Chart options={options} />;
 };
 
 SessionsChart.propTypes = {

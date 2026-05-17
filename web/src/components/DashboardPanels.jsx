@@ -1,5 +1,6 @@
 import worldMap from '@highcharts/map-collection/custom/world.topo.json';
-import HighchartsReact from 'highcharts-react-official';
+import { Chart } from '@highcharts/react';
+import { MapsChart } from '@highcharts/react/Maps';
 import PropTypes from 'prop-types';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Badge, Card, ProgressBar, Table } from 'react-bootstrap';
@@ -10,7 +11,7 @@ import { useStatsHistory } from '../hooks/useStatsHistory.jsx';
 import { findCoveringCertsForRoute } from '../utils/certMatch.js';
 
 import { createChartOptions } from './chartDefaults.js';
-import Highcharts from './Highcharts.jsx';
+import './Highcharts.jsx';
 import { deriveRouteRows } from './RouteWizard.jsx';
 
 // v0.2.40 — New dashboard panels. Each one owns its data fetching, polling,
@@ -373,7 +374,7 @@ export const LiveRatePanel = ({ ctx }) => {
           <span className="text-muted small">req/s · all frontends</span>
         </div>
         {aggregated.length > 1 ? (
-          <HighchartsReact highcharts={Highcharts} options={options} />
+          <Chart options={options} />
         ) : (
           <div className="text-muted small">Sampling… (5s ticks)</div>
         )}
@@ -597,7 +598,7 @@ export const TlsCoveragePanel = ({ doc, ctx }) => {
           <i className="bi bi-shield-check me-2" />
           TLS coverage
         </Card.Title>
-        <HighchartsReact highcharts={Highcharts} options={options} />
+        <Chart options={options} />
         <div className="text-muted small text-center">
           {total} enabled route{total === 1 ? '' : 's'}
         </div>
@@ -1128,11 +1129,7 @@ export const WorldOriginMapPanel = ({ ctx }) => {
             No country-resolved sessions yet. Map populates as GeoIP resolves public-IP clients.
           </p>
         ) : (
-          <HighchartsReact
-            highcharts={Highcharts}
-            constructorType="mapChart"
-            options={buildOriginMapOptions(byCountry, ctx?.theme ?? 'light')}
-          />
+          <MapsChart options={buildOriginMapOptions(byCountry, ctx?.theme ?? 'light')} />
         )}
       </Card.Body>
     </Card>
