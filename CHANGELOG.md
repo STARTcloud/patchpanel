@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.6](https://github.com/STARTcloud/patchpanel/compare/v0.3.5...v0.3.6) (2026-05-17)
+
+
+### Bug Fixes
+
+* increasing security an debugging ([0025e2c](https://github.com/STARTcloud/patchpanel/commit/0025e2c25bdf355da668c73812ebc931b4cd1ae3))
+
 ## [0.3.5](https://github.com/STARTcloud/patchpanel/compare/v0.3.4...v0.3.5) (2026-05-17)
 
 
