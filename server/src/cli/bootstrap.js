@@ -70,42 +70,10 @@ frontend http-in
     http-request return status 503 content-type text/plain string "patchpanel: safe-mode (state.json renders invalid cfg; fix via Raw State tab)"
 `;
 
-const writeProviderCredentialsFromOptions = async (config, opts) => {
-  if (!opts) {
-    return;
-  }
-  await fs.mkdir(config.paths.credentials, { recursive: true, mode: 0o700 });
-
-  if (opts.cloudflare_api_token) {
-    const target = joinPath(config.paths.credentials, 'cloudflare.ini');
-    const content = `dns_cloudflare_api_token = ${opts.cloudflare_api_token}\n`;
-    await writeAtomic(target, content, { mode: 0o600 });
-    logger.info('cloudflare credentials written from addon options', { path: target });
-  }
-};
-
-const ensureDefaultCloudflareProvider = stateInput => {
-  const hasCloudflare = stateInput.tls.providers.some(p => p.type === 'dns-cloudflare');
-  if (hasCloudflare) {
-    return stateInput;
-  }
-  return {
-    ...stateInput,
-    tls: {
-      ...stateInput.tls,
-      providers: [
-        ...stateInput.tls.providers,
-        {
-          id: 'cloudflare',
-          type: 'dns-cloudflare',
-          credentialsRef: '/data/credentials/cloudflare.ini',
-          options: {},
-        },
-      ],
-    },
-  };
-};
-
+// Addon options seed only operational toggles (staging-style flags, log
+// level, timezone). DNS provider credentials and the ACME account email
+// are managed end-to-end through the patchpanel UI via
+// /api/tls-providers/:id/credentials and state.acmeAccounts[].
 const seedFromAddonOptions = async (config, baseState) => {
   if (!config.paths.options) {
     return baseState;
@@ -118,14 +86,10 @@ const seedFromAddonOptions = async (config, baseState) => {
     return baseState;
   }
 
-  await writeProviderCredentialsFromOptions(config, opts);
-
   let seeded = {
     ...baseState,
     letsencrypt: {
       ...baseState.letsencrypt,
-      email: opts.email && opts.email.length > 0 ? opts.email : baseState.letsencrypt.email,
-      staging: opts.staging ?? baseState.letsencrypt.staging,
       forceRenewal: opts.force_renewal ?? baseState.letsencrypt.forceRenewal,
       skipRenewal: opts.skip_renewal ?? baseState.letsencrypt.skipRenewal,
       defaultPropagationSeconds:
@@ -143,21 +107,7 @@ const seedFromAddonOptions = async (config, baseState) => {
     };
   }
 
-  return opts.cloudflare_api_token ? ensureDefaultCloudflareProvider(seeded) : seeded;
-};
-
-const refreshCredentialsOnly = async config => {
-  if (!config.paths.options) {
-    return;
-  }
-  if (!(await fileExists(config.paths.options))) {
-    return;
-  }
-  const opts = await readJson(config.paths.options).catch(() => null);
-  if (!opts) {
-    return;
-  }
-  await writeProviderCredentialsFromOptions(config, opts);
+  return seeded;
 };
 
 const tryRender = (state, config, loadableCertCount) => {
@@ -218,13 +168,9 @@ const main = async () => {
     preservedInvalid = true;
   }
 
-  if (preservedInvalid) {
-    await refreshCredentialsOnly(config);
-  } else if (!state || state.meta.lastEditedBy === null) {
+  if (!preservedInvalid && (!state || state.meta.lastEditedBy === null)) {
     const seeded = await seedFromAddonOptions(config, state ?? emptyState());
     state = await saveState(config.paths.state, seeded, { editor: 'bootstrap' });
-  } else {
-    await refreshCredentialsOnly(config);
   }
 
   await fs.mkdir(dirname(config.paths.haproxyCertsList), { recursive: true });

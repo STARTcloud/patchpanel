@@ -25,12 +25,15 @@ export const SetupPage = ({ doc = null, onSave = null }) => {
   const fresh = isFreshInstall(doc);
 
   const close = () => setShow(false);
-  const complete = async next => {
+  // Wizard performs a multi-step save (state PUT → optional credentials PUT →
+  // state PUT again with credentialsRef). Return the persisted doc so the
+  // wizard can chain off it, and let the wizard close itself via onCancel
+  // after the whole sequence succeeds.
+  const complete = next => {
     if (!onSave) {
-      return;
+      return null;
     }
-    await onSave(next);
-    close();
+    return onSave(next);
   };
 
   if (!fresh) {

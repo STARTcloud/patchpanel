@@ -12,7 +12,7 @@ import {
 } from 'react-bootstrap';
 import { useSearchParams } from 'react-router';
 
-import { apiPost } from '../api/client.js';
+import { apiDelete, apiGet, apiPost } from '../api/client.js';
 import { AutheliaSetupWizard } from '../components/AutheliaSetupWizard.jsx';
 import { AuthProviderEditModal } from '../components/AuthProviderEditModal.jsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
@@ -380,11 +380,73 @@ AuthProvidersCard.propTypes = {
   onSave: onSavePropType,
 };
 
+const CREDENTIALS_NA_TYPES = new Set(['http-01', 'byo']);
+
+const StoredBadge = () => (
+  <Badge bg="success">
+    <i className="bi bi-lock-fill me-1" />
+    stored
+  </Badge>
+);
+
+const MissingBadge = () => (
+  <Badge bg="warning" text="dark">
+    <i className="bi bi-exclamation-circle me-1" />
+    missing
+  </Badge>
+);
+
+const CredentialsStatusBadge = ({ providerId, providerType, version }) => {
+  const isNa = CREDENTIALS_NA_TYPES.has(providerType);
+  const [state, setState] = useState({ loading: !isNa, exists: false });
+
+  useEffect(() => {
+    if (isNa) {
+      return undefined;
+    }
+    let active = true;
+    apiGet(`api/tls-providers/${encodeURIComponent(providerId)}/credentials`)
+      .then(payload => {
+        if (active) {
+          setState({ loading: false, exists: payload.exists === true });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setState({ loading: false, exists: false });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [providerId, isNa, version]);
+
+  if (isNa) {
+    return (
+      <Badge bg="secondary" className="bg-opacity-25 text-body-secondary border">
+        n/a
+      </Badge>
+    );
+  }
+  if (state.loading) {
+    return <Spinner as="span" animation="border" size="sm" />;
+  }
+  return state.exists ? <StoredBadge /> : <MissingBadge />;
+};
+
+CredentialsStatusBadge.propTypes = {
+  providerId: PropTypes.string.isRequired,
+  providerType: PropTypes.string.isRequired,
+  version: PropTypes.number.isRequired,
+};
+
 const TlsProvidersCard = ({ doc, onSave }) => {
   const [editing, setEditing] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [deleting, setDeleting] = useState(null);
   const [testResult, setTestResult] = useState(null);
+  const [saveError, setSaveError] = useState(null);
+  const [credBumper, setCredBumper] = useState(0);
   const { focusId, focusedRowRef } = useFocusFromQuery();
 
   const refsByProvider = useMemo(() => {
@@ -400,19 +462,42 @@ const TlsProvidersCard = ({ doc, onSave }) => {
 
   const isInUse = id => doc.tls.certs.some(c => c.providerId === id);
 
-  const persist = async nextProviders => {
-    setEditing(null);
-    setShowNew(false);
-    setDeleting(null);
+  const saveDocAndBump = async nextDoc => {
+    setSaveError(null);
     try {
-      await onSave({ ...doc, tls: { ...doc.tls, providers: nextProviders } });
-    } catch {
-      // surfaced via state hook
+      const persisted = await onSave(nextDoc);
+      setCredBumper(v => v + 1);
+      return persisted;
+    } catch (err) {
+      setSaveError(err);
+      throw err;
     }
   };
-  const add = entity => persist([...doc.tls.providers, entity]);
-  const update = entity => persist(doc.tls.providers.map(p => (p.id === entity.id ? entity : p)));
-  const remove = id => persist(doc.tls.providers.filter(p => p.id !== id));
+
+  const handleDelete = async () => {
+    const target = deleting;
+    setDeleting(null);
+    if (!target) {
+      return;
+    }
+    setSaveError(null);
+    try {
+      // Credentials DELETE is best-effort — file may not exist or the
+      // provider type doesn't use one. Either is non-fatal.
+      try {
+        await apiDelete(`api/tls-providers/${encodeURIComponent(target.id)}/credentials`);
+      } catch {
+        // ignore
+      }
+      await onSave({
+        ...doc,
+        tls: { ...doc.tls, providers: doc.tls.providers.filter(p => p.id !== target.id) },
+      });
+      setCredBumper(v => v + 1);
+    } catch (err) {
+      setSaveError(err);
+    }
+  };
 
   return (
     <Card className="mb-3">
@@ -425,15 +510,21 @@ const TlsProvidersCard = ({ doc, onSave }) => {
         </div>
         <Card.Text className="text-muted small">
           Certbot challenge providers (DNS-01 per registrar, HTTP-01, BYO). Certificates pick one of
-          these to satisfy the ACME challenge.
+          these to satisfy the ACME challenge. Credentials are stored as mode-600 files in
+          patchpanel&apos;s credentials directory — the per-provider form below collects them.
         </Card.Text>
+        {saveError ? (
+          <Alert variant="danger" onClose={() => setSaveError(null)} dismissible>
+            Save failed: {saveError.message}
+          </Alert>
+        ) : null}
         <TestResultAlert result={testResult} onDismiss={() => setTestResult(null)} />
         <Table striped bordered hover responsive size="sm">
           <thead>
             <tr>
               <th>ID</th>
               <th>Type</th>
-              <th>credentialsRef</th>
+              <th>Credentials</th>
               <th>Used by</th>
               <th className="text-end">Actions</th>
             </tr>
@@ -442,6 +533,7 @@ const TlsProvidersCard = ({ doc, onSave }) => {
             {doc.tls.providers.map(provider => {
               const refs = refsByProvider.get(provider.id) ?? [];
               const isFocused = focusId === provider.id;
+              const summary = summariseTlsProvider(provider);
               return (
                 <tr
                   key={provider.id}
@@ -453,13 +545,14 @@ const TlsProvidersCard = ({ doc, onSave }) => {
                   </td>
                   <td>
                     <Badge bg="info">{provider.type}</Badge>
+                    {summary ? <div className="small text-muted mt-1">{summary}</div> : null}
                   </td>
                   <td>
-                    <code className="small">{provider.credentialsRef ?? '—'}</code>
-                    {(() => {
-                      const summary = summariseTlsProvider(provider);
-                      return summary ? <div className="small text-muted">{summary}</div> : null;
-                    })()}
+                    <CredentialsStatusBadge
+                      providerId={provider.id}
+                      providerType={provider.type}
+                      version={credBumper}
+                    />
                   </td>
                   <td>
                     <UsageBadge count={refs.length} refs={refs} kind="cert" variant="info" />
@@ -495,14 +588,20 @@ const TlsProvidersCard = ({ doc, onSave }) => {
         </Table>
       </Card.Body>
       {showNew ? (
-        <TlsProviderEditModal show onSave={add} onCancel={() => setShowNew(false)} />
+        <TlsProviderEditModal
+          show
+          doc={doc}
+          onSave={saveDocAndBump}
+          onClose={() => setShowNew(false)}
+        />
       ) : null}
       {editing ? (
         <TlsProviderEditModal
           show
+          doc={doc}
           provider={editing}
-          onSave={update}
-          onCancel={() => setEditing(null)}
+          onSave={saveDocAndBump}
+          onClose={() => setEditing(null)}
         />
       ) : null}
       {deleting ? (
@@ -511,11 +610,12 @@ const TlsProvidersCard = ({ doc, onSave }) => {
           title="Delete TLS provider?"
           body={
             <>
-              Delete <strong>{deleting.id}</strong> ({deleting.type})?
+              Delete <strong>{deleting.id}</strong> ({deleting.type})? The stored credentials file
+              (if any) is also removed from disk.
             </>
           }
           confirmLabel="Delete"
-          onConfirm={() => remove(deleting.id)}
+          onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />
       ) : null}

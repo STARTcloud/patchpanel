@@ -202,6 +202,29 @@ const buildSpec = () => ({
         summary: 'Probe a TLS/ACME provider — credentials file existence + certbot lineage list',
       },
     },
+    '/api/tls-providers/credential-template/{type}': {
+      get: {
+        summary:
+          'DNS-provider credential form schema (no state lookup). Returns {type, format, fields[]}.',
+        parameters: [{ name: 'type', in: 'path', required: true, schema: { type: 'string' } }],
+      },
+    },
+    '/api/tls-providers/{id}/credentials': {
+      get: {
+        summary:
+          'On-disk credentials for a configured TLS provider. Secret fields are masked as "***".',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      },
+      put: {
+        summary:
+          'Write/update the per-provider credentials .ini. body.fields = { key: value }. Secret fields whose incoming value is "***" preserve the on-disk value.',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      },
+      delete: {
+        summary: 'Remove the credentials .ini for the provider.',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      },
+    },
     '/api/openapi.json': {
       get: { summary: 'This spec' },
     },

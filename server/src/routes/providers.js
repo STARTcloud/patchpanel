@@ -2,9 +2,27 @@ import { promises as fs } from 'node:fs';
 
 import { Router } from 'express';
 
+import * as audit from '../lib/audit.js';
 import { listCertificates } from '../lib/certbot.js';
+import {
+  getDnsProviderTemplate,
+  listProviderTypes,
+  maskProviderValues,
+  mergeProviderValues,
+  parseProviderIni,
+  renderProviderIni,
+  validateMergedValues,
+} from '../lib/dns-provider-templates.js';
 import * as logger from '../lib/logger.js';
 import { loadState } from '../lib/state.js';
+import {
+  credentialPath,
+  credentialsExist,
+  readCredentials,
+  removeCredentials,
+  validateProviderIdForCredentials,
+  writeCredentials,
+} from '../lib/tls-credentials.js';
 
 const TEST_TIMEOUT_MS = 8_000;
 
@@ -429,8 +447,187 @@ const testTlsProvider = async (provider, config) => {
   return out;
 };
 
+const findTlsProvider = (state, id) => (state?.tls?.providers ?? []).find(p => p.id === id) ?? null;
+
 export const providersRouter = config => {
   const router = Router();
+
+  // ===================================================================
+  // DNS provider credential template + CRUD.
+  //
+  // GET  /tls-providers/credential-template/:type — form schema for a
+  //         provider type (no state lookup, no auth-side details).
+  // GET  /tls-providers/:id/credentials          — masked on-disk values
+  //         for a specific configured provider (404 if id not in state).
+  // PUT  /tls-providers/:id/credentials          — write/update the .ini
+  //         file. Secret fields whose incoming value is '***' preserve
+  //         the on-disk value.
+  // DEL  /tls-providers/:id/credentials          — remove the .ini.
+  // ===================================================================
+
+  router.get('/tls-providers/credential-template/:type', (req, res) => {
+    const { type } = req.params;
+    logger.debug('GET /tls-providers/credential-template/:type', { ip: req.ip, type });
+    const template = getDnsProviderTemplate(type);
+    if (!template) {
+      res.status(404).json({
+        error: `unknown provider type: ${type}`,
+        supportedTypes: listProviderTypes(),
+      });
+      return;
+    }
+    res.set('cache-control', 'no-store').json({
+      type,
+      format: template.format,
+      fields: template.fields,
+    });
+  });
+
+  router.get('/tls-providers/:id/credentials', async (req, res, next) => {
+    const { id } = req.params;
+    logger.debug('GET /tls-providers/:id/credentials', { ip: req.ip, id });
+    const idError = validateProviderIdForCredentials(id);
+    if (idError) {
+      res.status(400).json({ error: idError });
+      return;
+    }
+    try {
+      const state = await loadState(config.paths.state);
+      const provider = findTlsProvider(state, id);
+      if (!provider) {
+        res.status(404).json({ error: `tls provider not found: ${id}` });
+        return;
+      }
+      const path = credentialPath(config.paths.credentials, id);
+      const exists = await credentialsExist(config.paths.credentials, id);
+      let fields = {};
+      if (exists) {
+        try {
+          const content = await readCredentials(config.paths.credentials, id);
+          const parsed = parseProviderIni(provider.type, content);
+          fields = maskProviderValues(provider.type, parsed);
+        } catch (err) {
+          logger.warning('failed to parse on-disk credentials; returning empty fields', {
+            id,
+            type: provider.type,
+            error: err.message,
+          });
+        }
+      }
+      res.set('cache-control', 'no-store').json({
+        id,
+        type: provider.type,
+        exists,
+        path,
+        fields,
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put('/tls-providers/:id/credentials', async (req, res, next) => {
+    const { id } = req.params;
+    const actor = req.user?.id ?? null;
+    logger.info('PUT /tls-providers/:id/credentials', { ip: req.ip, actor, id });
+    const idError = validateProviderIdForCredentials(id);
+    if (idError) {
+      res.status(400).json({ error: idError });
+      return;
+    }
+    try {
+      const state = await loadState(config.paths.state);
+      const provider = findTlsProvider(state, id);
+      if (!provider) {
+        res.status(404).json({ error: `tls provider not found: ${id}` });
+        return;
+      }
+      const template = getDnsProviderTemplate(provider.type);
+      if (!template || template.fields.length === 0) {
+        res.status(400).json({
+          error: `provider type "${provider.type}" has no credentials to manage`,
+        });
+        return;
+      }
+      const incoming = req.body?.fields ?? {};
+      let existing = {};
+      if (await credentialsExist(config.paths.credentials, id)) {
+        try {
+          const content = await readCredentials(config.paths.credentials, id);
+          existing = parseProviderIni(provider.type, content);
+        } catch (err) {
+          logger.warning('failed to parse existing credentials; treating as empty', {
+            id,
+            error: err.message,
+          });
+        }
+      }
+      const merge = mergeProviderValues(provider.type, existing, incoming);
+      if (!merge.ok) {
+        res.status(400).json({ error: merge.error });
+        return;
+      }
+      const validation = validateMergedValues(provider.type, merge.merged);
+      if (!validation.ok) {
+        res.status(400).json({ ok: false, errors: validation.errors });
+        return;
+      }
+      const content = renderProviderIni(provider.type, merge.merged);
+      const path = await writeCredentials(config.paths.credentials, id, content);
+      audit.record({
+        actor,
+        category: 'tls-credentials',
+        action: 'write',
+        target: id,
+        outcome: 'ok',
+        details: { type: provider.type, path },
+      });
+      logger.info('tls provider credentials written', { id, type: provider.type, path });
+      res.json({ ok: true, id, type: provider.type, path });
+    } catch (err) {
+      audit.record({
+        actor: req.user?.id ?? null,
+        category: 'tls-credentials',
+        action: 'write',
+        target: id,
+        outcome: 'error',
+        details: { error: err.message },
+      });
+      next(err);
+    }
+  });
+
+  router.delete('/tls-providers/:id/credentials', async (req, res, next) => {
+    const { id } = req.params;
+    const actor = req.user?.id ?? null;
+    logger.info('DELETE /tls-providers/:id/credentials', { ip: req.ip, actor, id });
+    const idError = validateProviderIdForCredentials(id);
+    if (idError) {
+      res.status(400).json({ error: idError });
+      return;
+    }
+    try {
+      await removeCredentials(config.paths.credentials, id);
+      audit.record({
+        actor,
+        category: 'tls-credentials',
+        action: 'delete',
+        target: id,
+        outcome: 'ok',
+      });
+      res.json({ ok: true, id });
+    } catch (err) {
+      audit.record({
+        actor,
+        category: 'tls-credentials',
+        action: 'delete',
+        target: id,
+        outcome: 'error',
+        details: { error: err.message },
+      });
+      next(err);
+    }
+  });
 
   router.post('/auth-providers/:id/test', async (req, res, next) => {
     const { id } = req.params;

@@ -2,6 +2,7 @@ import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Col, Form, Row } from 'react-bootstrap';
 
+import { apiPut } from '../api/client.js';
 import { stateDocShape } from '../prop-shapes.js';
 
 import { ListEditor } from './ListEditor.jsx';
@@ -26,16 +27,14 @@ const PROVIDER_OPTIONS = Object.freeze([
     value: 'cloudflare',
     label: 'Cloudflare DNS-01',
     description:
-      "Best for wildcards and when port 80 isn't reachable. Requires a Cloudflare API token at /data/credentials/cloudflare.ini.",
+      "Best for wildcards and when port 80 isn't reachable. Requires a Cloudflare API token (collected below).",
     providerType: 'dns-cloudflare',
-    credentialsRef: '/data/credentials/cloudflare.ini',
   },
   {
     value: 'http-01',
     label: "Let's Encrypt HTTP-01 webroot",
     description: 'Works with any DNS host. Requires port 80 reachable from the public Internet.',
     providerType: 'http-01',
-    credentialsRef: null,
   },
 ]);
 
@@ -69,6 +68,7 @@ const uniqueIn = (proposed, taken) => {
 const emptyDraft = () => ({
   email: '',
   provider: 'cloudflare',
+  cloudflareApiToken: '',
   backendName: 'default',
   backendServerAddress: '',
   frontendName: 'https-in',
@@ -133,6 +133,26 @@ const IdentityStep = ({ draft, update }) => {
           ))}
         </div>
       </Col>
+      {draft.provider === 'cloudflare' ? (
+        <Col xs={12}>
+          <Form.Group>
+            <Form.Label>Cloudflare API token</Form.Label>
+            <Form.Control
+              type="password"
+              value={draft.cloudflareApiToken}
+              onChange={e => update({ cloudflareApiToken: e.target.value })}
+              placeholder="Scoped Zone → DNS → Edit token"
+              autoComplete="new-password"
+            />
+            <Form.Text className="text-muted">
+              Create a scoped API token in the Cloudflare dashboard with{' '}
+              <code>Zone : DNS : Edit</code> on the zone(s) you want to issue certs for. patchpanel
+              writes the token to a mode-600 file in the credentials directory; it never leaves the
+              addon.
+            </Form.Text>
+          </Form.Group>
+        </Col>
+      ) : null}
     </Row>
   );
 };
@@ -238,6 +258,8 @@ RouteStep.propTypes = {
 const ReviewStep = ({ draft }) => {
   const providerOpt = PROVIDER_OPTIONS.find(p => p.value === draft.provider);
   const domains = [draft.routeHostname, ...draft.extraCertDomains].filter(Boolean);
+  const willWriteCloudflareToken =
+    draft.provider === 'cloudflare' && draft.cloudflareApiToken.trim().length > 0;
   return (
     <div className="small">
       <h6 className="mb-3">Will create</h6>
@@ -247,7 +269,14 @@ const ReviewStep = ({ draft }) => {
           <code>{draft.email}</code>
         </dd>
         <dt className="col-sm-4">ACME provider</dt>
-        <dd className="col-sm-8">{providerOpt?.label ?? '—'}</dd>
+        <dd className="col-sm-8">
+          {providerOpt?.label ?? '—'}
+          {willWriteCloudflareToken ? (
+            <Badge bg="success" className="ms-2">
+              token will be stored
+            </Badge>
+          ) : null}
+        </dd>
         <dt className="col-sm-4">Defaults block</dt>
         <dd className="col-sm-8">
           <code>default</code> (mode http, sensible timeouts)
@@ -275,8 +304,10 @@ const ReviewStep = ({ draft }) => {
         </dd>
       </dl>
       <Alert variant="light" className="border small mt-3 mb-0">
-        Clicking <strong>Apply setup</strong> writes state. The cert isn&apos;t issued automatically
-        — open the Certificates tab and click <strong>Renew</strong> after the wizard closes.
+        Clicking <strong>Apply setup</strong> writes state
+        {willWriteCloudflareToken ? ' and stores the Cloudflare API token' : ''}. The cert
+        isn&apos;t issued automatically — open the Certificates tab and click <strong>Renew</strong>{' '}
+        after the wizard closes.
       </Alert>
     </div>
   );
@@ -290,10 +321,17 @@ const validateStep = (step, draft) => {
   switch (step) {
     case 0:
       return true;
-    case 1:
-      return (
-        EMAIL_REGEX.test(draft.email) && PROVIDER_OPTIONS.some(p => p.value === draft.provider)
-      );
+    case 1: {
+      const baseOk =
+        EMAIL_REGEX.test(draft.email) && PROVIDER_OPTIONS.some(p => p.value === draft.provider);
+      if (!baseOk) {
+        return false;
+      }
+      if (draft.provider === 'cloudflare') {
+        return draft.cloudflareApiToken.trim().length > 0;
+      }
+      return true;
+    }
     case 2:
       return (
         ID_REGEX.test(slugifyId(draft.backendName)) &&
@@ -322,7 +360,7 @@ const buildProvider = (doc, providerOpt) => {
   return {
     id,
     type: providerOpt.providerType,
-    credentialsRef: providerOpt.credentialsRef,
+    credentialsRef: null,
     options: {},
   };
 };
@@ -453,7 +491,7 @@ const buildFrontend = (doc, draft, defaultsId, aclName, backendId) => {
   };
 };
 
-const buildNextDoc = (draft, doc) => {
+const buildNextDocAndProviderId = (draft, doc) => {
   const providerOpt = PROVIDER_OPTIONS.find(p => p.value === draft.provider);
   const newDefaults = buildDefaultsBlock(doc);
   const newProvider = buildProvider(doc, providerOpt);
@@ -464,17 +502,20 @@ const buildNextDoc = (draft, doc) => {
   const newFrontend = buildFrontend(doc, draft, newDefaults.id, newAcl.name, newBackend.id);
 
   return {
-    ...doc,
-    tls: {
-      ...doc.tls,
-      providers: [...(doc.tls?.providers ?? []), newProvider],
-      certs: [...(doc.tls?.certs ?? []), newCert],
+    nextDoc: {
+      ...doc,
+      tls: {
+        ...doc.tls,
+        providers: [...(doc.tls?.providers ?? []), newProvider],
+        certs: [...(doc.tls?.certs ?? []), newCert],
+      },
+      acmeAccounts: [...(doc.acmeAccounts ?? []), newAcmeAccount],
+      defaultsBlocks: [...(doc.defaultsBlocks ?? []), newDefaults],
+      acls: [...(doc.acls ?? []), newAcl],
+      backends: [...(doc.backends ?? []), newBackend],
+      frontends: [...(doc.frontends ?? []), newFrontend],
     },
-    acmeAccounts: [...(doc.acmeAccounts ?? []), newAcmeAccount],
-    defaultsBlocks: [...(doc.defaultsBlocks ?? []), newDefaults],
-    acls: [...(doc.acls ?? []), newAcl],
-    backends: [...(doc.backends ?? []), newBackend],
-    frontends: [...(doc.frontends ?? []), newFrontend],
+    providerId: newProvider.id,
   };
 };
 
@@ -503,7 +544,25 @@ export const OnboardingWizard = ({ show, doc, onComplete, onCancel }) => {
     setSaving(true);
     setError(null);
     try {
-      await onComplete(buildNextDoc(draft, doc));
+      const { nextDoc, providerId } = buildNextDocAndProviderId(draft, doc);
+      const persisted1 = await onComplete(nextDoc);
+
+      const token = draft.cloudflareApiToken.trim();
+      if (draft.provider === 'cloudflare' && token) {
+        const result = await apiPut(
+          `api/tls-providers/${encodeURIComponent(providerId)}/credentials`,
+          { fields: { dns_cloudflare_api_token: token } }
+        );
+        if (result?.path) {
+          const baseDoc = persisted1 ?? nextDoc;
+          const nextProviders = baseDoc.tls.providers.map(p =>
+            p.id === providerId ? { ...p, credentialsRef: result.path } : p
+          );
+          await onComplete({ ...baseDoc, tls: { ...baseDoc.tls, providers: nextProviders } });
+        }
+      }
+
+      onCancel();
     } catch (err) {
       setError(err);
     } finally {
