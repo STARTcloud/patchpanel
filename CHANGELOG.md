@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.7](https://github.com/STARTcloud/patchpanel/compare/v0.3.6...v0.3.7) (2026-05-17)
+
+
+### Bug Fixes
+
+* documentation and update security ([1a6d852](https://github.com/STARTcloud/patchpanel/commit/1a6d852fc7a2deb529699d139dcd18eb543fd159))
+* packaging ([faeac9a](https://github.com/STARTcloud/patchpanel/commit/faeac9a9c52930502c5df0ca87a21269d8c415b1))
+
 ## [0.3.6](https://github.com/STARTcloud/patchpanel/compare/v0.3.5...v0.3.6) (2026-05-17)
 
 
