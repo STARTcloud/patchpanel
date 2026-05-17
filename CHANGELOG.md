@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.8](https://github.com/STARTcloud/patchpanel/compare/v0.3.7...v0.3.8) (2026-05-17)
+
+
+### Bug Fixes
+
+* Update highcharts and ErrorPages ([7b0f3eb](https://github.com/STARTcloud/patchpanel/commit/7b0f3eb5c17bb8850305a9aeb72ca27a67cff9ab))
+* Update highcharts and ErrorPages ([77880cb](https://github.com/STARTcloud/patchpanel/commit/77880cb17af86b8b007ff6e5507569d8a75091ea))
+
 ## [0.3.7](https://github.com/STARTcloud/patchpanel/compare/v0.3.6...v0.3.7) (2026-05-17)
 
 
