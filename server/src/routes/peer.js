@@ -1,10 +1,9 @@
 import { promises as fs } from 'node:fs';
-import { join as joinPath } from 'node:path';
 
 import { Router } from 'express';
 
 import * as audit from '../lib/audit.js';
-import { ensureDir, fileExists, writeAtomic } from '../lib/files.js';
+import { ensureDir, fileExists, safePathUnder, writeAtomic } from '../lib/files.js';
 import * as logger from '../lib/logger.js';
 import { computeStateChecksum, probeDrift, pushStateToAllPeers } from '../lib/peer-sync.js';
 import {
@@ -59,14 +58,20 @@ const BLOB_KINDS = Object.freeze({
 // req.peerIdentity. No per-peer auth coupling.
 const peerAuth = config => async (req, res, next) => {
   const header = req.get('authorization') ?? '';
-  const match = header.match(/^Bearer\s+(?<token>.+)$/u);
-  if (!match) {
+  // No regex — startsWith + slice avoids any polynomial-redos surface on a
+  // header where the token portion is operator-controlled in length.
+  if (!header.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'missing bearer token' });
+    return;
+  }
+  const token = header.slice(7).trim();
+  if (token.length === 0) {
     res.status(401).json({ error: 'missing bearer token' });
     return;
   }
   try {
     const store = await loadPeersStore(config.paths.peersStore);
-    const tokenEntry = findInboundTokenEntry(store, match.groups.token);
+    const tokenEntry = findInboundTokenEntry(store, token);
     if (!tokenEntry) {
       res.status(401).json({ error: 'unknown bearer token' });
       return;
@@ -405,7 +410,13 @@ export const peerRouter = config => {
       res.status(500).json({ error: `paths.${kindDef.dirKey} is not configured` });
       return;
     }
-    const filePath = joinPath(dir, `${id}${kindDef.suffix}`);
+    let filePath;
+    try {
+      filePath = safePathUnder(dir, `${id}${kindDef.suffix}`);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     if (!(await fileExists(filePath))) {
       res.status(404).json({ error: 'blob not found' });
       return;
@@ -440,7 +451,13 @@ export const peerRouter = config => {
       return;
     }
     await ensureDir(dir);
-    const filePath = joinPath(dir, `${id}${kindDef.suffix}`);
+    let filePath;
+    try {
+      filePath = safePathUnder(dir, `${id}${kindDef.suffix}`);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     try {
       await writeAtomic(filePath, body, { mode: kindDef.mode });
       audit.record({

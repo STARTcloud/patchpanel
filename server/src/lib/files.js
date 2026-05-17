@@ -1,21 +1,21 @@
 import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { dirname, isAbsolute, relative as relativePath, resolve as resolvePath } from 'node:path';
+import { dirname, resolve as resolvePath, sep } from 'node:path';
 
 // safePathUnder is the single, well-known path-containment check for any
-// user-derived filename under a known root. Uses the canonical
-// resolve + relative pattern — CodeQL recognizes this exact shape as a
-// js/path-injection sanitizer barrier, so callers can pass user input
-// (after their own id-shape validation) into the result without further
-// flagging downstream. Throws on traversal.
+// user-derived filename under a known root. Resolves the candidate then
+// verifies it equals the root or sits strictly under `root + sep`. This is
+// the exact shape CodeQL's js/path-injection query recognizes as a barrier
+// (see https://codeql.github.com/codeql-query-help/javascript/js-path-injection/),
+// so callers can pass user input (after their own id-shape validation) into
+// the result without further flagging downstream. Throws on traversal.
 export const safePathUnder = (rootDir, name) => {
   if (typeof name !== 'string' || name.length === 0) {
     throw new Error('name must be a non-empty string');
   }
   const root = resolvePath(rootDir);
   const candidate = resolvePath(root, name);
-  const rel = relativePath(root, candidate);
-  if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) {
+  if (candidate === root || candidate.startsWith(root + sep)) {
     return candidate;
   }
   throw new Error(`name resolves outside root: ${name}`);

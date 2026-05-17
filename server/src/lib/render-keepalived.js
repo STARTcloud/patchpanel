@@ -54,7 +54,11 @@ const renderGlobalDefs = globalDefs => {
 };
 
 const renderTrackScript = script => {
-  const lines = [`script "${script.script.replace(/"/gu, '\\"')}"`];
+  // Escape backslashes BEFORE quotes so the quote-escape doesn't get its own
+  // backslash mangled. Catches operator scripts that legitimately use \" or
+  // \\ in their command line.
+  const escaped = script.script.replace(/\\/gu, '\\\\').replace(/"/gu, '\\"');
+  const lines = [`script "${escaped}"`];
   lines.push(`interval ${script.interval}`);
   if (typeof script.timeout === 'number') {
     lines.push(`timeout ${script.timeout}`);
