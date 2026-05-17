@@ -133,7 +133,7 @@ const HttpErrorRow = ({ entry, onChange, onRemove }) => {
           <Form.Control
             type="text"
             size="sm"
-            placeholder="/etc/haproxy/errors/html/503.html"
+            placeholder="/etc/haproxy/errors/tpl/503.http"
             value={entry.lfFile ?? ''}
             onChange={e => onChange({ ...entry, lfFile: e.target.value })}
           />

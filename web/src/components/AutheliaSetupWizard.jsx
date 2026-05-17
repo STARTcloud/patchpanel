@@ -53,6 +53,10 @@ const uniqueNameIn = (proposed, taken) => {
   return cand;
 };
 
+const AUTH_REQUEST_LUA_PATH = '/etc/haproxy/haproxy-lua-http/auth-request.lua';
+const AUTH_REQUEST_LUA_NAME = 'haproxy-auth-request';
+const AUTH_REQUEST_LUA_PREPEND = '/etc/haproxy';
+
 const initialDraft = doc => {
   const httpsFrontend =
     (doc.frontends ?? []).find(f => f.mode === 'http' && f.binds?.some(b => b.ssl?.enabled)) ??
@@ -62,6 +66,7 @@ const initialDraft = doc => {
     backendServerAddress: 'authelia.example.com:9091',
     portalHost: 'auth.example.com',
     portalFrontendId: httpsFrontend?.id ?? '',
+    endpointFlavor: 'forward-auth',
     apiVerifyPath: '/api/authz/forward-auth',
     backendId: 'authelia',
     backendName: 'authelia',
@@ -71,46 +76,73 @@ const initialDraft = doc => {
   };
 };
 
-const AutheliaUpstreamStep = ({ draft, update }) => (
-  <Row className="g-3">
-    <Col xs={12}>
-      <Alert variant="info" className="mb-0 small">
-        This wizard creates 4 state entities in one shot: a <strong>Backend</strong> pointing at
-        your Authelia server, an <strong>ACL</strong> matching the portal hostname, a{' '}
-        <strong>use-backend Rule</strong> on the chosen HTTPS frontend that routes browser portal
-        traffic to that backend, and the <strong>AuthProvider</strong> entity itself (referencing
-        the new backend by id). All editable later as first-class state.
-      </Alert>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Authelia server address</Form.Label>
-        <Form.Control
-          value={draft.backendServerAddress}
-          onChange={e => update({ backendServerAddress: e.target.value })}
-          placeholder="assistant.example.com:9091"
-        />
-        <Form.Text className="text-muted">
-          host:port of your Authelia instance. The same backend serves the lua auth-intercept{' '}
-          <code>/api/authz/forward-auth</code> probe and the browser portal.
-        </Form.Text>
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Authz endpoint path</Form.Label>
-        <Form.Control
-          value={draft.apiVerifyPath}
-          onChange={e => update({ apiVerifyPath: e.target.value })}
-        />
-        <Form.Text className="text-muted">
-          Authelia 4.38+ canonical: <code>/api/authz/forward-auth</code>. Legacy:{' '}
-          <code>/api/verify</code>.
-        </Form.Text>
-      </Form.Group>
-    </Col>
-  </Row>
-);
+const AutheliaUpstreamStep = ({ draft, update }) => {
+  const onFlavorChange = nextFlavor => {
+    const isLegacy = nextFlavor === 'legacy';
+    const defaultPath = isLegacy ? '/api/verify' : '/api/authz/forward-auth';
+    const looksLikeDefault =
+      draft.apiVerifyPath === '/api/verify' || draft.apiVerifyPath === '/api/authz/forward-auth';
+    update({
+      endpointFlavor: nextFlavor,
+      apiVerifyPath: looksLikeDefault ? defaultPath : draft.apiVerifyPath,
+    });
+  };
+  return (
+    <Row className="g-3">
+      <Col xs={12}>
+        <Alert variant="info" className="mb-0 small">
+          This wizard creates 4 state entities in one shot: a <strong>Backend</strong> pointing at
+          your Authelia server, an <strong>ACL</strong> matching the portal hostname, a{' '}
+          <strong>use-backend Rule</strong> on the chosen HTTPS frontend that routes browser portal
+          traffic to that backend, and the <strong>AuthProvider</strong> entity itself (referencing
+          the new backend by id). It also registers the bundled <code>auth-request.lua</code> plugin
+          under <code>globalSettings.luaPlugins</code> if it isn&apos;t already there. All editable
+          later as first-class state.
+        </Alert>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>Authelia version</Form.Label>
+          <Form.Select value={draft.endpointFlavor} onChange={e => onFlavorChange(e.target.value)}>
+            <option value="forward-auth">4.38+ (/api/authz/forward-auth)</option>
+            <option value="legacy">≤ 4.37 (/api/verify)</option>
+          </Form.Select>
+          <Form.Text className="text-muted">
+            Modern emits <code>X-Forwarded-*</code> before the auth probe; legacy emits a single{' '}
+            <code>X-Original-URL</code>. Auto-fills the path + redirect template below.
+          </Form.Text>
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>Authelia server address</Form.Label>
+          <Form.Control
+            value={draft.backendServerAddress}
+            onChange={e => update({ backendServerAddress: e.target.value })}
+            placeholder="assistant.example.com:9091"
+          />
+          <Form.Text className="text-muted">
+            host:port of your Authelia instance. Same backend serves both the lua auth probe and the
+            browser portal.
+          </Form.Text>
+        </Form.Group>
+      </Col>
+      <Col md={12}>
+        <Form.Group>
+          <Form.Label>Authz endpoint path</Form.Label>
+          <Form.Control
+            value={draft.apiVerifyPath}
+            onChange={e => update({ apiVerifyPath: e.target.value })}
+          />
+          <Form.Text className="text-muted">
+            Auto-filled from the version selector; override only if your Authelia is reverse-mounted
+            at a non-default path.
+          </Form.Text>
+        </Form.Group>
+      </Col>
+    </Row>
+  );
+};
 
 AutheliaUpstreamStep.propTypes = {
   draft: PropTypes.object.isRequired,
@@ -226,13 +258,42 @@ NamesStep.propTypes = {
   update: PropTypes.func.isRequired,
 };
 
+const buildRedirectUrlTemplate = (portalHost, flavor) => {
+  const base = `https://${portalHost}/?rd=%[var(req.scheme)]://%[base]%[var(req.questionmark)]%[query]`;
+  return flavor === 'forward-auth' ? `${base}&rm=%[method]` : base;
+};
+
 const ReviewStep = ({ draft, doc }) => {
   const frontend = (doc.frontends ?? []).find(f => f.id === draft.portalFrontendId);
-  const redirectUrlTemplate = `https://${draft.portalHost}/?rd=%[var(req.scheme)]://%[base]%[var(req.questionmark)]%[query]`;
+  const redirectUrlTemplate = buildRedirectUrlTemplate(draft.portalHost, draft.endpointFlavor);
+  const hasAuthRequestLua = (doc.globalSettings?.luaPlugins ?? []).some(
+    p => p.path === AUTH_REQUEST_LUA_PATH || p.name === AUTH_REQUEST_LUA_NAME
+  );
   return (
     <div className="small">
       <h6 className="mb-3">Will create:</h6>
       <dl className="row mb-2">
+        <dt className="col-sm-4">Authelia version</dt>
+        <dd className="col-sm-8">
+          <Badge bg={draft.endpointFlavor === 'legacy' ? 'warning' : 'success'} text="dark">
+            {draft.endpointFlavor === 'legacy'
+              ? '≤ 4.37 (legacy /api/verify)'
+              : '4.38+ (forward-auth)'}
+          </Badge>
+        </dd>
+        <dt className="col-sm-4">Lua plugin</dt>
+        <dd className="col-sm-8">
+          {hasAuthRequestLua ? (
+            <span className="text-muted">
+              <code>{AUTH_REQUEST_LUA_PATH}</code> already registered — no change
+            </span>
+          ) : (
+            <>
+              will register <code>{AUTH_REQUEST_LUA_PATH}</code> under{' '}
+              <code>globalSettings.luaPlugins</code>
+            </>
+          )}
+        </dd>
         <dt className="col-sm-4">AuthProvider</dt>
         <dd className="col-sm-8">
           <code>{draft.providerId}</code> (type=authelia) →{' '}
@@ -278,7 +339,9 @@ const validateStep = (step, draft, doc) => {
   switch (step) {
     case 0:
       return (
-        ADDR_PORT_REGEX.test(draft.backendServerAddress) && Boolean(draft.apiVerifyPath?.trim())
+        ADDR_PORT_REGEX.test(draft.backendServerAddress) &&
+        Boolean(draft.apiVerifyPath?.trim()) &&
+        (draft.endpointFlavor === 'legacy' || draft.endpointFlavor === 'forward-auth')
       );
     case 1:
       return (
@@ -301,7 +364,7 @@ const validateStep = (step, draft, doc) => {
 };
 
 const buildNextDoc = (draft, doc) => {
-  const redirectUrlTemplate = `https://${draft.portalHost}/?rd=%[var(req.scheme)]://%[base]%[var(req.questionmark)]%[query]`;
+  const redirectUrlTemplate = buildRedirectUrlTemplate(draft.portalHost, draft.endpointFlavor);
   const newBackend = {
     id: draft.backendId,
     name: draft.backendName,
@@ -345,6 +408,7 @@ const buildNextDoc = (draft, doc) => {
     id: draft.providerId,
     type: 'authelia',
     config: {
+      endpointFlavor: draft.endpointFlavor,
       authRequestBackendId: draft.backendId,
       redirectUrlTemplate,
       apiVerifyPath: draft.apiVerifyPath,
@@ -359,8 +423,31 @@ const buildNextDoc = (draft, doc) => {
     const httpRequest = [newRule, ...(phases.httpRequest ?? [])];
     return { ...fe, rulePhases: { ...phases, httpRequest } };
   });
+
+  // Register the bundled auth-request lua plugin in globalSettings if absent.
+  // expandAutheliaProvider emits `lua.auth-intercept`, which only resolves when
+  // auth-request.lua has been loaded via `lua-load` at HAProxy startup.
+  const existingLuaPlugins = doc.globalSettings?.luaPlugins ?? [];
+  const hasAuthRequestLua = existingLuaPlugins.some(
+    p => p.path === AUTH_REQUEST_LUA_PATH || p.name === AUTH_REQUEST_LUA_NAME
+  );
+  const nextLuaPlugins = hasAuthRequestLua
+    ? existingLuaPlugins
+    : [
+        ...existingLuaPlugins,
+        {
+          name: AUTH_REQUEST_LUA_NAME,
+          path: AUTH_REQUEST_LUA_PATH,
+          prependPath: AUTH_REQUEST_LUA_PREPEND,
+        },
+      ];
+
   return {
     ...doc,
+    globalSettings: {
+      ...(doc.globalSettings ?? {}),
+      luaPlugins: nextLuaPlugins,
+    },
     backends: [...(doc.backends ?? []), newBackend],
     acls: [...(doc.acls ?? []), newAcl],
     authProviders: [...(doc.authProviders ?? []), newProvider],

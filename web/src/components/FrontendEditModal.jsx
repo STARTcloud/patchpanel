@@ -815,8 +815,12 @@ const BindQuicSection = ({ bind, onChange }) => {
   const setQuic = patch => onChange({ ...bind, quic: { ...quic, ...patch } });
   return (
     <Row className="g-2 mt-1">
-      <SectionHeading>QUIC tuning</SectionHeading>
-      <Field label="cc-algo" md={3}>
+      <SectionHeading>QUIC (per-bind)</SectionHeading>
+      <Field
+        label="quic-cc-algo"
+        md={3}
+        helpText="Congestion control for this listener. `nocc` disables CC (debug only)."
+      >
         <Form.Select
           value={quic.ccAlgo ?? ''}
           onChange={e => setQuic({ ccAlgo: e.target.value || undefined })}
@@ -825,24 +829,29 @@ const BindQuicSection = ({ bind, onChange }) => {
           <option value="cubic">cubic</option>
           <option value="bbr">bbr</option>
           <option value="newreno">newreno</option>
+          <option value="nocc">nocc</option>
         </Form.Select>
       </Field>
-      <Field label="max-streams" md={3}>
+      <Field
+        label="quic-cc-algo window"
+        md={3}
+        helpText="Optional initial congestion window size (e.g. 1m, 100k)."
+      >
         <Form.Control
-          type="number"
-          min={1}
-          value={quic.maxStreams ?? ''}
-          onChange={e => setQuic({ maxStreams: parseIntOrUndef(e.target.value) })}
+          type="text"
+          value={quic.ccAlgoWindow ?? ''}
+          placeholder="1m"
+          onChange={e => setQuic({ ccAlgoWindow: e.target.value || undefined })}
         />
       </Field>
       <Field
-        label="socket-owner (tune.quic.socket-owner)"
+        label="quic-socket"
         md={3}
-        helpText="`connection` enables UDP GRO (HTTP/3 perf). HAProxy 2.7+."
+        helpText="`connection` = one UDP socket per QUIC connection (better perf, requires SO_REUSEPORT)."
       >
         <Form.Select
-          value={quic.socketMode ?? ''}
-          onChange={e => setQuic({ socketMode: e.target.value || undefined })}
+          value={quic.socket ?? ''}
+          onChange={e => setQuic({ socket: e.target.value || undefined })}
         >
           <option value="">(default)</option>
           <option value="connection">connection</option>
@@ -850,7 +859,7 @@ const BindQuicSection = ({ bind, onChange }) => {
         </Form.Select>
       </Field>
       <SwitchField
-        label="force-retry"
+        label="quic-force-retry"
         id={`bind-${bind.id}-quic-force-retry`}
         checked={quic.forceRetry}
         onChange={v => setQuic({ forceRetry: v })}

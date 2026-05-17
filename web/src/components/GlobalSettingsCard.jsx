@@ -45,9 +45,8 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
         <Card.Title>HAProxy global block</Card.Title>
         <Card.Text className="text-muted small">
           Capacity, logging, and unique-id format. These render into the <code>global</code> section
-          of <code>haproxy.cfg</code>. SSL / TLS settings live in the card below. For rarely-changed
-          knobs (Lua plugin paths, QUIC tunables, raw advanced directives) edit the corresponding
-          fields under <code>state.globalSettings</code> in Raw State.
+          of <code>haproxy.cfg</code>. SSL / TLS, Lua plugins, QUIC tunables, and raw passthrough
+          directives are configured in the cards below.
         </Card.Text>
         {status ? <Alert variant={status.kind}>{status.message}</Alert> : null}
         <Form onSubmit={submit}>

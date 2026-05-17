@@ -5,6 +5,8 @@ const aclNamePattern = /^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$/;
 const hostnamePattern = /^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}$/;
 const cidrPattern = /^[0-9a-fA-F:.]+\/\d{1,3}$/;
 const addrPortPattern = /^(?:\[[0-9a-fA-F:]+\]|[A-Za-z0-9.-]+):\d{1,5}$/;
+const serverAddrPattern = /^(?:quic[46]@)?(?:\[[0-9a-fA-F:]+\]|[A-Za-z0-9.-]+):\d{1,5}$/;
+const quicSizePattern = /^\d+[kmgKMG]?$/;
 const durationPattern = /^\d+(?:ms|s|m|h|d)$/;
 const cronPattern = /^[\d*,/\s-]+$/;
 
@@ -17,12 +19,16 @@ const AclNameSchema = z
 const HostnameSchema = z.string().regex(hostnamePattern, 'invalid hostname');
 const CidrSchema = z.string().regex(cidrPattern, 'expected CIDR notation');
 const AddrPortSchema = z.string().regex(addrPortPattern, 'expected host:port');
+const ServerAddrSchema = z
+  .string()
+  .regex(serverAddrPattern, 'expected host:port (optionally prefixed with quic4@ or quic6@)');
+const QuicSizeSchema = z.string().regex(quicSizePattern, 'expected size like "100k" or "1m"');
 const DurationSchema = z.string().regex(durationPattern, 'expected duration like "30s" or "5m"');
 const TimestampSchema = z.string().datetime({ offset: true });
 
 export const ServerSchema = z.object({
   name: z.string().min(1).max(64),
-  address: AddrPortSchema,
+  address: ServerAddrSchema,
   check: z.boolean().default(true),
   ssl: z.boolean().default(false),
   sslVerify: z.enum(['required', 'none']).optional(),
@@ -80,6 +86,7 @@ export const BackendSchema = z.object({
 });
 
 export const AutheliaConfigSchema = z.object({
+  endpointFlavor: z.enum(['legacy', 'forward-auth']).default('forward-auth'),
   authRequestBackendId: IdSchema,
   redirectUrlTemplate: z.string().min(1),
   apiVerifyPath: z.string().min(1).default('/api/authz/forward-auth'),
@@ -674,12 +681,34 @@ export const LuaPluginSchema = z.object({
   prependPath: z.string().min(1).optional(),
 });
 
+const QuicSideSharedSchema = z.object({
+  maxIdleTimeout: DurationSchema.optional(),
+  ccCubicMinLosses: z.number().int().min(0).optional(),
+  ccHystart: z.boolean().optional(),
+  ccMaxFrameLoss: z.number().int().min(0).optional(),
+  ccMaxWinSize: QuicSizeSchema.optional(),
+  ccReorderRatio: z.number().int().min(0).max(100).optional(),
+  secGlitchesThreshold: z.number().int().min(0).optional(),
+  streamDataRatio: z.number().int().min(0).optional(),
+  streamMaxConcurrent: z.number().int().min(0).optional(),
+  streamRxbuf: QuicSizeSchema.optional(),
+  txPacing: z.boolean().optional(),
+  txUdpGso: z.boolean().optional(),
+});
+
+export const QuicFeSchema = QuicSideSharedSchema.extend({
+  sockPerConn: z.number().int().min(1).optional(),
+  secRetryThreshold: z.number().int().min(0).optional(),
+});
+
+export const QuicBeSchema = QuicSideSharedSchema;
+
 export const QuicTunablesSchema = z.object({
   listen: z.boolean().optional(),
-  retryThreshold: z.number().int().optional(),
-  maxFrameSize: z.number().int().optional(),
+  memTxMax: QuicSizeSchema.optional(),
   zeroCopyFwdSend: z.boolean().optional(),
-  frontendMaxIdleTimeout: DurationSchema.optional(),
+  fe: QuicFeSchema.default({}),
+  be: QuicBeSchema.default({}),
 });
 
 const TlsVersionSchema = z.enum(['TLSv1.0', 'TLSv1.1', 'TLSv1.2', 'TLSv1.3']);
@@ -1164,10 +1193,10 @@ export const BindSslSchema = z.object({
 });
 
 export const BindQuicSchema = z.object({
-  ccAlgo: z.enum(['cubic', 'bbr', 'newreno']).optional(),
+  ccAlgo: z.enum(['cubic', 'bbr', 'newreno', 'nocc']).optional(),
+  ccAlgoWindow: QuicSizeSchema.optional(),
   forceRetry: z.boolean().default(false),
-  maxStreams: z.number().int().positive().optional(),
-  socketMode: z.enum(['connection', 'listener']).optional(),
+  socket: z.enum(['connection', 'listener']).optional(),
 });
 
 export const BindSchema = z.object({

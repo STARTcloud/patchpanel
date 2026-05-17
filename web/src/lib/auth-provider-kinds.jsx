@@ -67,67 +67,96 @@ const stripInternal = obj => {
 
 // ---- Authelia (existing) ----
 
-const AutheliaForm = ({ config, onChange, doc }) => (
-  <>
-    <AuthRequestBackendIdSelector
-      value={config.authRequestBackendId}
-      onChange={v => onChange({ ...config, authRequestBackendId: v })}
-      doc={doc}
-      label="Auth-lookup Backend"
-      helpText={
-        <>
-          Backend the lua auth-intercept probes for the Authelia authz endpoint (e.g.{' '}
-          <code>/api/authz/forward-auth</code>). Browser portal traffic to the Authelia UI is a
-          separate concern — add a use-backend Rule on https-in to route the portal host to a
-          (possibly same) backend.
-        </>
-      }
-    />
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Authz endpoint path</Form.Label>
-        <Form.Control
-          type="text"
-          value={config.apiVerifyPath ?? '/api/authz/forward-auth'}
-          onChange={e => onChange({ ...config, apiVerifyPath: e.target.value })}
-        />
-        <Form.Text className="text-muted">
-          Authelia 4.38+ canonical path is <code>/api/authz/forward-auth</code>. Legacy{' '}
-          <code>/api/verify</code> still works for older versions.
-        </Form.Text>
-      </Form.Group>
-    </Col>
-    <Col xs={12}>
-      <Form.Group>
-        <Form.Label>Redirect URL template</Form.Label>
-        <Form.Control
-          type="text"
-          value={config.redirectUrlTemplate ?? ''}
-          onChange={e => onChange({ ...config, redirectUrlTemplate: e.target.value })}
-          placeholder="https://auth.example.com/?rd=%[var(req.scheme)]://%[base]%[var(req.questionmark)]%[query]"
-        />
-        <Form.Text className="text-muted">
-          Where browsers get redirected when auth fails. Use HAProxy log-format variables like{' '}
-          <code>%[var(req.scheme)]</code> and <code>%[base]</code>. The hostname here must match a
-          host ACL you&apos;ve set up to route to the Authelia portal backend.
-        </Form.Text>
-      </Form.Group>
-    </Col>
-    <Col xs={12}>
-      <Form.Group>
-        <Form.Label>Propagate headers</Form.Label>
-        <ListEditor
-          items={config.propagateHeaders ?? []}
-          onChange={list => onChange({ ...config, propagateHeaders: list })}
-          placeholder="lowercase header name (e.g. remote-user)"
-        />
-        <Form.Text className="text-muted">
-          On 2xx, the lua plugin copies these headers from Authelia onto the upstream request.
-        </Form.Text>
-      </Form.Group>
-    </Col>
-  </>
-);
+const AutheliaForm = ({ config, onChange, doc }) => {
+  const flavor = config.endpointFlavor ?? 'forward-auth';
+  const onFlavorChange = nextFlavor => {
+    const isLegacy = nextFlavor === 'legacy';
+    const defaultPath = isLegacy ? '/api/verify' : '/api/authz/forward-auth';
+    const currentPath = config.apiVerifyPath;
+    const looksLikeDefault =
+      currentPath === '/api/verify' || currentPath === '/api/authz/forward-auth';
+    onChange({
+      ...config,
+      endpointFlavor: nextFlavor,
+      apiVerifyPath: looksLikeDefault ? defaultPath : currentPath,
+    });
+  };
+  return (
+    <>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>Authelia version</Form.Label>
+          <Form.Select value={flavor} onChange={e => onFlavorChange(e.target.value)}>
+            <option value="forward-auth">4.38+ (/api/authz/forward-auth)</option>
+            <option value="legacy">≤ 4.37 (/api/verify)</option>
+          </Form.Select>
+          <Form.Text className="text-muted">
+            Drives which headers HAProxy sets before the auth probe. Modern emits the{' '}
+            <code>X-Forwarded-*</code> set; legacy emits a single <code>X-Original-URL</code>.
+          </Form.Text>
+        </Form.Group>
+      </Col>
+      <AuthRequestBackendIdSelector
+        value={config.authRequestBackendId}
+        onChange={v => onChange({ ...config, authRequestBackendId: v })}
+        doc={doc}
+        label="Auth-lookup Backend"
+        helpText={
+          <>
+            Backend the lua auth-intercept probes for the Authelia authz endpoint. Browser portal
+            traffic to the Authelia UI is a separate concern — add a use-backend Rule on https-in to
+            route the portal host to a (possibly same) backend.
+          </>
+        }
+      />
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>Authz endpoint path</Form.Label>
+          <Form.Control
+            type="text"
+            value={config.apiVerifyPath ?? '/api/authz/forward-auth'}
+            onChange={e => onChange({ ...config, apiVerifyPath: e.target.value })}
+          />
+          <Form.Text className="text-muted">
+            Auto-filled from the version selector; override only if your Authelia is reverse-mounted
+            at a non-default path.
+          </Form.Text>
+        </Form.Group>
+      </Col>
+      <Col xs={12}>
+        <Form.Group>
+          <Form.Label>Redirect URL template</Form.Label>
+          <Form.Control
+            type="text"
+            value={config.redirectUrlTemplate ?? ''}
+            onChange={e => onChange({ ...config, redirectUrlTemplate: e.target.value })}
+            placeholder="https://auth.example.com/?rd=%[var(req.scheme)]://%[base]%[var(req.questionmark)]%[query]&rm=%[method]"
+          />
+          <Form.Text className="text-muted">
+            Where browsers get redirected when auth fails. Use HAProxy log-format variables like{' '}
+            <code>%[var(req.scheme)]</code> and <code>%[base]</code>. The hostname here must match a
+            host ACL you&apos;ve set up to route to the Authelia portal backend. The{' '}
+            <code>&amp;rm=%[method]</code> tail is required for 4.38+ so Authelia can replay the
+            original HTTP method after sign-in.
+          </Form.Text>
+        </Form.Group>
+      </Col>
+      <Col xs={12}>
+        <Form.Group>
+          <Form.Label>Propagate headers</Form.Label>
+          <ListEditor
+            items={config.propagateHeaders ?? []}
+            onChange={list => onChange({ ...config, propagateHeaders: list })}
+            placeholder="lowercase header name (e.g. remote-user)"
+          />
+          <Form.Text className="text-muted">
+            On 2xx, the lua plugin copies these headers from Authelia onto the upstream request.
+          </Form.Text>
+        </Form.Group>
+      </Col>
+    </>
+  );
+};
 
 AutheliaForm.propTypes = {
   config: PropTypes.object.isRequired,
@@ -1030,7 +1059,8 @@ const stripBasicInternalKeys = provider => {
 
 // ---- Registry ----
 
-const summariseAuthelia = p => `authelia → backend ${p.config.authRequestBackendId ?? '?'}`;
+const summariseAuthelia = p =>
+  `authelia (${p.config.endpointFlavor ?? 'forward-auth'}) → backend ${p.config.authRequestBackendId ?? '?'}`;
 const summariseBasic = p => `${p.config.users?.length ?? 0} user(s), realm "${p.config.realm}"`;
 const summariseOidc = p => p.config.issuer;
 const summariseLdap = p => `${p.config.url} → backend ${p.config.authRequestBackendId ?? '?'}`;
@@ -1066,9 +1096,10 @@ const AUTH_KINDS = Object.freeze([
     value: 'authelia',
     label: 'authelia (auth-request)',
     emptyConfig: () => ({
+      endpointFlavor: 'forward-auth',
       authRequestBackendId: '',
       redirectUrlTemplate:
-        'https://[PORTAL]/?rd=%[var(req.scheme)]://%[base]%[var(req.questionmark)]%[query]',
+        'https://[PORTAL]/?rd=%[var(req.scheme)]://%[base]%[var(req.questionmark)]%[query]&rm=%[method]',
       apiVerifyPath: '/api/authz/forward-auth',
       propagateHeaders: ['remote-user', 'remote-groups', 'remote-name', 'remote-email'],
     }),

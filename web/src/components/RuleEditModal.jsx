@@ -793,6 +793,138 @@ const renderDoResolve = (action, update) => (
   </>
 );
 
+const BODY_KIND_OPTIONS = ['string', 'lf-string', 'file', 'lf-file'];
+
+const newHeaderKey = () => `h-${Math.random().toString(36).slice(2, 11)}`;
+
+const ReturnFields = ({ action, update }) => {
+  const body = action.body ?? null;
+  const headers = action.headers ?? [];
+  const [headerKeys, setHeaderKeys] = useState(() => headers.map(() => newHeaderKey()));
+
+  const setBodyKind = kind => {
+    if (!kind) {
+      update({ body: undefined });
+    } else {
+      update({ body: { kind, content: body?.content ?? '' } });
+    }
+  };
+
+  const addHeader = () => {
+    update({ headers: [...headers, { name: '', value: '' }] });
+    setHeaderKeys(prev => [...prev, newHeaderKey()]);
+  };
+  const updateHeader = (idx, patch) => {
+    update({ headers: headers.map((h, i) => (i === idx ? { ...h, ...patch } : h)) });
+  };
+  const removeHeader = idx => {
+    update({ headers: [...headers.slice(0, idx), ...headers.slice(idx + 1)] });
+    setHeaderKeys(prev => [...prev.slice(0, idx), ...prev.slice(idx + 1)]);
+  };
+
+  return (
+    <>
+      <Col md={3}>
+        <Form.Group>
+          <Form.Label>Status code</Form.Label>
+          <Form.Control
+            type="number"
+            min={100}
+            max={599}
+            value={action.statusCode ?? ''}
+            onChange={e =>
+              update({
+                statusCode: e.target.value === '' ? undefined : Number(e.target.value),
+              })
+            }
+            placeholder="200"
+          />
+        </Form.Group>
+      </Col>
+      <Col md={5}>
+        <Form.Group>
+          <Form.Label>Content-Type</Form.Label>
+          <Form.Control
+            value={action.contentType ?? ''}
+            onChange={e => update({ contentType: e.target.value || undefined })}
+            placeholder="text/plain; charset=utf-8"
+          />
+        </Form.Group>
+      </Col>
+      <Col md={4}>
+        <Form.Group>
+          <Form.Label>Body kind</Form.Label>
+          <Form.Select value={body?.kind ?? ''} onChange={e => setBodyKind(e.target.value || null)}>
+            <option value="">(no body)</option>
+            {BODY_KIND_OPTIONS.map(k => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </Form.Select>
+        </Form.Group>
+      </Col>
+      {body ? (
+        <Col xs={12}>
+          <Form.Group>
+            <Form.Label>Body content</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={body.content ?? ''}
+              onChange={e => update({ body: { ...body, content: e.target.value } })}
+              placeholder={
+                body.kind?.endsWith('file')
+                  ? '/etc/haproxy/errors/tpl/503.http'
+                  : 'Inline body text'
+              }
+            />
+          </Form.Group>
+        </Col>
+      ) : null}
+      <Col xs={12}>
+        <Form.Group>
+          <Form.Label>Extra response headers</Form.Label>
+          {headers.length === 0 ? (
+            <p className="text-muted small mb-2">No extra headers.</p>
+          ) : (
+            headers.map((header, idx) => (
+              <div key={headerKeys[idx]} className="d-flex gap-2 mb-2">
+                <Form.Control
+                  size="sm"
+                  placeholder="Header name"
+                  value={header.name ?? ''}
+                  onChange={e => updateHeader(idx, { name: e.target.value })}
+                />
+                <Form.Control
+                  size="sm"
+                  placeholder="Value"
+                  value={header.value ?? ''}
+                  onChange={e => updateHeader(idx, { value: e.target.value })}
+                />
+                <Button variant="outline-danger" size="sm" onClick={() => removeHeader(idx)}>
+                  ×
+                </Button>
+              </div>
+            ))
+          )}
+          <Button variant="outline-primary" size="sm" type="button" onClick={addHeader}>
+            <i className="bi bi-plus-lg me-1" />
+            Add header
+          </Button>
+        </Form.Group>
+      </Col>
+    </>
+  );
+};
+
+ReturnFields.propTypes = {
+  action: PropTypes.object.isRequired,
+  update: PropTypes.func.isRequired,
+};
+
+const renderReturn = (action, update) => <ReturnFields action={action} update={update} />;
+
 const NO_FIELD_ACTIONS = new Set(['allow', 'reject', 'accept', 'close', 'silent-drop']);
 
 const ACTION_FIELD_RENDERERS = Object.freeze({
@@ -822,6 +954,7 @@ const ACTION_FIELD_RENDERERS = Object.freeze({
   capture: renderCapture,
   lua: renderLua,
   auth: renderAuth,
+  return: renderReturn,
   'normalize-uri': renderNormalizeUri,
   'wait-for-body': renderWaitForBody,
   'early-hint': renderSimpleNameValue,

@@ -160,29 +160,68 @@ const canonicalHeaderCase = header =>
 // global section
 // =====================================================================
 
-const renderQuicGlobalTuning = state => {
+const TUNE_QUIC_PROCESS_FIELDS = Object.freeze([
+  ['listen', 'tune.quic.listen', 'bool'],
+  ['memTxMax', 'tune.quic.mem.tx-max', 'value'],
+  ['zeroCopyFwdSend', 'tune.quic.zero-copy-fwd-send', 'bool'],
+]);
+
+const TUNE_QUIC_SIDE_SHARED_FIELDS = Object.freeze([
+  ['maxIdleTimeout', 'max-idle-timeout', 'value'],
+  ['ccCubicMinLosses', 'cc.cubic-min-losses', 'value'],
+  ['ccHystart', 'cc.hystart', 'bool'],
+  ['ccMaxFrameLoss', 'cc.max-frame-loss', 'value'],
+  ['ccMaxWinSize', 'cc.max-win-size', 'value'],
+  ['ccReorderRatio', 'cc.reorder-ratio', 'value'],
+  ['secGlitchesThreshold', 'sec.glitches-threshold', 'value'],
+  ['streamDataRatio', 'stream.data-ratio', 'value'],
+  ['streamMaxConcurrent', 'stream.max-concurrent', 'value'],
+  ['streamRxbuf', 'stream.rxbuf', 'value'],
+  ['txPacing', 'tx.pacing', 'bool'],
+  ['txUdpGso', 'tx.udp-gso', 'bool'],
+]);
+
+const TUNE_QUIC_FE_EXTRA_FIELDS = Object.freeze([
+  ['sockPerConn', 'sock-per-conn', 'value'],
+  ['secRetryThreshold', 'sec.retry-threshold', 'value'],
+]);
+
+const emitTuneLine = (directive, value, kind) => {
+  if (value === undefined || value === null || value === '') {
+    return null;
+  }
+  if (kind === 'bool') {
+    return `${directive} ${value ? 'on' : 'off'}`;
+  }
+  return `${directive} ${value}`;
+};
+
+const renderQuicSideLines = (side, prefix, fields) => {
   const lines = [];
-  for (const fe of state.frontends ?? []) {
-    if (!fe.enabled) {
-      continue;
-    }
-    for (const bind of fe.binds ?? []) {
-      if (!isQuicAddress(bind.address)) {
-        continue;
-      }
-      const q = bind.quic ?? {};
-      if (q.ccAlgo) {
-        lines.push(`tune.quic.frontend.cc-algo ${q.ccAlgo}`);
-      }
-      if (q.maxStreams !== undefined) {
-        lines.push(`tune.quic.frontend.max-streams-bidi ${q.maxStreams}`);
-      }
-      if (q.socketMode) {
-        lines.push(`tune.quic.socket-owner ${q.socketMode}`);
-      }
+  for (const [field, suffix, kind] of fields) {
+    const line = emitTuneLine(`${prefix}.${suffix}`, side?.[field], kind);
+    if (line !== null) {
+      lines.push(line);
     }
   }
-  return [...new Set(lines)];
+  return lines;
+};
+
+const renderQuicGlobalTuning = state => {
+  const quic = state.globalSettings?.quic ?? {};
+  const lines = [];
+  for (const [field, directive, kind] of TUNE_QUIC_PROCESS_FIELDS) {
+    const line = emitTuneLine(directive, quic[field], kind);
+    if (line !== null) {
+      lines.push(line);
+    }
+  }
+  lines.push(
+    ...renderQuicSideLines(quic.fe, 'tune.quic.fe', TUNE_QUIC_SIDE_SHARED_FIELDS),
+    ...renderQuicSideLines(quic.fe, 'tune.quic.fe', TUNE_QUIC_FE_EXTRA_FIELDS),
+    ...renderQuicSideLines(quic.be, 'tune.quic.be', TUNE_QUIC_SIDE_SHARED_FIELDS)
+  );
+  return lines;
 };
 
 // Lua plugin paths needed by `apply-auth-provider` rules pointing at
@@ -753,12 +792,46 @@ const resolveBackendName = (ctx, backendId) => {
 const expandAutheliaProvider = (provider, condition, ctx) => {
   const cfg = provider.config;
   const backendName = resolveBackendName(ctx, cfg.authRequestBackendId);
+  const flavor = cfg.endpointFlavor ?? 'forward-auth';
   const lines = [];
   const conditionClause = renderConditionIfClause(condition);
   const propagateList = (cfg.propagateHeaders ?? []).join(',') || '-';
+
+  // Strip inbound copies of Authelia's identity headers — prevents a client
+  // from forging them on the way in to bypass the auth-request check.
   for (const header of cfg.propagateHeaders ?? []) {
     lines.push(`http-request del-header ${canonicalHeaderCase(header)}${conditionClause}`);
   }
+
+  // scheme / questionmark vars used by the headers Authelia reads + the
+  // redirect template. Both flavors need scheme; modern also uses questionmark
+  // to keep the query string intact across the redirect.
+  lines.push(
+    `http-request set-var(req.scheme) str(https)${buildAppendClause(condition, ['{ ssl_fc }'])}`
+  );
+  lines.push(
+    `http-request set-var(req.scheme) str(http)${buildAppendClause(condition, ['!{ ssl_fc }'])}`
+  );
+
+  if (flavor === 'legacy') {
+    // Authelia ≤ 4.37 /api/verify takes a single X-Original-URL header.
+    lines.push(
+      `http-request set-header X-Original-URL %[var(req.scheme)]://%[req.hdr(host)]%[path]${conditionClause}`
+    );
+  } else {
+    // Authelia 4.38+ /api/authz/forward-auth uses the X-Forwarded-* set so
+    // method-aware policy rules can apply.
+    lines.push(
+      `http-request set-var(req.questionmark) str(?)${buildAppendClause(condition, ['{ query -m found }'])}`
+    );
+    lines.push(`http-request set-header X-Forwarded-Method %[method]${conditionClause}`);
+    lines.push(`http-request set-header X-Forwarded-Proto %[var(req.scheme)]${conditionClause}`);
+    lines.push(`http-request set-header X-Forwarded-Host %[req.hdr(host)]${conditionClause}`);
+    lines.push(
+      `http-request set-header X-Forwarded-URI %[path]%[var(req.questionmark)]%[query]${conditionClause}`
+    );
+  }
+
   lines.push(
     `http-request lua.auth-intercept ${backendName} ${cfg.apiVerifyPath} HEAD * ${propagateList} -${conditionClause}`
   );
@@ -1565,22 +1638,30 @@ const renderBindSslTokens = (ssl, trustedCasDir, trustedCrlsDir) => {
   ];
 };
 
+const renderBindQuicTokens = bind => {
+  if (!isQuicAddress(bind.address)) {
+    return [];
+  }
+  const q = bind.quic ?? {};
+  const out = [];
+  if (q.forceRetry) {
+    out.push('quic-force-retry');
+  }
+  if (q.ccAlgo) {
+    out.push(`quic-cc-algo ${q.ccAlgoWindow ? `${q.ccAlgo} ${q.ccAlgoWindow}` : q.ccAlgo}`);
+  }
+  if (q.socket) {
+    out.push(`quic-socket ${q.socket}`);
+  }
+  return out;
+};
+
 const renderBindLine = (bind, trustedCasDir, trustedCrlsDir) => {
   const parts = [`bind ${bind.address}`];
   parts.push(...renderBindBaseTokens(bind));
   parts.push(...renderBindSslTokens(bind.ssl, trustedCasDir, trustedCrlsDir));
+  parts.push(...renderBindQuicTokens(bind));
   return parts.join(' ');
-};
-
-const renderQuicBindExtras = bind => {
-  if (!isQuicAddress(bind.address)) {
-    return [];
-  }
-  const out = [];
-  if (bind.quic?.forceRetry) {
-    out.push('option quic-force-retry');
-  }
-  return out;
 };
 
 // =====================================================================
@@ -1686,9 +1767,6 @@ const renderHttpFrontendBody = (fe, state, ctx) => {
   }
   lines.push(...renderHttpErrorFilesRef(fe, state, httpOpts));
   lines.push(...renderHttpH2Tunables(httpOpts.h2));
-  for (const bind of fe.binds ?? []) {
-    lines.push(...renderQuicBindExtras(bind));
-  }
   return lines;
 };
 
