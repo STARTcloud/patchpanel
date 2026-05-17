@@ -45,6 +45,12 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Build frontend (debug bundle)
+        # Development-mode React bundle (full error messages, prop-type
+        # warnings, no minification). Shipped alongside dist/ so the HA
+        # addon can opt into it via the debug_ui option.
+        run: npm run build:debug
+
       - name: Strip dev dependencies for packaging
         run: |
           rm -rf node_modules server/node_modules web/node_modules
@@ -67,8 +73,10 @@ jobs:
           cp -r package.json package-lock.json node_modules "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/"
           # Server workspace (backend code)
           cp -r server "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/"
-          # Built frontend (static, no runtime deps)
+          # Built frontend (static, no runtime deps) + debug bundle for the
+          # HA addon's debug_ui toggle to swap in at runtime.
           cp -r web/dist "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/web/dist"
+          cp -r web/dist-debug "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/web/dist-debug"
           cp web/package.json "${PACKAGE_NAME}_${VERSION}_${ARCH}/opt/patchpanel/web/"
 
       - name: Copy config template

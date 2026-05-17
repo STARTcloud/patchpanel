@@ -19,6 +19,7 @@ import {
   TopHostsPanel,
   WorldOriginMapPanel,
 } from '../components/DashboardPanels.jsx';
+import { ErrorBoundary } from '../components/ErrorBoundary.jsx';
 import { ExpandedChartModal } from '../components/ExpandedChartModal.jsx';
 import { HaproxyStatusBadge } from '../components/HaproxyStatusBadge.jsx';
 import Highcharts from '../components/Highcharts.jsx';
@@ -1506,7 +1507,7 @@ export const DashboardPage = ({ doc = null, theme = 'light' }) => {
               onExpand={setExpandedPanel}
               onHide={layout.hide}
             >
-              {renderPanel(panel.id, ctx, doc)}
+              <ErrorBoundary>{renderPanel(panel.id, ctx, doc)}</ErrorBoundary>
             </PanelChrome>
           );
         })}
@@ -1541,7 +1542,7 @@ export const DashboardPage = ({ doc = null, theme = 'light' }) => {
           title={allPanelDefs.find(p => p.id === expandedPanel)?.title ?? 'Panel'}
           onClose={() => setExpandedPanel(null)}
         >
-          {renderPanel(expandedPanel, ctx, doc)}
+          <ErrorBoundary>{renderPanel(expandedPanel, ctx, doc)}</ErrorBoundary>
         </ExpandedChartModal>
       ) : null}
     </>

@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs';
-import { join as joinPath, resolve as resolvePath } from 'node:path';
+import { join as joinPath, resolve as resolvePath, sep } from 'node:path';
 
 import { ensureDir, fileExists, removeIfExists, writeAtomic } from './files.js';
 
@@ -25,54 +25,40 @@ export const validateProviderIdForCredentials = id => {
 const sanitizeCredentialPath = (credentialsDir, id) => {
   const idError = validateProviderIdForCredentials(id);
   if (idError) {
-    return { error: idError };
+    throw new Error(idError);
   }
   const filePath = resolvePath(joinPath(credentialsDir, `${id}.ini`));
   const expectedPrefix = resolvePath(credentialsDir);
-  if (!filePath.startsWith(`${expectedPrefix}/`) && filePath !== expectedPrefix) {
-    return { error: 'id resolves outside credentialsDir' };
+  if (!filePath.startsWith(`${expectedPrefix}${sep}`) && filePath !== expectedPrefix) {
+    throw new Error('id resolves outside credentialsDir');
   }
-  return { path: filePath };
+  return filePath;
 };
 
-export const credentialPath = (credentialsDir, id) => {
-  const result = sanitizeCredentialPath(credentialsDir, id);
-  if (result.error) {
-    throw new Error(result.error);
-  }
-  return result.path;
-};
+export const credentialPath = (credentialsDir, id) => sanitizeCredentialPath(credentialsDir, id);
 
 export const writeCredentials = async (credentialsDir, id, content) => {
-  const result = sanitizeCredentialPath(credentialsDir, id);
-  if (result.error) {
-    throw new Error(result.error);
-  }
+  const filePath = sanitizeCredentialPath(credentialsDir, id);
   await ensureDir(credentialsDir, 0o700);
-  await writeAtomic(result.path, content, { mode: 0o600 });
-  return result.path;
+  await writeAtomic(filePath, content, { mode: 0o600 });
+  return filePath;
 };
 
 export const readCredentials = (credentialsDir, id) => {
-  const result = sanitizeCredentialPath(credentialsDir, id);
-  if (result.error) {
-    return Promise.reject(new Error(result.error));
-  }
-  return fs.readFile(result.path, 'utf8');
+  const filePath = sanitizeCredentialPath(credentialsDir, id);
+  return fs.readFile(filePath, 'utf8');
 };
 
 export const removeCredentials = async (credentialsDir, id) => {
-  const result = sanitizeCredentialPath(credentialsDir, id);
-  if (result.error) {
-    throw new Error(result.error);
-  }
-  await removeIfExists(result.path);
+  const filePath = sanitizeCredentialPath(credentialsDir, id);
+  await removeIfExists(filePath);
 };
 
-export const credentialsExist = (credentialsDir, id) => {
-  const result = sanitizeCredentialPath(credentialsDir, id);
-  if (result.error) {
-    return Promise.resolve(false);
+export const credentialsExist = async (credentialsDir, id) => {
+  try {
+    const filePath = sanitizeCredentialPath(credentialsDir, id);
+    return await fileExists(filePath);
+  } catch {
+    return false;
   }
-  return fileExists(result.path);
 };

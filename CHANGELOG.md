@@ -38,5 +38,3 @@
 * **deps:** pin underscore &gt;= 1.13.8 via overrides ([1727c55](https://github.com/STARTcloud/patchpanel/commit/1727c552920cda442df78b3f642187021ba79846))
 * prettier trailing comma + drop dead conditional on doc ([16db1f2](https://github.com/STARTcloud/patchpanel/commit/16db1f2975d8028eea90eb6cd843a2247b7a9978))
 * quic and authelia ([1ed5e6a](https://github.com/STARTcloud/patchpanel/commit/1ed5e6a5aabaeae9a8df9a6928df8552db4bd91e))
-
-## Changelog

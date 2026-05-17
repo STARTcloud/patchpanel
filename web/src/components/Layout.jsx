@@ -6,6 +6,7 @@ import { useActions } from '../hooks/useActions.jsx';
 import { useConfirmation } from '../hooks/useConfirmation.jsx';
 import { useHaproxyLive } from '../hooks/useHaproxyLive.jsx';
 
+import { ErrorBoundary } from './ErrorBoundary.jsx';
 import { HaproxyStatusBadge } from './HaproxyStatusBadge.jsx';
 
 // HAProxy-flow ordered primary tabs. Dashboard is reachable via the brand
@@ -350,7 +351,9 @@ export const Layout = ({
               error={applyError}
             />
           ) : null}
-          <HaproxyPowerControl />
+          <ErrorBoundary>
+            <HaproxyPowerControl />
+          </ErrorBoundary>
           {onCycleTheme ? (
             <Button
               variant="outline-light"

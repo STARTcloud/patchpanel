@@ -1,5 +1,7 @@
 import { X509Certificate, createPrivateKey, createPublicKey } from 'node:crypto';
 
+import { findCertificatePemBlocks } from './pem.js';
+
 // v0.2.38 — Server-side validation for bring-your-own PEMs uploaded via the
 // Certificates page. Returns { ok, errors[], info? } where `info` carries
 // the parsed cert metadata so the UI can confirm the SAN list before save.
@@ -14,11 +16,6 @@ import { X509Certificate, createPrivateKey, createPublicKey } from 'node:crypto'
 //      matching; CN-only certs are technically valid but useless here)
 
 const LINEAGE_NAME_REGEX = /^[a-zA-Z0-9._-]+$/u;
-
-const splitPemChain = pemText => {
-  const matches = pemText.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/gu);
-  return matches ?? [];
-};
 
 const parseSansFromX509 = x509 => {
   const raw = x509.subjectAltName;
@@ -83,14 +80,14 @@ export const validateByoBundle = ({ fullchainPem, privkeyPem }) => {
     return { ok: false, errors };
   }
 
-  const chainBlocks = splitPemChain(fullchainPem);
+  const chainBlocks = findCertificatePemBlocks(fullchainPem);
   if (chainBlocks.length === 0) {
     return { ok: false, errors: ['fullchainPem contains no CERTIFICATE blocks'] };
   }
 
   let leaf;
   try {
-    leaf = new X509Certificate(chainBlocks[0]);
+    leaf = new X509Certificate(chainBlocks[0].block);
   } catch (err) {
     return { ok: false, errors: [`leaf certificate parse failed: ${err.message}`] };
   }

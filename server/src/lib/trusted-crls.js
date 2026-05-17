@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { join as joinPath, resolve as resolvePath } from 'node:path';
+import { join as joinPath, resolve as resolvePath, sep } from 'node:path';
 
 import { ensureDir, fileExists, removeIfExists, writeAtomic } from './files.js';
+import { findCrlPemBlocks } from './pem.js';
 
 // Trusted X.509 CRLs (Certificate Revocation Lists). Referenced from a
 // bind's ssl block via `crlTrustedCrlId`, rendered into HAProxy's `crl-file
@@ -27,7 +28,13 @@ export const validateTrustedCrlId = id => {
   return null;
 };
 
-const CRL_PEM_RE = /-----BEGIN X509 CRL-----(?<body>[\s\S]*?)-----END X509 CRL-----/u;
+const stripTrailingEquals = s => {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 61) {
+    end -= 1;
+  }
+  return s.slice(0, end);
+};
 
 const fingerprintFromBody = b64Body => {
   const cleaned = b64Body.replace(/\s+/gu, '');
@@ -42,7 +49,7 @@ const fingerprintFromBody = b64Body => {
     return null;
   }
   const reencoded = der.toString('base64');
-  if (reencoded.replace(/=+$/u, '') !== cleaned.replace(/=+$/u, '')) {
+  if (stripTrailingEquals(reencoded) !== stripTrailingEquals(cleaned)) {
     return null;
   }
   const hash = createHash('sha256').update(der).digest('hex').toUpperCase();
@@ -53,8 +60,8 @@ export const validateTrustedCrlPem = ({ pem }) => {
   if (typeof pem !== 'string' || pem.trim().length === 0) {
     return { ok: false, errors: ['pem is required'] };
   }
-  const match = pem.match(CRL_PEM_RE);
-  if (!match) {
+  const blocks = findCrlPemBlocks(pem);
+  if (blocks.length === 0) {
     return {
       ok: false,
       errors: [
@@ -62,7 +69,7 @@ export const validateTrustedCrlPem = ({ pem }) => {
       ],
     };
   }
-  const fingerprint = fingerprintFromBody(match.groups.body);
+  const fingerprint = fingerprintFromBody(blocks[0].body);
   if (!fingerprint) {
     return { ok: false, errors: ['CRL body is not valid base64'] };
   }
@@ -77,49 +84,34 @@ export const validateTrustedCrlPem = ({ pem }) => {
 const sanitizeTrustedCrlPath = (trustedCrlsDir, id) => {
   const idError = validateTrustedCrlId(id);
   if (idError) {
-    return { error: idError };
+    throw new Error(idError);
   }
   const filePath = resolvePath(joinPath(trustedCrlsDir, `${id}.pem`));
   const expectedPrefix = resolvePath(trustedCrlsDir);
-  if (!filePath.startsWith(`${expectedPrefix}/`) && filePath !== expectedPrefix) {
-    return { error: 'id resolves outside trustedCrlsDir' };
+  if (!filePath.startsWith(`${expectedPrefix}${sep}`) && filePath !== expectedPrefix) {
+    throw new Error('id resolves outside trustedCrlsDir');
   }
-  return { path: filePath };
+  return filePath;
 };
 
-export const trustedCrlPath = (trustedCrlsDir, id) => {
-  const result = sanitizeTrustedCrlPath(trustedCrlsDir, id);
-  if (result.error) {
-    throw new Error(result.error);
-  }
-  return result.path;
-};
+export const trustedCrlPath = (trustedCrlsDir, id) => sanitizeTrustedCrlPath(trustedCrlsDir, id);
 
 export const writeTrustedCrl = async (trustedCrlsDir, id, pem) => {
-  const result = sanitizeTrustedCrlPath(trustedCrlsDir, id);
-  if (result.error) {
-    throw new Error(result.error);
-  }
+  const filePath = sanitizeTrustedCrlPath(trustedCrlsDir, id);
   await ensureDir(trustedCrlsDir, 0o755);
   const body = pem.endsWith('\n') ? pem : `${pem}\n`;
-  await writeAtomic(result.path, body, { mode: 0o644 });
-  return result.path;
+  await writeAtomic(filePath, body, { mode: 0o644 });
+  return filePath;
 };
 
 export const readTrustedCrl = (trustedCrlsDir, id) => {
-  const result = sanitizeTrustedCrlPath(trustedCrlsDir, id);
-  if (result.error) {
-    return Promise.reject(new Error(result.error));
-  }
-  return fs.readFile(result.path, 'utf8');
+  const filePath = sanitizeTrustedCrlPath(trustedCrlsDir, id);
+  return fs.readFile(filePath, 'utf8');
 };
 
 export const removeTrustedCrl = async (trustedCrlsDir, id) => {
-  const result = sanitizeTrustedCrlPath(trustedCrlsDir, id);
-  if (result.error) {
-    throw new Error(result.error);
-  }
-  await removeIfExists(result.path);
+  const filePath = sanitizeTrustedCrlPath(trustedCrlsDir, id);
+  await removeIfExists(filePath);
 };
 
 export const listTrustedCrlFiles = async trustedCrlsDir => {
@@ -132,10 +124,11 @@ export const listTrustedCrlFiles = async trustedCrlsDir => {
     .map(e => e.name.replace(/\.pem$/u, ''));
 };
 
-export const trustedCrlFileExists = (trustedCrlsDir, id) => {
-  const result = sanitizeTrustedCrlPath(trustedCrlsDir, id);
-  if (result.error) {
-    return Promise.resolve(false);
+export const trustedCrlFileExists = async (trustedCrlsDir, id) => {
+  try {
+    const filePath = sanitizeTrustedCrlPath(trustedCrlsDir, id);
+    return await fileExists(filePath);
+  } catch {
+    return false;
   }
-  return fileExists(result.path);
 };

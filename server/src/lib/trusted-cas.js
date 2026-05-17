@@ -1,8 +1,9 @@
 import { createHash, X509Certificate } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import { join as joinPath, resolve as resolvePath } from 'node:path';
+import { join as joinPath, resolve as resolvePath, sep } from 'node:path';
 
 import { ensureDir, fileExists, removeIfExists, writeAtomic } from './files.js';
+import { findCertificatePemBlocks } from './pem.js';
 
 // Trusted CA bundles uploaded by the user. A "trusted CA" entry is a PEM file
 // containing one or more X.509 certificates that HAProxy can reference via
@@ -23,10 +24,7 @@ export const validateTrustedCaId = id => {
   return null;
 };
 
-const splitPemChain = pemText => {
-  const matches = pemText.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/gu);
-  return matches ?? [];
-};
+const splitPemChain = pemText => findCertificatePemBlocks(pemText).map(b => b.block);
 
 // SHA-256 fingerprint of the DER-encoded cert, formatted as colon-separated
 // uppercase hex (XX:XX:…) — matches `openssl x509 -fingerprint -sha256` so
@@ -122,56 +120,43 @@ export const validateTrustedCaPem = ({ pem }) => {
   };
 };
 
-// Path safety: ids are validated above (regex), but defensively resolve and
-// confirm the resulting path is still under the configured dir. Matches the
-// pattern in routes/byo-certs.js to prevent traversal even if a future
-// change loosens the regex.
+// Path safety: ids are validated above (regex `^[a-z][a-z0-9_-]{0,62}$` —
+// no separators, no dots, no traversal possible), then defensively resolve
+// and confirm the resulting path is still under the configured dir as a
+// belt-and-suspenders barrier. Throws synchronously on a bad id so the
+// dataflow from user input → fs call is linear and the regex test acts as
+// an obvious sanitizer barrier.
 const sanitizeTrustedCaPath = (trustedCasDir, id) => {
   const idError = validateTrustedCaId(id);
   if (idError) {
-    return { error: idError };
+    throw new Error(idError);
   }
   const filePath = resolvePath(joinPath(trustedCasDir, `${id}.pem`));
   const expectedPrefix = resolvePath(trustedCasDir);
-  if (!filePath.startsWith(`${expectedPrefix}/`) && filePath !== expectedPrefix) {
-    return { error: 'id resolves outside trustedCasDir' };
+  if (!filePath.startsWith(`${expectedPrefix}${sep}`) && filePath !== expectedPrefix) {
+    throw new Error('id resolves outside trustedCasDir');
   }
-  return { path: filePath };
+  return filePath;
 };
 
-export const trustedCaPath = (trustedCasDir, id) => {
-  const result = sanitizeTrustedCaPath(trustedCasDir, id);
-  if (result.error) {
-    throw new Error(result.error);
-  }
-  return result.path;
-};
+export const trustedCaPath = (trustedCasDir, id) => sanitizeTrustedCaPath(trustedCasDir, id);
 
 export const writeTrustedCa = async (trustedCasDir, id, pem) => {
-  const result = sanitizeTrustedCaPath(trustedCasDir, id);
-  if (result.error) {
-    throw new Error(result.error);
-  }
+  const filePath = sanitizeTrustedCaPath(trustedCasDir, id);
   await ensureDir(trustedCasDir, 0o755);
   const body = pem.endsWith('\n') ? pem : `${pem}\n`;
-  await writeAtomic(result.path, body, { mode: 0o644 });
-  return result.path;
+  await writeAtomic(filePath, body, { mode: 0o644 });
+  return filePath;
 };
 
 export const readTrustedCa = (trustedCasDir, id) => {
-  const result = sanitizeTrustedCaPath(trustedCasDir, id);
-  if (result.error) {
-    return Promise.reject(new Error(result.error));
-  }
-  return fs.readFile(result.path, 'utf8');
+  const filePath = sanitizeTrustedCaPath(trustedCasDir, id);
+  return fs.readFile(filePath, 'utf8');
 };
 
 export const removeTrustedCa = async (trustedCasDir, id) => {
-  const result = sanitizeTrustedCaPath(trustedCasDir, id);
-  if (result.error) {
-    throw new Error(result.error);
-  }
-  await removeIfExists(result.path);
+  const filePath = sanitizeTrustedCaPath(trustedCasDir, id);
+  await removeIfExists(filePath);
 };
 
 export const listTrustedCaFiles = async trustedCasDir => {
@@ -184,10 +169,11 @@ export const listTrustedCaFiles = async trustedCasDir => {
     .map(e => e.name.replace(/\.pem$/u, ''));
 };
 
-export const trustedCaFileExists = (trustedCasDir, id) => {
-  const result = sanitizeTrustedCaPath(trustedCasDir, id);
-  if (result.error) {
-    return Promise.resolve(false);
+export const trustedCaFileExists = async (trustedCasDir, id) => {
+  try {
+    const filePath = sanitizeTrustedCaPath(trustedCasDir, id);
+    return await fileExists(filePath);
+  } catch {
+    return false;
   }
-  return fileExists(result.path);
 };

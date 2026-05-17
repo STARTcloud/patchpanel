@@ -4,6 +4,7 @@ import { openAudit } from './lib/audit.js';
 import { createStatsSampler } from './lib/stats-sampler.js';
 import { apiError } from './middleware/api-error.js';
 import { ingressAuth } from './middleware/ingress-auth.js';
+import { globalRateLimit } from './middleware/rate-limit.js';
 import { auditRouter } from './routes/audit.js';
 import { byoCertsRouter } from './routes/byo-certs.js';
 import { certificatesRouter } from './routes/certificates.js';
@@ -33,6 +34,7 @@ export const createApp = async config => {
   app.locals.statsSampler = statsSampler;
   app.disable('x-powered-by');
   app.set('trust proxy', config.server.trustProxy ?? []);
+  app.use(globalRateLimit(config.server.rateLimit ?? {}));
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use(ingressAuth(config));

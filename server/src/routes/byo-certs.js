@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs';
-import { join as joinPath, resolve as resolvePath } from 'node:path';
+import { join as joinPath, resolve as resolvePath, sep } from 'node:path';
 
 import { Router } from 'express';
 
@@ -7,6 +7,7 @@ import * as audit from '../lib/audit.js';
 import { validateByoBundle, validateLineageName } from '../lib/byo-cert-validator.js';
 import { fileExists, writeAtomic } from '../lib/files.js';
 import * as logger from '../lib/logger.js';
+import { findCertificatePemBlocks } from '../lib/pem.js';
 
 // v0.2.38 — BYO (bring-your-own) cert upload endpoints. The API accepts a
 // `name` field (v0.2.39 renamed from `lineageName` — the word "lineage" is
@@ -24,14 +25,14 @@ import * as logger from '../lib/logger.js';
 const sanitizeCertPath = (byoCertsDir, name) => {
   const validationError = validateLineageName(name);
   if (validationError) {
-    return { error: validationError };
+    throw new Error(validationError);
   }
   const resolved = resolvePath(joinPath(byoCertsDir, name));
   const expectedPrefix = resolvePath(byoCertsDir);
-  if (!resolved.startsWith(`${expectedPrefix}/`) && resolved !== expectedPrefix) {
-    return { error: 'name resolves outside byoCertsDir' };
+  if (!resolved.startsWith(`${expectedPrefix}${sep}`) && resolved !== expectedPrefix) {
+    throw new Error('name resolves outside byoCertsDir');
   }
-  return { path: resolved };
+  return resolved;
 };
 
 const listCerts = async byoCertsDir => {
@@ -68,10 +69,8 @@ const writePemBundle = async (certDir, fullchainPem, privkeyPem) => {
   // (leaf+intermediates), privkey.pem. cert-lineage.js reads cert.pem +
   // privkey.pem + fullchain.pem so this layout makes BYO certs
   // indistinguishable from certbot certs downstream.
-  const leafMatch = fullchainPem.match(
-    /-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/u
-  );
-  const certPemBody = leafMatch ? `${leafMatch[0]}\n` : fullchainPem;
+  const leafBlock = findCertificatePemBlocks(fullchainPem)[0]?.block ?? null;
+  const certPemBody = leafBlock ? `${leafBlock}\n` : fullchainPem;
   await Promise.all([
     writeAtomic(fullchainPath, fullchainPem.endsWith('\n') ? fullchainPem : `${fullchainPem}\n`, {
       mode: 0o600,
@@ -106,9 +105,11 @@ export const byoCertsRouter = config => {
   router.post('/byo-certs/upload', async (req, res, next) => {
     const actor = req.user?.id ?? null;
     const { name, fullchainPem, privkeyPem } = req.body ?? {};
-    const pathResult = sanitizeCertPath(dir(), name);
-    if (pathResult.error) {
-      res.status(400).json({ ok: false, error: pathResult.error });
+    let certDir;
+    try {
+      certDir = sanitizeCertPath(dir(), name);
+    } catch (err) {
+      res.status(400).json({ ok: false, error: err.message });
       return;
     }
     const validation = validateByoBundle({ fullchainPem, privkeyPem });
@@ -117,7 +118,7 @@ export const byoCertsRouter = config => {
       return;
     }
     try {
-      await writePemBundle(pathResult.path, fullchainPem, privkeyPem);
+      await writePemBundle(certDir, fullchainPem, privkeyPem);
       audit.record({
         actor,
         category: 'cert',
@@ -144,13 +145,15 @@ export const byoCertsRouter = config => {
   router.delete('/byo-certs/:name', async (req, res, next) => {
     const actor = req.user?.id ?? null;
     const { name } = req.params;
-    const pathResult = sanitizeCertPath(dir(), name);
-    if (pathResult.error) {
-      res.status(400).json({ ok: false, error: pathResult.error });
+    let certDir;
+    try {
+      certDir = sanitizeCertPath(dir(), name);
+    } catch (err) {
+      res.status(400).json({ ok: false, error: err.message });
       return;
     }
     try {
-      await fs.rm(pathResult.path, { recursive: true, force: true });
+      await fs.rm(certDir, { recursive: true, force: true });
       audit.record({
         actor,
         category: 'cert',

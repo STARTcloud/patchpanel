@@ -366,6 +366,17 @@ paths:
     section: Paths
     subsection: Internal
     order: 2
+  webDirDebug:
+    type: string
+    value: /opt/patchpanel/web/dist-debug
+    description: >-
+      Development-mode React bundle (full error messages, prop-type warnings,
+      no minification). Served instead of webDir when
+      PATCHPANEL_DEBUG_UI=1 is set in the environment. Falls back to webDir
+      if this directory is missing.
+    section: Paths
+    subsection: Internal
+    order: 3
 haproxy:
   reload:
     method:
