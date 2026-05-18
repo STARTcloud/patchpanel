@@ -58,7 +58,7 @@
     "security:all": "npm run security:vulnerabilities && npm run security:licenses && npm run security:supply-chain"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
+    "@eslint/js": "^10.0.1",
     "@eslint/markdown": "^8.0.1",
     "audit-ci": "^7.1.0",
     "better-npm-audit": "^3.11.0",
