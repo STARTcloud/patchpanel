@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0](https://github.com/STARTcloud/patchpanel/compare/v0.4.0...v0.5.0) (2026-05-18)
+
+
+### Features
+
+* add version, keepalived, clustering, proper frontend binding ([2b46e71](https://github.com/STARTcloud/patchpanel/commit/2b46e7136841b0a5ff45aaab282292cc8f214dfb))
+* updating documentation and API documentation, config edit, Adding JTDocs documentation, updating logging and laying down some basis for translations ([a43cf0f](https://github.com/STARTcloud/patchpanel/commit/a43cf0f4cbe6d6510e6bfbfecf9d460b3cecd084))
+
+
+### Bug Fixes
+
+* clearing up some codeql issues hopefully ([7321e15](https://github.com/STARTcloud/patchpanel/commit/7321e158ff6ef49a0de47934fa0491e0d281e483))
+* onboard token and backup configs before save on new installs, ie watermark configs ([ad24bd9](https://github.com/STARTcloud/patchpanel/commit/ad24bd9f173c0afb7479a2eb5d885103c69959f0))
+* removing Home Assitant Docker/ Env Var configs now that config is managed by app itself ([cc8be66](https://github.com/STARTcloud/patchpanel/commit/cc8be669167ffbc5d3dbcca6420199305de0db44))
+* unsanitized paths ([185dfe9](https://github.com/STARTcloud/patchpanel/commit/185dfe9ac2c715abf313bc5f5f23a4b2ed67cb8e))
+
 ## [0.4.0](https://github.com/STARTcloud/patchpanel/compare/v0.3.8...v0.4.0) (2026-05-17)
 
 
