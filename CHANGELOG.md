@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/STARTcloud/patchpanel/compare/v0.6.1...v0.6.2) (2026-05-18)
+
+
+### Bug Fixes
+
+* updating translations and raw states and linting ([af7d3e3](https://github.com/STARTcloud/patchpanel/commit/af7d3e3270480ae2702dc453c8c59915ccab4eac))
+
 ## [0.6.1](https://github.com/STARTcloud/patchpanel/compare/v0.6.0...v0.6.1) (2026-05-18)
 
 
