@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.3](https://github.com/STARTcloud/patchpanel/compare/v0.6.2...v0.6.3) (2026-05-18)
+
+
+### Bug Fixes
+
+* documentation ([42e7e7e](https://github.com/STARTcloud/patchpanel/commit/42e7e7e8f6b5c284cf97d26dc917f2529b0cbb69))
+* documentation ([d699ed5](https://github.com/STARTcloud/patchpanel/commit/d699ed51c36f310a95890ef7ffc6681f0b528d5f))
+* documentation ([02bcc03](https://github.com/STARTcloud/patchpanel/commit/02bcc03e84e86dcf116f5e91cf4b576643e4bf20))
+* path dynamic for ingress for il8n ([b2bde22](https://github.com/STARTcloud/patchpanel/commit/b2bde220f719139f8de2dd3d9caae0a8e407e03c))
+
 ## [0.6.2](https://github.com/STARTcloud/patchpanel/compare/v0.6.1...v0.6.2) (2026-05-18)
 
 

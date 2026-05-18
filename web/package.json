@@ -1,6 +1,6 @@
 {
   "name": "@patchpanel/web",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "private": true,
   "type": "module",
   "description": "React 19 frontend for the HAProxy management UI",
