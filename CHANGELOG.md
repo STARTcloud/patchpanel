@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/STARTcloud/patchpanel/compare/v0.5.0...v0.6.0) (2026-05-18)
+
+
+### Features
+
+* adding translation system to frontend and backend fixing keepalived on ha instances/docker ([e4e08b3](https://github.com/STARTcloud/patchpanel/commit/e4e08b3eeac5874e9e9c5e0e8b4f9031b85f751d))
+
 ## [0.5.0](https://github.com/STARTcloud/patchpanel/compare/v0.4.0...v0.5.0) (2026-05-18)
 
 
