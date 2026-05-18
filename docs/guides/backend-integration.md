@@ -525,7 +525,7 @@ VAR=lookup('env', 'PATCHPANEL_TOKEN')
   hosts: localhost
   vars:
     pp_host: https://patchpanel.example.com:8099
-    pp_token: "{{ VAR }}"
+    pp_token: '{{ VAR }}'
     backend: web-pool
     server: web-1
   tasks:
