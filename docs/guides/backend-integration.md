@@ -516,12 +516,14 @@ case where the apply succeeds but the change is operationally wrong
 
 ### Ansible — graceful drain before deploy
 
+-VAR=lookup('env', 'PATCHPANEL_TOKEN')
+
 ```yaml
 - name: Drain backend server before deploy
   hosts: localhost
   vars:
     pp_host: https://patchpanel.example.com:8099
-    pp_token: "{{ lookup('env', 'PATCHPANEL_TOKEN') }}"
+    pp_token: "{{ VAR }}"
     backend: web-pool
     server: web-1
   tasks:
