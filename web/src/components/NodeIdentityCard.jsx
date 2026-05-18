@@ -173,6 +173,13 @@ export const NodeIdentityCard = ({ instances }) => {
 
   const [nodeId, setNodeId] = useState('');
   const [renewalLeader, setRenewalLeader] = useState(true);
+  const [sync, setSync] = useState({
+    autoPushOnSave: false,
+    pullEnabled: false,
+    pullFromPeerId: null,
+    pullIntervalSeconds: 60,
+  });
+  const [peers, setPeers] = useState([]);
   const [vrrp, setVrrp] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -182,14 +189,27 @@ export const NodeIdentityCard = ({ instances }) => {
 
   useEffect(() => {
     let cancelled = false;
-    apiGet('api/node-config')
-      .then(payload => {
+    Promise.all([
+      apiGet('api/node-config'),
+      apiGet('api/peers').catch(() => []),
+    ])
+      .then(([nodePayload, peersPayload]) => {
         if (cancelled) {
           return;
         }
-        setNodeId(payload?.nodeId ?? '');
-        setRenewalLeader(payload?.renewalLeader !== false);
-        setVrrp(payload?.vrrp ?? {});
+        setNodeId(nodePayload?.nodeId ?? '');
+        setRenewalLeader(nodePayload?.renewalLeader !== false);
+        setSync({
+          autoPushOnSave: nodePayload?.sync?.autoPushOnSave === true,
+          pullEnabled: nodePayload?.sync?.pullEnabled === true,
+          pullFromPeerId: nodePayload?.sync?.pullFromPeerId ?? null,
+          pullIntervalSeconds:
+            Number.isInteger(nodePayload?.sync?.pullIntervalSeconds)
+              ? nodePayload.sync.pullIntervalSeconds
+              : 60,
+        });
+        setVrrp(nodePayload?.vrrp ?? {});
+        setPeers(Array.isArray(peersPayload) ? peersPayload : []);
         setLoadError(null);
         setLoading(false);
       })
@@ -229,13 +249,18 @@ export const NodeIdentityCard = ({ instances }) => {
     setSaveError(null);
     setSaved(false);
     try {
-      await apiPut('api/node-config', { nodeId, renewalLeader, vrrp });
+      await apiPut('api/node-config', { nodeId, renewalLeader, sync, vrrp });
       setSaved(true);
     } catch (err) {
       setSaveError(err);
     } finally {
       setSaving(false);
     }
+  };
+
+  const setSyncField = (key, value) => {
+    setSaved(false);
+    setSync(prev => ({ ...prev, [key]: value }));
   };
 
   if (loading) {
@@ -305,6 +330,105 @@ export const NodeIdentityCard = ({ instances }) => {
             {t(
               'cluster:node.identity.renewalLeaderHint',
               'Exactly one node in the cluster should be the renewal leader. The leader runs certbot, then pushes the renewed certs to peers via the peer-sync API. Non-leaders skip their cron renewal pass and receive certs from the leader instead.'
+            )}
+          </Form.Text>
+        </Form.Group>
+
+        <div className="mb-2">
+          <strong className="small text-muted text-uppercase">
+            {t('cluster:node.identity.syncHeading', 'Cluster sync')}
+          </strong>
+        </div>
+
+        <Form.Group className="mb-3">
+          <Form.Check
+            type="switch"
+            id="node-config-auto-push"
+            checked={sync.autoPushOnSave}
+            onChange={e => setSyncField('autoPushOnSave', e.target.checked)}
+            label={t(
+              'cluster:node.identity.autoPushLabel',
+              'Auto-push state to peers on save / after renewal'
+            )}
+          />
+          <Form.Text className="text-muted">
+            {t(
+              'cluster:node.identity.autoPushHint',
+              'When off (default), state changes and cert renewals stay local until you click "Sync now" on a peer. Turn this on for the leader so writes propagate automatically.'
+            )}
+          </Form.Text>
+        </Form.Group>
+
+        <Form.Group className="mb-3">
+          <Form.Check
+            type="switch"
+            id="node-config-pull-enabled"
+            checked={sync.pullEnabled}
+            onChange={e => setSyncField('pullEnabled', e.target.checked)}
+            label={t(
+              'cluster:node.identity.pullEnabledLabel',
+              'Pull state from upstream peer on interval'
+            )}
+          />
+          <Form.Text className="text-muted">
+            {t(
+              'cluster:node.identity.pullEnabledHint',
+              'For followers: poll the upstream peer for state + cert changes and apply locally. Leave off on the leader. Pairing must already exist (the upstream must have minted an inbound token for this node).'
+            )}
+          </Form.Text>
+        </Form.Group>
+
+        <Form.Group className="mb-3">
+          <Form.Label className="small">
+            {t('cluster:node.identity.pullFromLabel', 'Upstream peer')}
+          </Form.Label>
+          <Form.Select
+            value={sync.pullFromPeerId ?? ''}
+            disabled={!sync.pullEnabled}
+            onChange={e => setSyncField('pullFromPeerId', e.target.value || null)}
+          >
+            <option value="">
+              {t('cluster:node.identity.pullFromUnset', '— select a paired peer —')}
+            </option>
+            {peers.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.url})
+              </option>
+            ))}
+          </Form.Select>
+          {sync.pullEnabled && peers.length === 0 ? (
+            <Form.Text className="text-warning">
+              {t(
+                'cluster:node.identity.pullNoPeers',
+                'No paired peers yet. Add one in the "Pair with peer" section first.'
+              )}
+            </Form.Text>
+          ) : null}
+        </Form.Group>
+
+        <Form.Group className="mb-3">
+          <Form.Label className="small">
+            {t('cluster:node.identity.pullIntervalLabel', 'Pull interval (seconds)')}
+          </Form.Label>
+          <Form.Control
+            type="number"
+            min={10}
+            max={3600}
+            value={sync.pullIntervalSeconds}
+            disabled={!sync.pullEnabled}
+            onChange={e => {
+              const n = Number.parseInt(e.target.value, 10);
+              setSyncField(
+                'pullIntervalSeconds',
+                Number.isInteger(n) ? Math.max(10, Math.min(3600, n)) : 60
+              );
+            }}
+            style={{ maxWidth: '10rem' }}
+          />
+          <Form.Text className="text-muted">
+            {t(
+              'cluster:node.identity.pullIntervalHint',
+              'How often the follower polls the upstream. 10s minimum, 3600s maximum.'
             )}
           </Form.Text>
         </Form.Group>
