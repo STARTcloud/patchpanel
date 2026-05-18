@@ -1,4 +1,4 @@
-version: 0.4.0
+version: 0.5.0
 _sections:
   Server:
     description: HTTP server bind, TLS termination, deployment mode
@@ -732,9 +732,9 @@ logging:
     type: string
     value: /var/log/patchpanel
     description: >-
-      Root for the per-category log files. Active files live at the top
-      level (app.log, api.log, auth.log, error.log); daily rotations
-      move to archive/<name>.log.YYYY-MM-DD[.N], then get gzipped past
+      Root for the per-category log files. Active files live at the top level
+      (app.log, api.log, auth.log, error.log); daily rotations move to
+      archive/<name>.log.YYYY-MM-DD[.N], then get gzipped past
       compression_age_days and pruned past max_files.
     section: Logging
     subsection: General
@@ -763,7 +763,9 @@ logging:
   enable_compression:
     type: boolean
     value: true
-    description: gzip rotated log files in archive/ once they age past compression_age_days.
+    description: >-
+      gzip rotated log files in archive/ once they age past
+      compression_age_days.
     section: Logging
     subsection: Rotation
     order: 1
@@ -771,8 +773,8 @@ logging:
     type: integer
     value: 7
     description: >-
-      Days an archived log stays uncompressed before being gzipped. Lower
-      values save disk; higher values keep recent rotations fast to grep.
+      Days an archived log stays uncompressed before being gzipped. Lower values
+      save disk; higher values keep recent rotations fast to grep.
     section: Logging
     subsection: Rotation
     order: 2
@@ -783,8 +785,8 @@ logging:
     type: integer
     value: 30
     description: >-
-      Max number of archived rotations to retain per category before the
-      oldest get pruned.
+      Max number of archived rotations to retain per category before the oldest
+      get pruned.
     section: Logging
     subsection: Rotation
     order: 3
@@ -884,7 +886,9 @@ frontendLogging:
         - warn
         - error
         - silent
-      description: Override the level for log.app (generic UI plumbing — Layout, theme, routing).
+      description: >-
+        Override the level for log.app (generic UI plumbing — Layout, theme,
+        routing).
       section: Logging
       subsection: Frontend Categories
       order: 1
@@ -898,7 +902,9 @@ frontendLogging:
         - warn
         - error
         - silent
-      description: Override the level for log.auth (login, logout, session probe, token CRUD, setup wizard).
+      description: >-
+        Override the level for log.auth (login, logout, session probe, token
+        CRUD, setup wizard).
       section: Logging
       subsection: Frontend Categories
       order: 2
@@ -912,7 +918,9 @@ frontendLogging:
         - warn
         - error
         - silent
-      description: Override the level for log.api (API client wrappers, OpenAPI viewer, /api-docs page).
+      description: >-
+        Override the level for log.api (API client wrappers, OpenAPI viewer,
+        /api-docs page).
       section: Logging
       subsection: Frontend Categories
       order: 3
@@ -926,7 +934,9 @@ frontendLogging:
         - warn
         - error
         - silent
-      description: Override the level for log.state (state.json reads/writes, snapshots, raw state).
+      description: >-
+        Override the level for log.state (state.json reads/writes, snapshots,
+        raw state).
       section: Logging
       subsection: Frontend Categories
       order: 4
@@ -940,7 +950,9 @@ frontendLogging:
         - warn
         - error
         - silent
-      description: Override the level for log.haproxy (HAProxy runtime control, stats sockets, server states).
+      description: >-
+        Override the level for log.haproxy (HAProxy runtime control, stats
+        sockets, server states).
       section: Logging
       subsection: Frontend Categories
       order: 5
@@ -954,7 +966,9 @@ frontendLogging:
         - warn
         - error
         - silent
-      description: Override the level for log.cert (Let's Encrypt, BYO certs, trusted CAs, CRLs).
+      description: >-
+        Override the level for log.cert (Let's Encrypt, BYO certs, trusted CAs,
+        CRLs).
       section: Logging
       subsection: Frontend Categories
       order: 6
@@ -968,7 +982,9 @@ frontendLogging:
         - warn
         - error
         - silent
-      description: Override the level for log.peer (cluster sync, peer pairing, keepalived/VRRP).
+      description: >-
+        Override the level for log.peer (cluster sync, peer pairing,
+        keepalived/VRRP).
       section: Logging
       subsection: Frontend Categories
       order: 7
@@ -982,9 +998,13 @@ frontendLogging:
         - warn
         - error
         - silent
-      description: |
-        Override the level for log.error (ErrorBoundary + window.onerror + unhandledrejection capture).
-        Raising this above `error` effectively disables error capture, so leave at `info` or lower
+      description: >
+        Override the level for log.error (ErrorBoundary + window.onerror +
+        unhandledrejection capture).
+
+        Raising this above `error` effectively disables error capture, so leave
+        at `info` or lower
+
         unless you have a specific reason.
       section: Logging
       subsection: Frontend Categories
@@ -1039,8 +1059,8 @@ i18n:
       - en
     description: >-
       Locale used when neither query param nor Accept-Language matches a
-      supported locale. Options auto-grow as locale JSON files are added
-      under server/src/lib/locales/.
+      supported locale. Options auto-grow as locale JSON files are added under
+      server/src/lib/locales/.
     section: Internationalization
     subsection: General
     order: 1
@@ -1049,9 +1069,8 @@ i18n:
     type: boolean
     value: true
     description: >-
-      When on, honour ?lang= query param and Accept-Language headers.
-      When off, every request uses default_locale regardless of what
-      the client asks for.
+      When on, honour ?lang= query param and Accept-Language headers. When off,
+      every request uses default_locale regardless of what the client asks for.
     section: Internationalization
     subsection: General
     order: 2
@@ -1059,9 +1078,9 @@ i18n:
     type: string
     value: ''
     description: >-
-      When set to a supported locale name, overrides every other source and
-      pins all requests to it. Useful for screenshots and demos. Leave
-      empty for normal behaviour.
+      When set to a supported locale name, overrides every other source and pins
+      all requests to it. Useful for screenshots and demos. Leave empty for
+      normal behaviour.
     section: Internationalization
     subsection: General
     order: 3
