@@ -189,10 +189,7 @@ export const NodeIdentityCard = ({ instances }) => {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      apiGet('api/node-config'),
-      apiGet('api/peers').catch(() => []),
-    ])
+    Promise.all([apiGet('api/node-config'), apiGet('api/peers').catch(() => [])])
       .then(([nodePayload, peersPayload]) => {
         if (cancelled) {
           return;
@@ -203,10 +200,9 @@ export const NodeIdentityCard = ({ instances }) => {
           autoPushOnSave: nodePayload?.sync?.autoPushOnSave === true,
           pullEnabled: nodePayload?.sync?.pullEnabled === true,
           pullFromPeerId: nodePayload?.sync?.pullFromPeerId ?? null,
-          pullIntervalSeconds:
-            Number.isInteger(nodePayload?.sync?.pullIntervalSeconds)
-              ? nodePayload.sync.pullIntervalSeconds
-              : 60,
+          pullIntervalSeconds: Number.isInteger(nodePayload?.sync?.pullIntervalSeconds)
+            ? nodePayload.sync.pullIntervalSeconds
+            : 60,
         });
         setVrrp(nodePayload?.vrrp ?? {});
         setPeers(Array.isArray(peersPayload) ? peersPayload : []);
