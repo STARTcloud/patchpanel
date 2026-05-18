@@ -1,9 +1,11 @@
+import { randomBytes } from 'node:crypto';
+
 import { Router } from 'express';
 
 import * as audit from '../lib/audit.js';
 import { createToken, deleteToken, listTokens } from '../lib/api-tokens.js';
 import { ValidationError } from '../lib/errors.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 
 import { requireAdmin } from '../middleware/auth.js';
 
@@ -23,9 +25,32 @@ export const apiTokensRouter = config => {
 
   router.use(requireAdmin);
 
-  // GET /api/api-tokens — list (no secrets).
+  /**
+   * @swagger
+   * /api/api-tokens:
+   *   get:
+   *     summary: List API tokens
+   *     description: Returns every minted API token (id + name + dates + lastUsedAt). Bcrypt-hashed secrets are never exposed. Admin-only.
+   *     tags: [Auth]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     responses:
+   *       200:
+   *         description: Token list
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 tokens:
+   *                   type: array
+   *                   items: { $ref: '#/components/schemas/ApiToken' }
+   *       401: { description: 'Not authenticated', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       403: { description: 'Admin role required', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.get('/api-tokens', async (req, res, next) => {
-    logger.debug('GET /api-tokens', { actor: req.user?.id });
+    log.auth.debug('GET /api-tokens', { actor: req.user?.id });
     try {
       const tokens = await listTokens(config.paths.apiTokens);
       res.json({ tokens });
@@ -34,13 +59,53 @@ export const apiTokensRouter = config => {
     }
   });
 
-  // POST /api/api-tokens — mint a new token. Body: { name, expiresAt?: ISO }.
-  // Response includes `wire`: the only time the secret is ever returned.
+  /**
+   * @swagger
+   * /api/api-tokens:
+   *   post:
+   *     summary: Mint a new API token
+   *     description: Generates a fresh token. The `wire` field in the response is the ONLY time the plaintext secret is returned — store it immediately. Subsequent GETs expose metadata only. Admin-only.
+   *     tags: [Auth]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [name]
+   *             properties:
+   *               name: { type: string, example: 'ci-pipeline' }
+   *               expiresAt:
+   *                 type: string
+   *                 format: date-time
+   *                 nullable: true
+   *                 description: Optional ISO 8601 expiration timestamp. Omit for non-expiring tokens.
+   *                 example: '2027-05-17T00:00:00Z'
+   *     responses:
+   *       201:
+   *         description: Token minted; `wire` returned exactly once
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 token: { $ref: '#/components/schemas/ApiToken' }
+   *                 wire:
+   *                   type: string
+   *                   description: 'Plaintext wire format: `pp_<keyId>.<secret>`. Pass as `Authorization: Bearer <wire>`.'
+   *                   example: 'pp_a1b2c3d4.0123456789abcdef0123456789abcdef'
+   *       400: { description: 'Missing name', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       401: { description: 'Not authenticated', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       403: { description: 'Admin role required', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.post('/api-tokens', async (req, res, next) => {
     try {
       const { name, expiresAt } = req.body ?? {};
       if (typeof name !== 'string') {
-        throw new ValidationError('name is required');
+        throw new ValidationError('auth.token.nameRequired');
       }
       const { token, wire } = await createToken(
         config.paths.apiTokens,
@@ -61,7 +126,137 @@ export const apiTokensRouter = config => {
     }
   });
 
-  // DELETE /api/api-tokens/:keyId — revoke.
+  /**
+   * @swagger
+   * /api/api-tokens/swagger-config:
+   *   get:
+   *     summary: API token list + capability flags for the in-app Swagger UI
+   *     description: |
+   *       Helper endpoint consumed by `/api-docs` to drive the Authorize modal's API-token UX. Returns the same token metadata as `GET /api/api-tokens` plus capability flags. patchpanel hashes secrets with bcrypt at rest, so `allowFullKeyRetrieval` is permanently `false` — there is no path that recovers the plaintext of an existing token. Operators use the Generate-Temp-Token button instead.
+   *     tags: [Documentation]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     responses:
+   *       200:
+   *         description: Tokens + swagger UX flags
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 tokens:
+   *                   type: array
+   *                   items: { $ref: '#/components/schemas/ApiToken' }
+   *                 swaggerConfig:
+   *                   type: object
+   *                   properties:
+   *                     allowFullKeyRetrieval:
+   *                       type: boolean
+   *                       enum: [false]
+   *                       description: Always false — patchpanel tokens are bcrypt-hashed and not recoverable.
+   *                     allowTempKeyGeneration: { type: boolean }
+   *                     tempKeyExpirationHours: { type: integer, minimum: 1, maximum: 24 }
+   *       401: { description: 'Not authenticated', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       403: { description: 'Admin role required', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
+  router.get('/api-tokens/swagger-config', async (req, res, next) => {
+    log.auth.debug('GET /api-tokens/swagger-config', { actor: req.user?.id });
+    try {
+      const tokens = await listTokens(config.paths.apiTokens);
+      res.json({
+        tokens,
+        swaggerConfig: {
+          allowFullKeyRetrieval: false,
+          allowTempKeyGeneration: true,
+          tempKeyExpirationHours: 1,
+        },
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/api-tokens/temp:
+   *   post:
+   *     summary: Mint a short-lived API token for in-app Swagger UI testing
+   *     description: |
+   *       Creates an ephemeral token (default 1h expiry) for the operator to paste into the Swagger UI Authorize modal. The wire format is returned exactly once. The token has the same admin role as any other API token — revoke or wait for it to expire when done. Auto-generated name format: `swagger-temp-<8hex>`.
+   *     tags: [Documentation]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     responses:
+   *       200:
+   *         description: Temp token minted; wire returned once
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok: { type: boolean, example: true }
+   *                 token: { $ref: '#/components/schemas/ApiToken' }
+   *                 wire: { type: string, example: 'pp_a1b2c3d4.0123456789abcdef0123456789abcdef' }
+   *                 expiresAt: { type: string, format: 'date-time' }
+   *       401: { description: 'Not authenticated', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       403: { description: 'Admin role required', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
+  router.post('/api-tokens/temp', async (req, res, next) => {
+    try {
+      const tempName = `swagger-temp-${randomBytes(4).toString('hex')}`;
+      const expirationHours = 1;
+      const expiresAt = new Date(Date.now() + expirationHours * 60 * 60 * 1000).toISOString();
+      const { token, wire } = await createToken(
+        config.paths.apiTokens,
+        { name: tempName, createdBy: req.user.id, expiresAt },
+        { bcryptRounds: config.security?.bcryptRounds ?? 12 }
+      );
+      audit.record({
+        actor: req.user.id,
+        category: 'api-token',
+        action: 'temp-mint',
+        target: token.keyId,
+        outcome: 'ok',
+        details: { name: token.name, expiresAt: token.expiresAt },
+      });
+      log.auth.info('temp api token minted for swagger', {
+        actor: req.user.id,
+        keyId: token.keyId,
+        expiresAt,
+      });
+      res.json({ ok: true, token, wire, expiresAt });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/api-tokens/{keyId}:
+   *   delete:
+   *     summary: Revoke an API token
+   *     description: Deletes the token by keyId. Any caller still presenting it immediately starts getting 401s. Admin-only.
+   *     tags: [Auth]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: keyId
+   *         required: true
+   *         schema: { type: string }
+   *         description: The `keyId` portion of the wire format (left of the dot)
+   *         example: a1b2c3d4
+   *     responses:
+   *       200:
+   *         description: Token revoked
+   *         content: { application/json: { schema: { $ref: '#/components/schemas/Success' } } }
+   *       401: { description: 'Not authenticated', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       403: { description: 'Admin role required', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       404: { description: 'No token with that keyId', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.delete('/api-tokens/:keyId', async (req, res, next) => {
     const { keyId } = req.params;
     try {

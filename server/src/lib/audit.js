@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 import Database from 'better-sqlite3';
 
 import { ensureDir } from './files.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS audit_log (
@@ -33,7 +33,7 @@ export const openAudit = async path => {
   dbInstance.pragma('journal_mode = WAL');
   dbInstance.exec(SCHEMA);
   dbPath = path;
-  logger.debug('audit log opened', { path });
+  log.app.debug('audit log opened', { path });
   return dbInstance;
 };
 

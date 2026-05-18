@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 // Process-control strategies. The patchpanel addon runs under s6-overlay in
 // the Home Assistant container, but the same code may run baremetal under
@@ -72,7 +72,7 @@ const pickStrategy = async () => {
     return cachedStrategy;
   }
   cachedStrategy = await detectStrategy();
-  logger.info('haproxy control strategy resolved', { strategy: cachedStrategy });
+  log.app.info('haproxy control strategy resolved', { strategy: cachedStrategy });
   return cachedStrategy;
 };
 
@@ -110,7 +110,7 @@ const requireOk = (result, action) => {
 
 export const stop = async (config = {}) => {
   const strategy = await pickStrategy();
-  logger.info('haproxy stop requested', { strategy });
+  log.app.info('haproxy stop requested', { strategy });
   if (strategy === 's6') {
     return requireOk(await stopViaS6(), 's6-svc stop');
   }
@@ -122,7 +122,7 @@ export const stop = async (config = {}) => {
 
 export const start = async () => {
   const strategy = await pickStrategy();
-  logger.info('haproxy start requested', { strategy });
+  log.app.info('haproxy start requested', { strategy });
   if (strategy === 's6') {
     return requireOk(await startViaS6(), 's6-svc start');
   }

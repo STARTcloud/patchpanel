@@ -14,9 +14,11 @@ import { useStateDoc } from './hooks/useState.jsx';
 import { useTheme } from './hooks/useTheme.jsx';
 import { AclsPage } from './pages/AclsPage.jsx';
 import { AdvancedPage } from './pages/AdvancedPage.jsx';
+import { ApiDocsPage } from './pages/ApiDocsPage.jsx';
 import { AuditPage } from './pages/AuditPage.jsx';
 import { BackendsPage } from './pages/BackendsPage.jsx';
 import { CertificatesPage } from './pages/CertificatesPage.jsx';
+import { ConfigPage } from './pages/ConfigPage.jsx';
 import { DashboardPage } from './pages/DashboardPage.jsx';
 import { DefaultsPage } from './pages/DefaultsPage.jsx';
 import { ErrorPagesPage } from './pages/ErrorPagesPage.jsx';
@@ -35,7 +37,7 @@ import { RoutesPage } from './pages/RoutesPage.jsx';
 import { RulesPage } from './pages/RulesPage.jsx';
 import { RuntimePage } from './pages/RuntimePage.jsx';
 import { SetupAdminPage } from './pages/SetupAdminPage.jsx';
-import { isFreshInstall, SetupPage } from './pages/SetupPage.jsx';
+import { SetupPage } from './pages/SetupPage.jsx';
 import { SnapshotsPage } from './pages/SnapshotsPage.jsx';
 import { StatsPage } from './pages/StatsPage.jsx';
 import { TopologyPage } from './pages/TopologyPage.jsx';
@@ -94,7 +96,6 @@ const AppContent = () => {
               applyError={applyError}
               onApplyPending={onApplyPending}
               onDiscardPending={onDiscardPending}
-              showSetupTab={isFreshInstall(stateDoc.doc)}
             />
           }
         >
@@ -158,6 +159,7 @@ const AppContent = () => {
           <Route path="runtime" element={wrap(<RuntimePage />)} />
           <Route path="logs" element={wrap(<LogsPage />)} />
           <Route path="audit" element={wrap(<AuditPage />)} />
+          <Route path="api-docs" element={wrap(<ApiDocsPage />)} />
           <Route
             path="notifications"
             element={wrap(<NotificationsPage doc={stateDoc.doc} onSave={stateDoc.save} />)}
@@ -176,6 +178,7 @@ const AppContent = () => {
             path="advanced"
             element={wrap(<AdvancedPage doc={stateDoc.doc} onSave={stateDoc.save} />)}
           />
+          <Route path="config" element={wrap(<ConfigPage />)} />
           <Route
             path="raw-state"
             element={wrap(<RawStatePage doc={stateDoc.doc} onSave={stateDoc.save} />)}

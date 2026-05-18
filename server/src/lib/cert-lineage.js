@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import { dirname, join as joinPath } from 'node:path';
 
 import { fileExists, writeAtomic } from './files.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 const PEM_NAME_PATTERN = /^haproxy-.+\.pem$/u;
 
@@ -39,7 +39,7 @@ const readLineageMeta = async lineageDir => {
   try {
     x509 = new X509Certificate(pemText);
   } catch (err) {
-    logger.warning('failed to parse certificate', { lineageDir, error: err.message });
+    log.app.warn('failed to parse certificate', { lineageDir, error: err.message });
     return null;
   }
 
@@ -107,7 +107,7 @@ export const emitPem = async (haproxyCertsDir, certName, lineage) => {
   ]);
   const content = `${privkey}${privkey.endsWith('\n') ? '' : '\n'}${fullchain}`;
   await writeAtomic(targetPath, content, { mode: 0o600 });
-  logger.info('emitted haproxy PEM', { certName, target: targetPath });
+  log.app.info('emitted haproxy PEM', { certName, target: targetPath });
   return { path: targetPath, sans: parseSansFromX509(lineage.x509) };
 };
 
@@ -140,7 +140,7 @@ const processCert = async (paths, cert, providersById) => {
     : await discoverLineages(paths.letsencryptDir, cert.certName);
   const chosen = pickNewestValid(lineages);
   if (!chosen) {
-    logger.warning('no valid lineage for cert; skipping', {
+    log.app.warn('no valid lineage for cert; skipping', {
       certName: cert.certName,
       providerType: provider?.type ?? 'unknown',
     });
@@ -165,7 +165,7 @@ export const buildCertsList = async (paths, certs, providers = []) => {
   const emitted = successful.map(r => r.emitted);
 
   await writeAtomic(paths.haproxyCertsList, `${lines.join('\n')}\n`, { mode: 0o644 });
-  logger.info('certs.list rebuilt', { entries: emitted.length });
+  log.app.info('certs.list rebuilt', { entries: emitted.length });
   return emitted;
 };
 

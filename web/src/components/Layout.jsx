@@ -40,13 +40,14 @@ const MONITOR_TABS = Object.freeze([
   { path: '/audit', label: 'Audit', icon: 'journal-text' },
   { path: '/snapshots', label: 'Snapshots', icon: 'clock-history' },
   { path: '/notifications', label: 'Notifications', icon: 'bell' },
+  { path: '/api-docs', label: 'API docs', icon: 'braces' },
 ]);
 
 // Settings surfaces — same dropdown treatment.
 // `freshOnly` entries are filtered out once the install is no longer fresh
 // (Setup wizard isn't meant to be a re-accessible menu post-onboarding).
 const SETTINGS_TABS = Object.freeze([
-  { path: '/setup', label: 'Setup wizard', icon: 'stars', freshOnly: true },
+  { path: '/config', label: 'Settings', icon: 'gear-fill' },
   { path: '/providers', label: 'Providers', icon: 'diagram-3' },
   { path: '/error-pages', label: 'Error pages', icon: 'exclamation-octagon' },
   { path: '/geoip', label: 'GeoIP', icon: 'globe-americas' },
@@ -292,8 +293,6 @@ PendingChangesIndicator.propTypes = {
   error: PropTypes.object,
 };
 
-const filterSettingsTabs = (tabs, showSetupTab) => tabs.filter(t => !t.freshOnly || showSetupTab);
-
 // Profile/logout menu in the top-right. Hidden entirely when running under
 // HA ingress — the user is authenticated upstream by Home Assistant and
 // has no local session to manage from this UI.
@@ -351,7 +350,6 @@ export const Layout = ({
   applyError = null,
   onApplyPending = null,
   onDiscardPending = null,
-  showSetupTab = false,
 }) => (
   <div className="haproxy-ui">
     <Navbar bg="dark" variant="dark" expand="lg" className="px-3">
@@ -406,7 +404,7 @@ export const Layout = ({
               </span>
             }
           >
-            {filterSettingsTabs(SETTINGS_TABS, showSetupTab).map(tab => (
+            {SETTINGS_TABS.map(tab => (
               <DropdownNavItem key={tab.path} tab={tab} />
             ))}
           </NavDropdown>
@@ -464,5 +462,4 @@ Layout.propTypes = {
   applyError: PropTypes.object,
   onApplyPending: PropTypes.func,
   onDiscardPending: PropTypes.func,
-  showSetupTab: PropTypes.bool,
 };

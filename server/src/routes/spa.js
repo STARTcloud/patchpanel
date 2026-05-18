@@ -3,7 +3,7 @@ import { dirname, join as joinPath, normalize as normalizePath } from 'node:path
 
 import { Router, static as expressStatic } from 'express';
 
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 
 const buildBaseHref = ingressPath => {
   if (!ingressPath || ingressPath === '' || ingressPath === '/') {
@@ -39,10 +39,10 @@ const resolveWebDir = config => {
   }
   const debugDir = config.paths.webDirDebug ?? joinPath(dirname(config.paths.webDir), 'dist-debug');
   if (existsSync(joinPath(debugDir, 'index.html'))) {
-    logger.info('serving debug UI bundle', { webDir: debugDir });
+    log.api.info('serving debug UI bundle', { webDir: debugDir });
     return debugDir;
   }
-  logger.warning('PATCHPANEL_DEBUG_UI=1 but debug bundle is missing; serving production bundle', {
+  log.api.warn('PATCHPANEL_DEBUG_UI=1 but debug bundle is missing; serving production bundle', {
     debugDir,
     webDir: config.paths.webDir,
   });

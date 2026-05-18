@@ -1,7 +1,8 @@
 import * as audit from '../lib/audit.js';
+import { errorResponse } from '../lib/api-response.js';
 import { AuthError } from '../lib/errors.js';
 import * as jwtLib from '../lib/jwt.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 import { recordTokenUse, verifyToken } from '../lib/api-tokens.js';
 import { getInternal as getUserInternal } from '../lib/users.js';
 
@@ -35,6 +36,16 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/whoami',
   '/api/setup/status',
   '/api/setup/complete',
+  // OpenAPI spec is public so the GH Pages static export + curl/automation
+  // can read it without holding a session or token. The spec describes the
+  // interface, not data — every endpoint it documents still enforces its own
+  // auth. Mirrors armor/zoneweaver pattern.
+  '/api/openapi.json',
+  // Client-error reports must accept unauthenticated POSTs — errors on the
+  // login page (or any pre-auth path) need to ship too. Volume is capped
+  // client-side via debounce + queue limit, and the global rate limiter
+  // provides abuse protection. See routes/client-errors.js.
+  '/api/client-errors',
 ]);
 
 const isPublicPath = path => {
@@ -129,7 +140,7 @@ const tryBearerToken = async (req, config) => {
   }
   // Fire-and-forget — don't block the request on the lastUsedAt write.
   recordTokenUse(config.paths.apiTokens, row.keyId).catch(err =>
-    logger.warning('recordTokenUse failed', { keyId: row.keyId, error: err.message })
+    log.auth.warn('recordTokenUse failed', { keyId: row.keyId, error: err.message })
   );
   return {
     id: row.keyId,
@@ -154,7 +165,7 @@ const denyOrLogin = (req, res, ingressPath) => {
     return;
   }
   res.set('www-authenticate', 'Bearer realm="patchpanel"');
-  res.status(401).json({ error: 'AuthError', message: 'authentication required' });
+  res.status(401).json(errorResponse(req, 'auth.required'));
 };
 
 const resolveStrategy = config => {
@@ -168,7 +179,7 @@ const resolveStrategy = config => {
 
 export const authMiddleware = config => {
   if (config.auth?.strategy === 'none') {
-    logger.warning(
+    log.auth.warn(
       'auth.strategy=none — authentication is DISABLED. Never use this on a network-exposed deployment.'
     );
   }
@@ -247,11 +258,11 @@ export const authMiddleware = config => {
 // "authenticated". v1 only has `admin`, but the shape supports more.
 export const requireRole = role => (req, res, next) => {
   if (!req.user) {
-    next(new AuthError('authentication required'));
+    next(new AuthError('auth.required'));
     return;
   }
   if (req.user.role !== role && req.user.role !== 'admin') {
-    res.status(403).json({ error: 'ForbiddenError', message: `${role} role required` });
+    res.status(403).json(errorResponse(req, 'auth.roleRequired', { role }));
     return;
   }
   next();
@@ -264,14 +275,11 @@ export const requireAdmin = requireRole('admin');
 // (logout, change-password). Tokens are revoked via DELETE /api/api-tokens/:id.
 export const requireSession = (req, res, next) => {
   if (!req.user) {
-    next(new AuthError('authentication required'));
+    next(new AuthError('auth.required'));
     return;
   }
   if (req.user.source === 'token') {
-    res.status(403).json({
-      error: 'ForbiddenError',
-      message: 'this endpoint is for browser sessions; not available to API tokens',
-    });
+    res.status(403).json(errorResponse(req, 'auth.forbidden.sessionOnly'));
     return;
   }
   next();

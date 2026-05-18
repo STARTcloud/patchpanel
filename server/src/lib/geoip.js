@@ -5,7 +5,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 import { ensureDir, fileExists } from './files.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 // Per-source on-disk filenames + download URLs. Both DB sources produce an
 // MMDB file that the `@maxmind/geoip2-node` reader can open directly (DB-IP
@@ -107,7 +107,7 @@ const loadReader = async (config, state) => {
   // Dynamic import so the dep is optional — if @maxmind/geoip2-node isn't
   // installed at runtime, the online fallback path still works.
   const mod = await import('@maxmind/geoip2-node').catch(err => {
-    logger.warning('@maxmind/geoip2-node not installed; geoip local lookups disabled', {
+    log.app.warn('@maxmind/geoip2-node not installed; geoip local lookups disabled', {
       error: err.message,
     });
     return null;
@@ -117,7 +117,7 @@ const loadReader = async (config, state) => {
   }
   readerInstance = await mod.Reader.open(dbPath);
   readerPath = dbPath;
-  logger.info('geoip MMDB reader loaded', { dbPath, source });
+  log.app.info('geoip MMDB reader loaded', { dbPath, source });
   return readerInstance;
 };
 
@@ -143,7 +143,7 @@ const localLookup = async (config, state, ip) => {
     return null;
   }
   const reader = await loadReader(config, state).catch(err => {
-    logger.warning('geoip reader load failed', { error: err.message });
+    log.app.warn('geoip reader load failed', { error: err.message });
     return null;
   });
   if (!reader) {
@@ -277,7 +277,7 @@ export const lookupIp = async (config, state, ip) => {
       return local;
     }
   } catch (err) {
-    logger.warning('local geoip lookup failed', { ip, error: err.message });
+    log.app.warn('local geoip lookup failed', { ip, error: err.message });
   }
   try {
     const online = await onlineLookup(state, ip);
@@ -286,7 +286,7 @@ export const lookupIp = async (config, state, ip) => {
       return online;
     }
   } catch (err) {
-    logger.warning('online geoip lookup failed', { ip, error: err.message });
+    log.app.warn('online geoip lookup failed', { ip, error: err.message });
   }
   return null;
 };
@@ -345,7 +345,7 @@ const downloadMaxmindDatabase = async (config, licenseKey) => {
   const finalPath = dbPathFor(dir, 'maxmind');
   const tmpPath = `${finalPath}.tmp`;
   const url = maxmindDownloadUrl(licenseKey);
-  logger.info('downloading MaxMind GeoLite2-City db', {
+  log.app.info('downloading MaxMind GeoLite2-City db', {
     url: url.replace(licenseKey, '<redacted>'),
   });
 
@@ -375,7 +375,7 @@ const downloadMaxmindDatabase = async (config, licenseKey) => {
   await fs.rm(tmpTarballPath, { force: true });
   readerInstance = null;
   readerPath = null;
-  logger.info('MaxMind db updated', { path: finalPath, bytes: mmdb.length });
+  log.app.info('MaxMind db updated', { path: finalPath, bytes: mmdb.length });
   return { path: finalPath, bytes: mmdb.length, source: 'maxmind' };
 };
 
@@ -385,7 +385,7 @@ const downloadMaxmindDatabase = async (config, licenseKey) => {
 // back to the previous month.
 const fetchDbipMmdbMonth = async (yyyy, mm) => {
   const url = `https://download.db-ip.com/free/dbip-city-lite-${yyyy}-${mm}.mmdb.gz`;
-  logger.info('downloading DB-IP city-lite db', { url });
+  log.app.info('downloading DB-IP city-lite db', { url });
   const response = await fetch(url);
   return { response, url };
 };
@@ -405,7 +405,7 @@ const downloadDbipDatabase = async config => {
     const prev = new Date(Date.UTC(currentYyyy, now.getUTCMonth() - 1, 1));
     const prevYyyy = prev.getUTCFullYear();
     const prevMm = String(prev.getUTCMonth() + 1).padStart(2, '0');
-    logger.info('DB-IP current month not published yet; falling back to previous month', {
+    log.app.info('DB-IP current month not published yet; falling back to previous month', {
       tried: `${currentYyyy}-${currentMm}`,
       fallback: `${prevYyyy}-${prevMm}`,
     });
@@ -424,7 +424,7 @@ const downloadDbipDatabase = async config => {
   await fs.rename(tmpPath, finalPath);
   readerInstance = null;
   readerPath = null;
-  logger.info('DB-IP db updated', { path: finalPath, bytes: stat.size });
+  log.app.info('DB-IP db updated', { path: finalPath, bytes: stat.size });
   return { path: finalPath, bytes: stat.size, source: 'dbip' };
 };
 

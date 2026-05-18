@@ -2,6 +2,8 @@ import PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Alert, Button, Card } from 'react-bootstrap';
 
+import { log } from '../utils/Logger.js';
+
 // Hand-picked subset of React's official codes.json. Templates use %s for
 // positional args, matching React's invariant() convention. Source:
 // https://github.com/facebook/react/blob/main/scripts/error-codes/codes.json
@@ -121,9 +123,12 @@ export class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     this.setState({ info });
-    if (typeof console !== 'undefined') {
-      console.error('ErrorBoundary caught:', error, info);
-    }
+    log.error.error('ErrorBoundary caught', {
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack,
+      componentStack: info?.componentStack,
+    });
   }
 
   reset = () => {

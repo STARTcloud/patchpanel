@@ -7,7 +7,7 @@ import configLoader from '../config/configLoader.js';
 import { HaproxyError } from '../lib/errors.js';
 import { writeAtomic } from '../lib/files.js';
 import * as haproxyMaster from '../lib/haproxy-master.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 import { renderHaproxyConfig } from '../lib/render.js';
 import { loadState } from '../lib/state.js';
 
@@ -60,10 +60,10 @@ const main = async () => {
   }
 
   await writeAtomic(config.paths.haproxyConfig, rendered, { mode: 0o644 });
-  logger.info('haproxy.cfg updated', { path: config.paths.haproxyConfig });
+  log.app.info('haproxy.cfg updated', { path: config.paths.haproxyConfig });
 
   const output = await haproxyMaster.reload(config.paths.haproxyMasterSocket);
-  logger.info('haproxy reloaded via master socket', { output: output.trim().slice(0, 200) });
+  log.app.info('haproxy reloaded via master socket', { output: output.trim().slice(0, 200) });
 };
 
 main().catch(exitOnError);

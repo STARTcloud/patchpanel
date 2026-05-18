@@ -1,5 +1,5 @@
 import { showInfo, showStat } from './haproxy-stats.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 const SAMPLE_INTERVAL_MS = 1_000;
 const MAX_SAMPLES = 3_600; // 1 hour at 1s
@@ -75,7 +75,7 @@ export const createStatsSampler = config => {
       consecutiveFailures += 1;
       if (consecutiveFailures % 12 === 1) {
         // Log every minute of failure, not every 5s
-        logger.warning('stats sampler tick failed', { error: err.message });
+        log.app.warn('stats sampler tick failed', { error: err.message });
       }
     }
   };
@@ -89,7 +89,7 @@ export const createStatsSampler = config => {
       sampleOnce().catch(() => undefined);
     }, SAMPLE_INTERVAL_MS);
     intervalHandle.unref?.();
-    logger.info('stats sampler started', {
+    log.app.info('stats sampler started', {
       intervalMs: SAMPLE_INTERVAL_MS,
       maxSamples: MAX_SAMPLES,
     });

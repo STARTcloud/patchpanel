@@ -9,12 +9,35 @@ import { BrowserRouter } from 'react-router';
 
 import { App } from './App.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
+import { log } from './utils/Logger.js';
 
 const detectBasename = () => {
   const baseUrl = new URL(document.baseURI);
   const path = baseUrl.pathname.replace(/\/+$/u, '');
   return path === '' ? '/' : path;
 };
+
+// Global error capture — wired before React mounts so we catch errors that
+// fire during initial render too. ErrorBoundary handles render-time React
+// errors; these listeners catch async exceptions / unhandled promise
+// rejections / non-React script errors that would otherwise go to the
+// browser console only.
+window.addEventListener('error', event => {
+  log.error.error('Uncaught error', {
+    message: event.message,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno,
+    stack: event.error?.stack,
+  });
+});
+window.addEventListener('unhandledrejection', event => {
+  const { reason } = event;
+  log.error.error('Unhandled promise rejection', {
+    message: reason?.message ?? String(reason),
+    stack: reason?.stack,
+  });
+});
 
 const container = document.getElementById('root');
 if (!container) {

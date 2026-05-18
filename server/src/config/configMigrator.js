@@ -6,6 +6,8 @@ import { randomBytes } from 'node:crypto';
 import yaml from 'js-yaml';
 import jsonMerger from 'json-merger';
 
+import { CONFIG_WATERMARK_PREFIX } from '../lib/config-write.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -39,6 +41,19 @@ const TEMPLATE_PATHS = [
 const DEFAULT_USER_CONFIG_PATH = '/etc/patchpanel/config.yaml';
 
 const isPlainObject = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+// Prepend a watermark to migrator-written configs so the UI's writeRawConfig
+// recognises the file as already-managed and skips its first-save preserve
+// step (which would otherwise dump a redundant commentless `.preserved-<iso>`
+// sidecar on the very first save after fresh install or version upgrade).
+const buildMigratorWatermark = () =>
+  [
+    `${CONFIG_WATERMARK_PREFIX} config — written by configMigrator (auto-merge of new template fields on version upgrade)`,
+    '# UI-driven saves via /api/config rewrite this file; comments do not survive the round-trip.',
+    `# Last written: ${new Date().toISOString()}`,
+    '',
+    '',
+  ].join('\n');
 
 class ConfigMigrator {
   constructor() {
@@ -134,7 +149,7 @@ class ConfigMigrator {
 
     fs.writeFileSync(
       this.userConfigPath,
-      yaml.dump(processed, { defaultFlowStyle: false, lineWidth: -1 })
+      buildMigratorWatermark() + yaml.dump(processed, { defaultFlowStyle: false, lineWidth: -1 })
     );
 
     console.log(`[configMigrator] fresh install: wrote ${this.userConfigPath}`);
@@ -150,7 +165,7 @@ class ConfigMigrator {
     this._ensureConfigDirectory();
     fs.writeFileSync(
       this.userConfigPath,
-      yaml.dump(merged, { defaultFlowStyle: false, lineWidth: -1 })
+      buildMigratorWatermark() + yaml.dump(merged, { defaultFlowStyle: false, lineWidth: -1 })
     );
 
     console.log(`[configMigrator] wrote merged config to ${this.userConfigPath}`);

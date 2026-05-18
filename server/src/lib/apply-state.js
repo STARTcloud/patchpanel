@@ -10,7 +10,7 @@ import { assertValidRenderedCfg } from './haproxy-validate.js';
 import * as haproxyMaster from './haproxy-master.js';
 import * as keepalivedControl from './keepalived-control.js';
 import { withLock } from './lock.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 import { loadNodeConfig } from './node-config.js';
 import { pushStateToAllPeers } from './peer-sync.js';
 import { renderHaproxyConfig } from './render.js';
@@ -55,7 +55,7 @@ const preserveForeignConfig = async cfgPath => {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const preservedPath = `${cfgPath}.preserved-${stamp}`;
   await fs.copyFile(cfgPath, preservedPath);
-  logger.info('preserved foreign config before first patchpanel write', {
+  log.app.info('preserved foreign config before first patchpanel write', {
     from: cfgPath,
     to: preservedPath,
   });
@@ -81,9 +81,9 @@ const restoreCfgFromBackup = async (cfgPath, backupPath) => {
   }
   try {
     await fs.copyFile(backupPath, cfgPath);
-    logger.info('restored haproxy.cfg from backup after reload failure');
+    log.app.info('restored haproxy.cfg from backup after reload failure');
   } catch (err) {
-    logger.error('failed to restore haproxy.cfg backup after reload failure', {
+    log.app.error('failed to restore haproxy.cfg backup after reload failure', {
       error: err.message,
     });
   }
@@ -162,7 +162,7 @@ const persistCustomErrorPages = async (config, candidateParsed) => {
     return candidateParsed;
   }
   if (!dir) {
-    logger.warning(
+    log.app.warn(
       'errorPageContents/lfFileContents set but config.paths.haproxyErrorPagesDir is missing; skipping'
     );
     return candidateParsed;
@@ -203,7 +203,7 @@ const persistMaps = async (config, candidateParsed) => {
       await writeAtomic(target, body ? `${body}\n` : '', { mode: 0o644 });
     })
   );
-  logger.info('wrote map files', { count: maps.length, dir });
+  log.app.info('wrote map files', { count: maps.length, dir });
 };
 
 // Render + validate keepalived.conf in isolation, returning the rendered
@@ -292,13 +292,13 @@ export const applyState = (config, candidate, options = {}) =>
     }
 
     await writeAtomic(config.paths.haproxyConfig, rendered, { mode: 0o644 });
-    logger.info('haproxy.cfg written', {
+    log.app.info('haproxy.cfg written', {
       path: config.paths.haproxyConfig,
       loadableCertCount,
     });
     if (renderedKeepalived !== null) {
       await writeAtomic(config.paths.keepalivedConfig, renderedKeepalived, { mode: 0o644 });
-      logger.info('keepalived.conf written', { path: config.paths.keepalivedConfig });
+      log.app.info('keepalived.conf written', { path: config.paths.keepalivedConfig });
     }
 
     try {
@@ -311,7 +311,7 @@ export const applyState = (config, candidate, options = {}) =>
           .catch(() => undefined);
       }
       await haproxyMaster.reload(config.paths.haproxyMasterSocket).catch(rollbackErr => {
-        logger.error('reload after rollback also failed; HAProxy may be in inconsistent state', {
+        log.app.error('reload after rollback also failed; HAProxy may be in inconsistent state', {
           error: rollbackErr.message,
         });
       });
@@ -331,7 +331,7 @@ export const applyState = (config, candidate, options = {}) =>
       try {
         await keepalivedControl.reload({ pidPath: config.paths.keepalivedPidFile });
       } catch (err) {
-        logger.warning('keepalived reload failed (non-fatal — config is on disk)', {
+        log.app.warn('keepalived reload failed (non-fatal — config is on disk)', {
           error: err.message,
         });
         audit.record({
@@ -350,13 +350,13 @@ export const applyState = (config, candidate, options = {}) =>
     // Persist the original candidate (with errorPageContents intact, original
     // errorFiles map) — the overridden errorFiles map is a render-time detail.
     const next = await saveState(config.paths.state, candidateBase, options);
-    logger.info('state saved after successful reload', { path: config.paths.state });
+    log.app.info('state saved after successful reload', { path: config.paths.state });
 
     if (config.paths.snapshotsDir) {
       writeSnapshot(config.paths.snapshotsDir, next, {
         actor: editor,
         reason: options.reason ?? null,
-      }).catch(err => logger.warning('snapshot write failed (non-fatal)', { error: err.message }));
+      }).catch(err => log.app.warn('snapshot write failed (non-fatal)', { error: err.message }));
     }
 
     audit.record({
@@ -372,7 +372,7 @@ export const applyState = (config, candidate, options = {}) =>
     // + audited inside pushStateToAllPeers; this never throws.
     if (typeof editor !== 'string' || !editor.startsWith('peer:')) {
       pushStateToAllPeers(config, next, {}).catch(err =>
-        logger.warning('peer sync push failed (non-fatal)', { error: err.message })
+        log.app.warn('peer sync push failed (non-fatal)', { error: err.message })
       );
     }
 

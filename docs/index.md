@@ -6,6 +6,8 @@ description: 'PatchPanel — state-driven web UI for HAProxy'
 permalink: /
 ---
 
+<!-- markdownlint-disable MD013 MD033 MD060 -->
+
 # PatchPanel
 
 {: .fs-9 }
@@ -16,7 +18,7 @@ socket, and manage TLS certificates (Let's Encrypt + BYO) — all from a
 browser.
 {: .fs-6 .fw-300 }
 
-[Get started](#getting-started){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
+[Get started](docs/guides/getting-started/){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [API reference](docs/api/swagger-ui.html){: .btn .fs-5 .mb-4 .mb-md-0 .mr-2 }
 [GitHub](https://github.com/STARTcloud/patchpanel){: .btn .fs-5 .mb-4 .mb-md-0 }
 
@@ -41,42 +43,17 @@ state-driven, declarative system:
   lines for upstream verification.
 - **Live observability** — Per-frontend/backend traffic, stats socket
   runtime API, audit log, snapshot timeline, GeoIP origin map.
-- **Authentication** — Local admin login (session cookies) + bcrypt-hashed
+- **Authentication** — Local admin login (JWT in httpOnly cookie) + bcrypt-hashed
   API keys (Bearer tokens) for programmatic / remote control.
 - **Two deployment surfaces** — Home Assistant add-on, standalone Debian
   package (`.deb` from the STARTcloud apt repository).
 
 ## Getting started
 
-### Home Assistant add-on
+PatchPanel can be installed two ways:
 
-1. Add `https://github.com/STARTcloud/homeassistant-addons` to your HA
-   add-on repositories.
-2. Install the HAProxy add-on.
-3. Start it. The first run seeds an empty state document at
-   `/data/state.json`.
-4. Open the **HAProxy** sidebar item in Home Assistant.
-5. Run through the setup wizard to add your first ACME account, route,
-   and backend.
-
-### Standalone Debian
-
-```bash
-# Add the STARTcloud apt repository (one-time)
-curl -fsSL https://packages.debian.startcloud.com/startcloud.gpg \
-  | sudo tee /etc/apt/keyrings/startcloud.gpg > /dev/null
-echo "deb [signed-by=/etc/apt/keyrings/startcloud.gpg] https://packages.debian.startcloud.com bookworm main" \
-  | sudo tee /etc/apt/sources.list.d/startcloud.list
-
-sudo apt update
-sudo apt install patchpanel haproxy
-
-# First run prints a setup token to the terminal
-sudo journalctl -fu patchpanel
-```
-
-Open `https://your-host:8099/`, paste the setup token, create the first
-admin account, and finish the configuration wizard.
+- **[Home Assistant add-on](docs/guides/installation/#home-assistant-add-on)** — install from the `STARTcloud/homeassistant-addons` repository for HAOS / Supervised hosts.
+- **[Standalone Debian](docs/guides/installation/)** — apt install on Bookworm/Trixie. See the [15-minute walkthrough](docs/guides/getting-started/) for first-run setup.
 
 ## Concepts
 
@@ -92,10 +69,16 @@ admin account, and finish the configuration wizard.
 
 ## Documentation
 
-- **[Architecture](docs/architecture/)** — Components, data flow,
-  process model
-- **[API reference](docs/api/)** — OpenAPI spec + interactive Swagger UI
-- **[Releases](docs/releases/)** — Download `.deb` / view release notes
+- **[Guides](docs/guides/)** — Task-oriented walkthroughs
+  - [Getting Started](docs/guides/getting-started/) — apt install -> running HAProxy in 15 min
+  - [Installation](docs/guides/installation/) — production install, systemd hardening, backups
+  - [Authentication](docs/guides/authentication/) — strategies, API tokens, lost-admin recovery
+  - [Backend Integration](docs/guides/backend-integration/) — automate via the REST API
+  - [API Examples](docs/guides/api-examples/) — every endpoint with curl examples
+- **[Configuration](docs/configuration/)** — Every key in `config.yaml`
+- **[Architecture](docs/architecture/)** — Components, data flow, render pipeline
+- **[API reference](docs/api/)** — OpenAPI spec + Swagger UI
+- **[Releases](docs/releases/)** — Download .deb / view release notes
 - **[Changelog](docs/changelog/)** — Per-version change log
 
 ## About

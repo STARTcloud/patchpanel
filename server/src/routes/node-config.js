@@ -3,7 +3,7 @@ import { Router } from 'express';
 import * as audit from '../lib/audit.js';
 import * as keepalivedControl from '../lib/keepalived-control.js';
 import { loadNodeConfig, NodeConfigSchema, saveNodeConfig } from '../lib/node-config.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 
 // Per-node identity (node.yaml). Never syncs between cluster peers.
 // Write-trigger: re-render keepalived.conf is the apply-state pipeline's
@@ -16,8 +16,29 @@ import * as logger from '../lib/logger.js';
 export const nodeConfigRouter = config => {
   const router = Router();
 
+  /**
+   * @swagger
+   * /api/node-config:
+   *   get:
+   *     summary: Read per-node identity (node.yaml)
+   *     description: Returns `node.yaml` — the per-node fields that NEVER sync between cluster peers (nodeId, VRRP priority overrides, per-instance state hints).
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     responses:
+   *       200:
+   *         description: Node config
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 nodeId: { type: string }
+   *                 vrrp: { type: object, additionalProperties: { type: object } }
+   */
   router.get('/node-config', async (req, res, next) => {
-    logger.debug('GET /node-config', { ip: req.ip });
+    log.api.debug('GET /node-config', { ip: req.ip });
     try {
       const cfg = await loadNodeConfig(config.paths.nodeConfig);
       res.set('cache-control', 'no-store').json(cfg);
@@ -26,9 +47,46 @@ export const nodeConfigRouter = config => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/node-config:
+   *   put:
+   *     summary: Write per-node identity (node.yaml)
+   *     description: Persists `node.yaml` and fires a non-fatal keepalived reload. To make changes take effect in haproxy.cfg / keepalived.conf, the next state-apply (or manual reload) will re-render against the updated node config.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             description: NodeConfig (validated by NodeConfigSchema)
+   *     responses:
+   *       200:
+   *         description: Node config saved
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok: { type: boolean, example: true }
+   *                 nodeConfig: { type: object }
+   *       400:
+   *         description: Failed NodeConfigSchema validation
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok: { type: boolean, example: false }
+   *                 errors: { type: array, items: { type: object } }
+   */
   router.put('/node-config', async (req, res, next) => {
     const actor = req.user?.id ?? null;
-    logger.info('PUT /node-config', { ip: req.ip, actor });
+    log.api.info('PUT /node-config', { ip: req.ip, actor });
     const parsed = NodeConfigSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ ok: false, errors: parsed.error.issues });
@@ -46,7 +104,7 @@ export const nodeConfigRouter = config => {
       // Fire-and-forget reload — failures are non-fatal because keepalived
       // may not be running yet on a freshly-installed node.
       keepalivedControl.reload({ pidPath: config.paths.keepalivedPidFile }).catch(err =>
-        logger.warning('keepalived reload after node-config write failed (non-fatal)', {
+        log.api.warn('keepalived reload after node-config write failed (non-fatal)', {
           error: err.message,
         })
       );

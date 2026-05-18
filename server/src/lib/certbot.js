@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 
 import { CertbotError } from './errors.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000;
 
@@ -153,7 +153,7 @@ export const renewCert = async ({
   }
 
   const env = buildChallengeEnv(provider);
-  logger.info('starting certbot', {
+  log.app.info('starting certbot', {
     certName: cert.certName,
     providerType: provider.type,
     acmeAccountId: account.id,

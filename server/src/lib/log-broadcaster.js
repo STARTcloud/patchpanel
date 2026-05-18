@@ -1,4 +1,4 @@
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 const SUPERVISOR_BASE = 'http://supervisor';
 const ADDON_LOGS_PATH = '/addons/self/logs';
@@ -47,7 +47,7 @@ const createAddonLogBroadcaster = () => {
         } catch {
           // ignore
         }
-        logger.debug('dropped SSE client on write error', { error: err.message });
+        log.app.debug('dropped SSE client on write error', { error: err.message });
       }
     }
   };

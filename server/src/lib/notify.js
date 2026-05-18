@@ -1,4 +1,4 @@
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -204,7 +204,7 @@ export const dispatchEvent = async (channels, event) => {
   );
   for (const r of results) {
     if (r.status === 'rejected') {
-      logger.warning('notification channel failed', {
+      log.app.warn('notification channel failed', {
         error: r.reason?.message ?? String(r.reason),
       });
     }

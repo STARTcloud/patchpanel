@@ -4,7 +4,7 @@ import { renewCert } from './certbot.js';
 import { writeAtomic } from './files.js';
 import { assertValidRenderedCfg } from './haproxy-validate.js';
 import * as haproxyMaster from './haproxy-master.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 import { renderHaproxyConfig } from './render.js';
 
 const renewOne = async (config, state, cert) => {
@@ -16,7 +16,7 @@ const renewOne = async (config, state, cert) => {
   // The user replaces the PEM on disk via the BYO upload UI when they want
   // to rotate. `buildCertsList` will pick up the new PEM on the next render.
   if (provider.type === 'byo') {
-    logger.info('cert is BYO; skipping certbot renewal', { certName: cert.certName });
+    log.app.info('cert is BYO; skipping certbot renewal', { certName: cert.certName });
     return;
   }
   const account = (state.acmeAccounts ?? []).find(a => a.id === cert.acmeAccountId);
@@ -82,9 +82,9 @@ export const renewAllCerts = async (config, state, opts = {}) => {
       },
     });
     if (r.ok) {
-      logger.info('cert renewed', { certName: r.certName });
+      log.app.info('cert renewed', { certName: r.certName });
     } else {
-      logger.error('cert renewal failed', {
+      log.app.error('cert renewal failed', {
         certName: r.certName,
         error: r.error,
         ...(r.output ? { certbotOutput: r.output } : {}),
@@ -107,17 +107,17 @@ export const renewAllCerts = async (config, state, opts = {}) => {
 
   await assertValidRenderedCfg(config.paths.haproxyBin, rendered);
   await writeAtomic(config.paths.haproxyConfig, rendered, { mode: 0o644 });
-  logger.info('haproxy.cfg re-rendered after renewal', { loadableCertCount });
+  log.app.info('haproxy.cfg re-rendered after renewal', { loadableCertCount });
 
   let reloadOk = true;
   let reloadError = null;
   try {
     await haproxyMaster.reload(config.paths.haproxyMasterSocket);
-    logger.info('haproxy reloaded after renewal');
+    log.app.info('haproxy reloaded after renewal');
   } catch (err) {
     reloadOk = false;
     reloadError = err.message;
-    logger.warning('haproxy reload skipped or failed', { error: err.message });
+    log.app.warn('haproxy reload skipped or failed', { error: err.message });
   }
 
   audit.record({

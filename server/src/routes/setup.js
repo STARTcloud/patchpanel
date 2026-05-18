@@ -7,7 +7,7 @@ import * as audit from '../lib/audit.js';
 import { AuthError, ValidationError } from '../lib/errors.js';
 import { fileExists } from '../lib/files.js';
 import * as jwtLib from '../lib/jwt.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 import { countUsers, createUser, getInternal } from '../lib/users.js';
 
 // /api/setup/* — first-run wizard. Only operates while:
@@ -64,10 +64,28 @@ const safeEq = (a, b) => {
 export const setupRouter = config => {
   const router = Router();
 
-  // GET /api/setup/status — public probe used by the SPA on boot to decide
-  // whether to render the setup wizard.
+  /**
+   * @swagger
+   * /api/setup/status:
+   *   get:
+   *     summary: First-run wizard status probe
+   *     description: Public probe the SPA calls on boot. Setup is available when (1) `users.json` has zero users AND (2) the postinst-written `setup.token` file is still on disk. HA-ingress mode skips this entirely (the SPA never asks because `/api/auth/whoami` returns `source: ingress`).
+   *     tags: [Auth]
+   *     security: []
+   *     responses:
+   *       200:
+   *         description: Setup status
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 needsSetup: { type: boolean }
+   *                 hasToken: { type: boolean }
+   *                 userCount: { type: integer }
+   */
   router.get('/setup/status', async (req, res, next) => {
-    logger.debug('GET /setup/status', { ip: req.ip });
+    log.auth.debug('GET /setup/status', { ip: req.ip });
     try {
       const userCount = await countUsers(config.paths.users);
       const tokenPresent = Boolean(await readSetupToken(config.paths.setupToken));
@@ -84,9 +102,43 @@ export const setupRouter = config => {
     }
   });
 
-  // POST /api/setup/complete — consume the setup token + create first admin.
-  // Body: { token, username, password }. On success: deletes the token file,
-  // sets the session cookie, returns the new user.
+  /**
+   * @swagger
+   * /api/setup/complete:
+   *   post:
+   *     summary: Consume the setup token and create the first admin
+   *     description: |
+   *       One-shot endpoint: verifies the token against `setup.token` (timing-safe), confirms users.json is still empty, creates the bootstrap admin, deletes the token file, and signs the new user in by issuing a session cookie. Subsequent attempts return 401.
+   *     tags: [Auth]
+   *     security: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [token, username, password]
+   *             properties:
+   *               token: { type: string, description: 'Contents of /etc/patchpanel/setup.token' }
+   *               username: { type: string }
+   *               password: { type: string, format: password }
+   *     responses:
+   *       201:
+   *         description: First admin created; session cookie set
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 user:
+   *                   type: object
+   *                   properties:
+   *                     id: { type: string }
+   *                     username: { type: string }
+   *                     role: { type: string, enum: [admin] }
+   *       400: { description: 'Missing fields', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       401: { description: 'Bad token, already set up, or token consumed', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.post('/setup/complete', async (req, res, next) => {
     try {
       const { token, username, password } = req.body ?? {};
@@ -95,11 +147,11 @@ export const setupRouter = config => {
         typeof username !== 'string' ||
         typeof password !== 'string'
       ) {
-        throw new ValidationError('token, username, and password are required');
+        throw new ValidationError('auth.setup.fieldsRequired');
       }
       const expected = await readSetupToken(config.paths.setupToken);
       if (!expected) {
-        throw new AuthError('setup is not available (no token on disk)');
+        throw new AuthError('auth.setup.notAvailable');
       }
       if (!safeEq(token, expected)) {
         audit.record({
@@ -109,7 +161,7 @@ export const setupRouter = config => {
           outcome: 'fail',
           details: { reason: 'invalid-token', ip: req.ip },
         });
-        throw new AuthError('invalid setup token');
+        throw new AuthError('auth.setup.tokenInvalid');
       }
       const userCount = await countUsers(config.paths.users);
       if (userCount > 0) {
@@ -120,7 +172,7 @@ export const setupRouter = config => {
           outcome: 'fail',
           details: { reason: 'users-already-exist', ip: req.ip },
         });
-        throw new AuthError('setup has already been completed');
+        throw new AuthError('auth.setup.alreadyCompleted');
       }
 
       const user = await createUser(
@@ -157,7 +209,7 @@ export const setupRouter = config => {
         outcome: 'ok',
         details: { ip: req.ip },
       });
-      logger.info('first admin created via setup wizard', { username: user.username });
+      log.auth.info('first admin created via setup wizard', { username: user.username });
       res.status(201).json({ user });
     } catch (err) {
       next(err);

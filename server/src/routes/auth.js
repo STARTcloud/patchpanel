@@ -3,7 +3,7 @@ import { Router } from 'express';
 import * as audit from '../lib/audit.js';
 import { AuthError, ValidationError } from '../lib/errors.js';
 import * as jwtLib from '../lib/jwt.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 import { changePassword, getInternal, recordLogin, verifyPassword } from '../lib/users.js';
 
 import { requireSession } from '../middleware/auth.js';
@@ -40,14 +40,51 @@ const expiryToMs = expiry => {
 export const authRouter = config => {
   const router = Router();
 
-  // POST /api/auth/login
-  // Public (whitelisted in auth middleware). Verifies password, mints JWT,
-  // sets the session cookie. Body: { username, password }.
+  /**
+   * @swagger
+   * /api/auth/login:
+   *   post:
+   *     summary: Log in with username and password
+   *     description: Verifies the password against the local users file, mints a JWT, and sets it in an httpOnly session cookie. Public — only available in `local` auth strategy. Fails 401 on invalid credentials (audit logged).
+   *     tags: [Auth]
+   *     security: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [username, password]
+   *             properties:
+   *               username: { type: string, example: admin }
+   *               password: { type: string, format: password, example: hunter2 }
+   *     responses:
+   *       200:
+   *         description: Login succeeded; session cookie set
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 user:
+   *                   type: object
+   *                   properties:
+   *                     id: { type: string }
+   *                     username: { type: string }
+   *                     role: { type: string, enum: [admin] }
+   *                     source: { type: string, enum: [session] }
+   *       400:
+   *         description: Missing / non-string username or password
+   *         content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+   *       401:
+   *         description: Invalid credentials
+   *         content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+   */
   router.post('/auth/login', async (req, res, next) => {
     try {
       const { username, password } = req.body ?? {};
       if (typeof username !== 'string' || typeof password !== 'string') {
-        throw new ValidationError('username and password are required');
+        throw new ValidationError('auth.login.fieldsRequired');
       }
       const user = await verifyPassword(config.paths.users, username, password);
       if (!user) {
@@ -59,7 +96,7 @@ export const authRouter = config => {
           outcome: 'fail',
           details: { reason: 'invalid-credentials', ip: req.ip },
         });
-        throw new AuthError('invalid credentials');
+        throw new AuthError('auth.invalidCredentials');
       }
       const token = jwtLib.sign({
         secret: config.security.jwtSecret,
@@ -84,7 +121,7 @@ export const authRouter = config => {
         outcome: 'ok',
         details: { ip: req.ip },
       });
-      logger.info('login ok', { username: user.username, ip: req.ip });
+      log.auth.info('login ok', { username: user.username, ip: req.ip });
       res.json({
         user: { id: user.id, username: user.username, role: user.role, source: 'session' },
       });
@@ -93,9 +130,23 @@ export const authRouter = config => {
     }
   });
 
-  // POST /api/auth/logout
-  // Clears the session cookie. Idempotent — returns 200 even if no cookie was set.
-  // Forbidden for API tokens (those revoke via DELETE /api/api-tokens/:id).
+  /**
+   * @swagger
+   * /api/auth/logout:
+   *   post:
+   *     summary: Log out the current session
+   *     description: Clears the session cookie. Idempotent — returns 200 even when no cookie was set. Forbidden for API-token-authenticated requests; tokens are revoked via `DELETE /api/api-tokens/{keyId}` instead.
+   *     tags: [Auth]
+   *     security:
+   *       - CookieAuth: []
+   *     responses:
+   *       200:
+   *         description: Logout succeeded
+   *         content: { application/json: { schema: { $ref: '#/components/schemas/Success' } } }
+   *       403:
+   *         description: Endpoint is browser-session only; not available to API tokens
+   *         content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+   */
   router.post('/auth/logout', requireSession, (req, res) => {
     res.clearCookie(COOKIE_NAME(config), { ...cookieOptions(config), maxAge: undefined });
     if (req.user) {
@@ -110,12 +161,41 @@ export const authRouter = config => {
     res.json({ ok: true });
   });
 
-  // GET /api/auth/whoami
-  // Public probe — returns the current auth state without 401-ing on no-auth.
-  // The SPA uses this on mount to decide between rendering the app vs.
-  // redirecting to /login. Three shapes:
-  //   { authenticated: false }                     — no session, no token
-  //   { authenticated: true, user: {...}, source } — session, token, or ingress
+  /**
+   * @swagger
+   * /api/auth/whoami:
+   *   get:
+   *     summary: Probe current auth state
+   *     description: Returns the current authentication context without 401-ing on no-auth. The SPA calls this on mount to decide between rendering the app vs. redirecting to /login.
+   *     tags: [Auth]
+   *     security: []
+   *     responses:
+   *       200:
+   *         description: Authentication probe result
+   *         content:
+   *           application/json:
+   *             schema:
+   *               oneOf:
+   *                 - type: object
+   *                   required: [authenticated]
+   *                   properties:
+   *                     authenticated: { type: boolean, enum: [false] }
+   *                 - type: object
+   *                   required: [authenticated, source, user]
+   *                   properties:
+   *                     authenticated: { type: boolean, enum: [true] }
+   *                     source:
+   *                       type: string
+   *                       enum: [session, token, ingress, none]
+   *                       description: How this request was authenticated
+   *                     user:
+   *                       type: object
+   *                       properties:
+   *                         id: { type: string }
+   *                         username: { type: string }
+   *                         role: { type: string }
+   *                         displayName: { type: string, nullable: true }
+   */
   router.get('/auth/whoami', (req, res) => {
     if (!req.user) {
       res.json({ authenticated: false });
@@ -133,16 +213,55 @@ export const authRouter = config => {
     });
   });
 
-  // PUT /api/auth/change-password
-  // Session-only (admins use the UI). Body: { currentPassword, newPassword }.
-  // Note: changing the password bumps passwordChangedAt, which invalidates
-  // every existing JWT on the next request. The current request's response
-  // sets a fresh cookie so the active browser stays logged in.
+  /**
+   * @swagger
+   * /api/auth/change-password:
+   *   put:
+   *     summary: Change the current user's password
+   *     description: Verifies the current password, hashes the new one, and bumps `passwordChangedAt` (invalidating every other existing JWT). Returns a fresh session cookie so the active browser stays logged in. Session-only — API tokens cannot change passwords.
+   *     tags: [Auth]
+   *     security:
+   *       - CookieAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [currentPassword, newPassword]
+   *             properties:
+   *               currentPassword: { type: string, format: password }
+   *               newPassword: { type: string, format: password }
+   *     responses:
+   *       200:
+   *         description: Password changed; new session cookie issued
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok: { type: boolean, example: true }
+   *                 user:
+   *                   type: object
+   *                   properties:
+   *                     id: { type: string }
+   *                     username: { type: string }
+   *                     role: { type: string }
+   *       400:
+   *         description: Missing fields or new password fails policy
+   *         content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+   *       401:
+   *         description: Current password incorrect
+   *         content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+   *       403:
+   *         description: Not a browser session (API tokens forbidden)
+   *         content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+   */
   router.put('/auth/change-password', requireSession, async (req, res, next) => {
     try {
       const { currentPassword, newPassword } = req.body ?? {};
       if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
-        throw new ValidationError('currentPassword and newPassword are required');
+        throw new ValidationError('auth.changePassword.fieldsRequired');
       }
       const updated = await changePassword(
         config.paths.users,

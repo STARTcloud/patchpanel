@@ -68,6 +68,8 @@ search_enabled: true # Enable the built-in search
 aux_links:
   'View on GitHub':
     - 'https://github.com/STARTcloud/patchpanel'
+  'Debian packages':
+    - 'https://public.debian.packages.startcloud.com'
 aux_links_new_tab: true
 
 # Footer content

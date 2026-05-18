@@ -8,7 +8,19 @@ import {
   StateError,
   ValidationError,
 } from '../lib/errors.js';
-import * as logger from '../lib/logger.js';
+import { localizeMessage } from '../lib/api-response.js';
+import { log } from '../lib/logger.js';
+
+// Catch-all error middleware. Translates the error's i18n code (added by
+// the domain classes in lib/errors.js) into the request's locale, picks an
+// appropriate HTTP status from the class, and emits the standard response
+// shape:
+//
+//   { error: { code, message }, issues?, output?, hints? }
+//
+// Errors that pre-date the i18n refactor (or come from third-party packages
+// without a `.code`) fall back to a generic `api.unknownError` envelope so
+// the SPA never receives a raw English crash dump.
 
 const STATUS_BY_NAME = Object.freeze({
   ValidationError: 422,
@@ -21,7 +33,7 @@ const STATUS_BY_NAME = Object.freeze({
   ForbiddenError: 403,
 });
 
-const errorTypes = [
+const ERROR_TYPES = Object.freeze([
   ValidationError,
   StateError,
   HaproxyError,
@@ -30,15 +42,32 @@ const errorTypes = [
   ConfigError,
   AuthError,
   ForbiddenError,
-];
+]);
 
 const statusForError = err => {
-  for (const Cls of errorTypes) {
+  for (const Cls of ERROR_TYPES) {
     if (err instanceof Cls) {
       return STATUS_BY_NAME[err.name] ?? 500;
     }
   }
   return 500;
+};
+
+const resolveCode = err => {
+  if (typeof err.code === 'string' && err.code.length > 0) {
+    return err.code;
+  }
+  return 'api.unknownError';
+};
+
+const resolveMessage = (req, err) => {
+  if (typeof err.code === 'string' && err.code.length > 0) {
+    return localizeMessage(req, err.code, err.replacements ?? {});
+  }
+  // Unknown / external error — translate the generic fallback, log the
+  // original english `.message` separately so operators can still grep
+  // for the actual cause.
+  return localizeMessage(req, 'api.unknownError');
 };
 
 export const apiError = () => (err, req, res, next) => {
@@ -47,9 +76,12 @@ export const apiError = () => (err, req, res, next) => {
     return;
   }
   const status = statusForError(err);
-  logger.error('request failed', {
+  const code = resolveCode(err);
+  const message = resolveMessage(req, err);
+  log.api.error('request failed', {
     name: err.name,
-    message: err.message,
+    code,
+    rawMessage: err.message,
     method: req.method,
     path: req.originalUrl,
     status,
@@ -58,10 +90,9 @@ export const apiError = () => (err, req, res, next) => {
     hints: err.hints,
   });
   res.status(status).json({
-    error: err.name ?? 'Error',
-    message: err.message ?? 'internal error',
-    issues: err.issues ?? undefined,
-    output: err.output ?? undefined,
+    error: { code, message },
+    issues: err.issues && err.issues.length > 0 ? err.issues : undefined,
+    output: err.output ? err.output : undefined,
     hints: err.hints && err.hints.length > 0 ? err.hints : undefined,
   });
 };

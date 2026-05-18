@@ -2,44 +2,48 @@ version: 0.4.0
 _sections:
   Server:
     description: HTTP server bind, TLS termination, deployment mode
-    icon: fas fa-server
+    icon: bi-server
     order: 1
   HAProxy:
     description: HAProxy paths and reload behaviour
-    icon: fas fa-network-wired
+    icon: bi-hdd-network
     order: 2
   Paths:
     description: Filesystem paths for runtime state, data, and binaries
-    icon: fas fa-folder-tree
+    icon: bi-folder2-open
     order: 3
   Certificates:
     description: Let's Encrypt renewal, certbot, BYO certs, trusted CAs / CRLs
-    icon: fas fa-certificate
+    icon: bi-shield-lock
     order: 4
   Security:
     description: JWT, API keys, CSRF, helmet headers
-    icon: fas fa-shield-halved
+    icon: bi-shield-check
     order: 5
   CORS:
     description: Cross-origin request whitelist
-    icon: fas fa-globe
+    icon: bi-globe
     order: 6
   Rate Limiting:
     description: Tiered request rate limits
-    icon: fas fa-gauge-high
+    icon: bi-speedometer
     order: 7
   Logging:
     description: Log level, format, destination
-    icon: fas fa-file-lines
+    icon: bi-file-text
     order: 8
   GeoIP:
     description: GeoIP database and fallback provider
-    icon: fas fa-earth-americas
+    icon: bi-globe-americas
     order: 9
   Authentication:
     description: Authentication strategy
-    icon: fas fa-key
+    icon: bi-key
     order: 10
+  Internationalization:
+    description: Locale auto-detection and override
+    icon: bi-translate
+    order: 11
 mode:
   type: select
   value: standalone
@@ -724,46 +728,267 @@ rateLimit:
     subsection: Read
     order: 2
 logging:
-  level:
-    type: select
-    value: info
-    options:
-      - error
-      - warn
-      - info
-      - debug
-      - trace
-    description: Minimum log level.
-    section: Logging
-    subsection: General
-    order: 1
-  format:
-    type: select
-    value: pretty
-    options:
-      - pretty
-      - json
-    description: Log line format. Use json for log aggregators.
-    section: Logging
-    subsection: General
-    order: 2
   directory:
     type: string
     value: /var/log/patchpanel
-    description: Directory for file-rotated logs (journald is the primary sink).
+    description: >-
+      Root for the per-category log files. Active files live at the top
+      level (app.log, api.log, auth.log, error.log); daily rotations
+      move to archive/<name>.log.YYYY-MM-DD[.N], then get gzipped past
+      compression_age_days and pruned past max_files.
+    section: Logging
+    subsection: General
+    order: 1
+  console_enabled:
+    type: boolean
+    value: true
+    description: >-
+      Mirror log lines to stdout. journald captures stdout from the systemd
+      unit, so this is also how `journalctl -fu patchpanel` works.
+    section: Logging
+    subsection: General
+    order: 2
+  performance_threshold_ms:
+    type: integer
+    value: 1000
+    description: >-
+      Operations slower than this trigger a warn-level emission on the app
+      category (via createTimer()). 0 disables the threshold check.
     section: Logging
     subsection: General
     order: 3
+    validation:
+      min: 0
+      max: 60000
+  enable_compression:
+    type: boolean
+    value: true
+    description: gzip rotated log files in archive/ once they age past compression_age_days.
+    section: Logging
+    subsection: Rotation
+    order: 1
+  compression_age_days:
+    type: integer
+    value: 7
+    description: >-
+      Days an archived log stays uncompressed before being gzipped. Lower
+      values save disk; higher values keep recent rotations fast to grep.
+    section: Logging
+    subsection: Rotation
+    order: 2
+    validation:
+      min: 0
+      max: 365
+  max_files:
+    type: integer
+    value: 30
+    description: >-
+      Max number of archived rotations to retain per category before the
+      oldest get pruned.
+    section: Logging
+    subsection: Rotation
+    order: 3
+    validation:
+      min: 1
+      max: 3650
+  categories:
+    app:
+      type: select
+      value: info
+      options:
+        - silent
+        - error
+        - warn
+        - info
+        - debug
+      description: Minimum level for the general application logger.
+      section: Logging
+      subsection: Categories
+      order: 1
+    api:
+      type: select
+      value: info
+      options:
+        - silent
+        - error
+        - warn
+        - info
+        - debug
+      description: >-
+        Minimum level for the per-request access logger (request started /
+        completed / failed entries).
+      section: Logging
+      subsection: Categories
+      order: 2
+    auth:
+      type: select
+      value: info
+      options:
+        - silent
+        - error
+        - warn
+        - info
+        - debug
+      description: Minimum level for authentication and authorization events.
+      section: Logging
+      subsection: Categories
+      order: 3
   auditRetentionDays:
     type: integer
     value: 365
-    description: Days of audit-log history to retain before vacuuming.
+    description: Days of audit-log (SQLite) history to retain before vacuuming.
     section: Logging
     subsection: Audit
     order: 1
     validation:
       min: 30
       max: 3650
+frontendLogging:
+  enabled:
+    type: boolean
+    value: true
+    description: |
+      Master switch for the in-browser React UI logger. When off, the SPA's
+      Logger.js silences every category and stops shipping unhandled errors to
+      /api/client-errors. Leave on in production — the level controls below
+      gate verbosity without losing error capture.
+    section: Logging
+    subsection: Frontend
+    order: 1
+  level:
+    type: select
+    value: info
+    options:
+      - trace
+      - debug
+      - info
+      - warn
+      - error
+      - silent
+    description: |
+      Default level applied to every frontend category that has no explicit
+      override below. Errors are always captured at error level via the
+      ErrorBoundary + window listeners and shipped to /api/client-errors
+      regardless of this setting (unless `enabled` is false).
+    section: Logging
+    subsection: Frontend
+    order: 2
+  categories:
+    app:
+      type: select
+      value: info
+      options:
+        - trace
+        - debug
+        - info
+        - warn
+        - error
+        - silent
+      description: Override the level for log.app (generic UI plumbing — Layout, theme, routing).
+      section: Logging
+      subsection: Frontend Categories
+      order: 1
+    auth:
+      type: select
+      value: info
+      options:
+        - trace
+        - debug
+        - info
+        - warn
+        - error
+        - silent
+      description: Override the level for log.auth (login, logout, session probe, token CRUD, setup wizard).
+      section: Logging
+      subsection: Frontend Categories
+      order: 2
+    api:
+      type: select
+      value: info
+      options:
+        - trace
+        - debug
+        - info
+        - warn
+        - error
+        - silent
+      description: Override the level for log.api (API client wrappers, OpenAPI viewer, /api-docs page).
+      section: Logging
+      subsection: Frontend Categories
+      order: 3
+    state:
+      type: select
+      value: info
+      options:
+        - trace
+        - debug
+        - info
+        - warn
+        - error
+        - silent
+      description: Override the level for log.state (state.json reads/writes, snapshots, raw state).
+      section: Logging
+      subsection: Frontend Categories
+      order: 4
+    haproxy:
+      type: select
+      value: info
+      options:
+        - trace
+        - debug
+        - info
+        - warn
+        - error
+        - silent
+      description: Override the level for log.haproxy (HAProxy runtime control, stats sockets, server states).
+      section: Logging
+      subsection: Frontend Categories
+      order: 5
+    cert:
+      type: select
+      value: info
+      options:
+        - trace
+        - debug
+        - info
+        - warn
+        - error
+        - silent
+      description: Override the level for log.cert (Let's Encrypt, BYO certs, trusted CAs, CRLs).
+      section: Logging
+      subsection: Frontend Categories
+      order: 6
+    peer:
+      type: select
+      value: info
+      options:
+        - trace
+        - debug
+        - info
+        - warn
+        - error
+        - silent
+      description: Override the level for log.peer (cluster sync, peer pairing, keepalived/VRRP).
+      section: Logging
+      subsection: Frontend Categories
+      order: 7
+    error:
+      type: select
+      value: info
+      options:
+        - trace
+        - debug
+        - info
+        - warn
+        - error
+        - silent
+      description: |
+        Override the level for log.error (ErrorBoundary + window.onerror + unhandledrejection capture).
+        Raising this above `error` effectively disables error capture, so leave at `info` or lower
+        unless you have a specific reason.
+      section: Logging
+      subsection: Frontend Categories
+      order: 8
 geoip:
   enabled:
     type: boolean
@@ -806,3 +1031,37 @@ geoip:
     depends_on: enabled
     show_when:
       - true
+i18n:
+  default_locale:
+    type: select
+    value: en
+    options:
+      - en
+    description: >-
+      Locale used when neither query param nor Accept-Language matches a
+      supported locale. Options auto-grow as locale JSON files are added
+      under server/src/lib/locales/.
+    section: Internationalization
+    subsection: General
+    order: 1
+    required: true
+  auto_detect:
+    type: boolean
+    value: true
+    description: >-
+      When on, honour ?lang= query param and Accept-Language headers.
+      When off, every request uses default_locale regardless of what
+      the client asks for.
+    section: Internationalization
+    subsection: General
+    order: 2
+  force_locale:
+    type: string
+    value: ''
+    description: >-
+      When set to a supported locale name, overrides every other source and
+      pins all requests to it. Useful for screenshots and demos. Leave
+      empty for normal behaviour.
+    section: Internationalization
+    subsection: General
+    order: 3

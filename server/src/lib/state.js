@@ -1,7 +1,7 @@
 import { ValidationError } from './errors.js';
 import { fileExists, readJson, writeJson } from './files.js';
 import { withLock } from './lock.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 import { StateSchema, emptyState, validateState } from './state-schema.js';
 
 const stateLockPath = statePath => `${statePath}.lock`;
@@ -30,7 +30,7 @@ export const saveState = async (statePath, candidate, options = {}) => {
     },
   });
   await writeJson(statePath, next);
-  logger.debug('state persisted', { statePath, editor });
+  log.app.debug('state persisted', { statePath, editor });
   return next;
 };
 
@@ -44,7 +44,7 @@ export const initStateIfMissing = async statePath => {
     }
     const seeded = emptyState();
     await writeJson(statePath, seeded);
-    logger.info('seeded empty state.json', { statePath });
+    log.app.info('seeded empty state.json', { statePath });
     return seeded;
   });
 };

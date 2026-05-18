@@ -13,7 +13,7 @@ import {
   renderProviderIni,
   validateMergedValues,
 } from '../lib/dns-provider-templates.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 import { loadState } from '../lib/state.js';
 import {
   credentialPath,
@@ -465,9 +465,47 @@ export const providersRouter = config => {
   // DEL  /tls-providers/:id/credentials          — remove the .ini.
   // ===================================================================
 
+  /**
+   * @swagger
+   * /api/tls-providers/credential-template/{type}:
+   *   get:
+   *     summary: DNS provider credential form schema
+   *     description: Returns the credential field schema (label/type/required/sensitive) for a DNS provider type. No state lookup — used by the "Add provider" UI before any state exists.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: type
+   *         required: true
+   *         schema: { type: string, example: 'cloudflare' }
+   *     responses:
+   *       200:
+   *         description: Field schema
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 type: { type: string }
+   *                 format: { type: string, enum: [ini, env] }
+   *                 fields:
+   *                   type: array
+   *                   items: { type: object }
+   *       404:
+   *         description: Unknown provider type
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 error: { type: string }
+   *                 supportedTypes: { type: array, items: { type: string } }
+   */
   router.get('/tls-providers/credential-template/:type', (req, res) => {
     const { type } = req.params;
-    logger.debug('GET /tls-providers/credential-template/:type', { ip: req.ip, type });
+    log.api.debug('GET /tls-providers/credential-template/:type', { ip: req.ip, type });
     const template = getDnsProviderTemplate(type);
     if (!template) {
       res.status(404).json({
@@ -483,9 +521,40 @@ export const providersRouter = config => {
     });
   });
 
+  /**
+   * @swagger
+   * /api/tls-providers/{id}/credentials:
+   *   get:
+   *     summary: Read credentials for a TLS provider (masked)
+   *     description: Returns the on-disk credentials for a configured provider. Secret fields are masked as `"***"` — the actual values never leave the server.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Masked credentials + on-disk metadata
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 id: { type: string }
+   *                 type: { type: string }
+   *                 exists: { type: boolean }
+   *                 path: { type: string }
+   *                 fields: { type: object, additionalProperties: { type: string } }
+   *       400: { description: 'Invalid id', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       404: { description: 'Provider id not found in state', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.get('/tls-providers/:id/credentials', async (req, res, next) => {
     const { id } = req.params;
-    logger.debug('GET /tls-providers/:id/credentials', { ip: req.ip, id });
+    log.api.debug('GET /tls-providers/:id/credentials', { ip: req.ip, id });
     const idError = validateProviderIdForCredentials(id);
     if (idError) {
       res.status(400).json({ error: idError });
@@ -507,7 +576,7 @@ export const providersRouter = config => {
           const parsed = parseProviderIni(provider.type, content);
           fields = maskProviderValues(provider.type, parsed);
         } catch (err) {
-          logger.warning('failed to parse on-disk credentials; returning empty fields', {
+          log.api.warn('failed to parse on-disk credentials; returning empty fields', {
             id,
             type: provider.type,
             error: err.message,
@@ -526,10 +595,53 @@ export const providersRouter = config => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/tls-providers/{id}/credentials:
+   *   put:
+   *     summary: Write credentials for a TLS provider
+   *     description: |
+   *       Replaces or updates the credential `.ini` for the provider. Fields whose incoming value is `"***"` PRESERVE the existing on-disk value (so the UI can roundtrip masked reads without losing secrets).
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [fields]
+   *             properties:
+   *               fields:
+   *                 type: object
+   *                 additionalProperties: { type: string }
+   *                 description: 'Field name → value (use `"***"` to keep existing secret values)'
+   *     responses:
+   *       200:
+   *         description: Credentials written
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok: { type: boolean, example: true }
+   *                 id: { type: string }
+   *                 type: { type: string }
+   *                 path: { type: string }
+   *       400: { description: 'Invalid id / merge error / validation failed', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       404: { description: 'Provider id not found in state', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.put('/tls-providers/:id/credentials', async (req, res, next) => {
     const { id } = req.params;
     const actor = req.user?.id ?? null;
-    logger.info('PUT /tls-providers/:id/credentials', { ip: req.ip, actor, id });
+    log.api.info('PUT /tls-providers/:id/credentials', { ip: req.ip, actor, id });
     const idError = validateProviderIdForCredentials(id);
     if (idError) {
       res.status(400).json({ error: idError });
@@ -556,7 +668,7 @@ export const providersRouter = config => {
           const content = await readCredentials(config.paths.credentials, id);
           existing = parseProviderIni(provider.type, content);
         } catch (err) {
-          logger.warning('failed to parse existing credentials; treating as empty', {
+          log.api.warn('failed to parse existing credentials; treating as empty', {
             id,
             error: err.message,
           });
@@ -582,7 +694,7 @@ export const providersRouter = config => {
         outcome: 'ok',
         details: { type: provider.type, path },
       });
-      logger.info('tls provider credentials written', { id, type: provider.type, path });
+      log.api.info('tls provider credentials written', { id, type: provider.type, path });
       res.json({ ok: true, id, type: provider.type, path });
     } catch (err) {
       audit.record({
@@ -597,10 +709,36 @@ export const providersRouter = config => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/tls-providers/{id}/credentials:
+   *   delete:
+   *     summary: Remove on-disk credentials for a TLS provider
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Credentials removed
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ok: { type: boolean, example: true }
+   *                 id: { type: string }
+   *       400: { description: 'Invalid id', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.delete('/tls-providers/:id/credentials', async (req, res, next) => {
     const { id } = req.params;
     const actor = req.user?.id ?? null;
-    logger.info('DELETE /tls-providers/:id/credentials', { ip: req.ip, actor, id });
+    log.api.info('DELETE /tls-providers/:id/credentials', { ip: req.ip, actor, id });
     const idError = validateProviderIdForCredentials(id);
     if (idError) {
       res.status(400).json({ error: idError });
@@ -629,9 +767,44 @@ export const providersRouter = config => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/auth-providers/{id}/test:
+   *   post:
+   *     summary: Test an auth provider
+   *     description: |
+   *       Probes the configured upstream identity provider for a configured auth provider in `state.authProviders[]`. Different provider types are probed differently:
+   *       - **authelia**: hits `/api/configuration`, `/api/health`, `/api/state` on the configured backend.
+   *       - **basic**: stats the configured password hash files.
+   *       - **oidc / entra**: fetches the IdP's `.well-known/openid-configuration`.
+   *       - **ldap / saml / jwt-verify**: probes the sidecar's auth endpoint (`/auth`, `/saml/auth`, `/verify`) and any upstream metadata URL.
+   *       - **mtls-auth / header-trust / lua-auth**: returns static config (nothing to probe).
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Probe result (shape depends on provider type — `ok` field summarises success)
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 id: { type: string }
+   *                 type: { type: string }
+   *                 ok: { type: boolean }
+   *               additionalProperties: true
+   *       404: { description: 'Auth provider id not found in state', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.post('/auth-providers/:id/test', async (req, res, next) => {
     const { id } = req.params;
-    logger.info('POST /auth-providers/:id/test', { ip: req.ip, id });
+    log.api.info('POST /auth-providers/:id/test', { ip: req.ip, id });
     try {
       const state = await loadState(config.paths.state);
       const provider = state?.authProviders?.find(p => p.id === id);
@@ -646,9 +819,41 @@ export const providersRouter = config => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/tls-providers/{id}/test:
+   *   post:
+   *     summary: Test a TLS / ACME provider
+   *     description: Checks the on-disk credentials file (mode + size) for the provider, then runs `certbot certificates` and reports the lineage names visible to certbot.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema: { type: string }
+   *     responses:
+   *       200:
+   *         description: Test result
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 id: { type: string }
+   *                 type: { type: string }
+   *                 ok: { type: boolean }
+   *                 credentialsRef: { type: string, nullable: true }
+   *                 credentialsFile: { type: object, nullable: true }
+   *                 certbotLineages: { type: array, items: { type: string } }
+   *                 certbotError: { type: string }
+   *       404: { description: 'TLS provider id not found in state', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.post('/tls-providers/:id/test', async (req, res, next) => {
     const { id } = req.params;
-    logger.info('POST /tls-providers/:id/test', { ip: req.ip, id });
+    log.api.info('POST /tls-providers/:id/test', { ip: req.ip, id });
     try {
       const state = await loadState(config.paths.state);
       const provider = state?.tls?.providers?.find(p => p.id === id);

@@ -4,7 +4,7 @@ import { promises as fs } from 'node:fs';
 import { z } from 'zod';
 
 import { ensureDir, fileExists, writeAtomic } from './files.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 // peers.json — per-node store of cluster relationships. Never synced
 // between nodes. Mode 0o600 because it carries bearer tokens for the peer
@@ -78,12 +78,12 @@ export const loadPeersStore = async path => {
   try {
     parsed = JSON.parse(raw);
   } catch (err) {
-    logger.warning('peers.json parse failed; treating as empty', { path, error: err.message });
+    log.app.warn('peers.json parse failed; treating as empty', { path, error: err.message });
     return emptyStore();
   }
   const result = PeersStoreSchema.safeParse(parsed);
   if (!result.success) {
-    logger.warning('peers.json failed schema validation; treating as empty', {
+    log.app.warn('peers.json failed schema validation; treating as empty', {
       path,
       issues: result.error.issues,
     });

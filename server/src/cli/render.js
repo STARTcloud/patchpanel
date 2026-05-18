@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 
 import configLoader from '../config/configLoader.js';
 import { writeAtomic } from '../lib/files.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 import { renderHaproxyConfig } from '../lib/render.js';
 import { loadState } from '../lib/state.js';
 
@@ -30,7 +30,7 @@ const main = async () => {
   if (args.out) {
     await fs.mkdir(dirname(args.out), { recursive: true });
     await writeAtomic(args.out, rendered, { mode: 0o644 });
-    logger.info('rendered haproxy.cfg written', { out: args.out });
+    log.app.info('rendered haproxy.cfg written', { out: args.out });
   } else {
     process.stdout.write(rendered);
   }

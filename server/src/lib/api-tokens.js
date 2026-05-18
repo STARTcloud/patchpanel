@@ -34,7 +34,7 @@ const loadDoc = async tokensPath => {
   }
   const raw = await readJson(tokensPath);
   if (!raw || !Array.isArray(raw.tokens)) {
-    throw new ValidationError(`api-tokens file at ${tokensPath} is malformed`);
+    throw new ValidationError('auth.token.fileMalformed', { replacements: { path: tokensPath } });
   }
   return raw;
 };
@@ -98,17 +98,15 @@ export const listTokens = async tokensPath => {
 
 export const createToken = async (tokensPath, { name, createdBy, expiresAt = null }, opts = {}) => {
   if (typeof name !== 'string' || !NAME_RE.test(name)) {
-    throw new ValidationError(
-      'name must be 1-64 chars, starting with a letter/digit, containing only letters/digits/space/dot/underscore/hyphen'
-    );
+    throw new ValidationError('auth.token.nameInvalid');
   }
   if (expiresAt !== null) {
     const exp = new Date(expiresAt);
     if (Number.isNaN(exp.getTime())) {
-      throw new ValidationError('expiresAt must be an ISO date string or null');
+      throw new ValidationError('auth.token.expiresAtInvalid');
     }
     if (exp.getTime() < Date.now()) {
-      throw new ValidationError('expiresAt must be in the future');
+      throw new ValidationError('auth.token.expiresAtPast');
     }
   }
   const rounds = opts.bcryptRounds ?? 12;
@@ -122,7 +120,7 @@ export const createToken = async (tokensPath, { name, createdBy, expiresAt = nul
       throw new Error('keyId collision (improbable; retry)');
     }
     if (doc.tokens.some(t => t.name === name)) {
-      throw new ValidationError(`token name already exists: ${name}`);
+      throw new ValidationError('auth.token.nameExists', { replacements: { name } });
     }
     const now = new Date().toISOString();
     const token = {
@@ -174,7 +172,7 @@ export const deleteToken = (tokensPath, keyId) =>
     const before = doc.tokens.length;
     doc.tokens = doc.tokens.filter(t => t.keyId !== keyId);
     if (doc.tokens.length === before) {
-      throw new ValidationError('token not found');
+      throw new ValidationError('auth.token.notFound');
     }
     await saveDoc(tokensPath, doc);
   });

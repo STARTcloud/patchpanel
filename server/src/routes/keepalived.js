@@ -4,7 +4,7 @@ import * as audit from '../lib/audit.js';
 import { fileExists, readText } from '../lib/files.js';
 import * as keepalivedControl from '../lib/keepalived-control.js';
 import { loadNodeConfig } from '../lib/node-config.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 import { renderKeepalivedConfig } from '../lib/render-keepalived.js';
 import { loadState } from '../lib/state.js';
 
@@ -19,9 +19,32 @@ import { loadState } from '../lib/state.js';
 export const keepalivedRouter = config => {
   const router = Router();
 
+  /**
+   * @swagger
+   * /api/keepalived/cfg:
+   *   get:
+   *     summary: Read the rendered keepalived.conf
+   *     description: Returns the on-disk `keepalived.conf` (`?source=disk`, default) or renders fresh from state.json + node.yaml (`?source=state`) without writing to disk. Mirrors `/api/haproxy/cfg`.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     parameters:
+   *       - in: query
+   *         name: source
+   *         schema: { type: string, enum: [disk, state], default: disk }
+   *     responses:
+   *       200:
+   *         description: keepalived.conf text
+   *         content:
+   *           text/plain:
+   *             schema: { type: string }
+   *       404: { description: 'No keepalived.conf on disk', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   *       409: { description: 'State not initialized (source=state only)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.get('/keepalived/cfg', async (req, res, next) => {
     const source = req.query.source === 'state' ? 'state' : 'disk';
-    logger.debug('GET /keepalived/cfg', { ip: req.ip, source });
+    log.api.debug('GET /keepalived/cfg', { ip: req.ip, source });
     try {
       if (source === 'state') {
         const state = await loadState(config.paths.state);
@@ -53,8 +76,29 @@ export const keepalivedRouter = config => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/keepalived/control-strategy:
+   *   get:
+   *     summary: Detect keepalived supervisor strategy
+   *     description: Mirrors `/api/haproxy/control-strategy`. Reports `s6` / `systemctl` / `direct`.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     responses:
+   *       200:
+   *         description: Strategy report
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 strategy: { type: string, enum: [s6, systemctl, direct] }
+   *                 pidPath: { type: string }
+   */
   router.get('/keepalived/control-strategy', async (req, res, next) => {
-    logger.debug('GET /keepalived/control-strategy', { ip: req.ip });
+    log.api.debug('GET /keepalived/control-strategy', { ip: req.ip });
     try {
       const strategy = await keepalivedControl.getStrategy();
       res
@@ -65,9 +109,23 @@ export const keepalivedRouter = config => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/keepalived/reload:
+   *   post:
+   *     summary: Reload keepalived (SIGHUP)
+   *     description: Sends SIGHUP to the keepalived process, which re-reads keepalived.conf. VRRP state is preserved across SIGHUP.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     responses:
+   *       200: { description: 'Reload issued', content: { application/json: { schema: { type: object } } } }
+   *       500: { description: 'Reload failed', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.post('/keepalived/reload', async (req, res, next) => {
     const actor = req.user?.id ?? null;
-    logger.info('POST /keepalived/reload', { ip: req.ip, actor });
+    log.api.info('POST /keepalived/reload', { ip: req.ip, actor });
     try {
       const result = await keepalivedControl.reload({ pidPath: config.paths.keepalivedPidFile });
       audit.record({
@@ -90,6 +148,29 @@ export const keepalivedRouter = config => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/keepalived/stop:
+   *   post:
+   *     summary: Stop keepalived
+   *     description: Stops keepalived. VIPs currently held by this node will fail over to a peer (if a peer is in BACKUP state).
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [confirm]
+   *             properties:
+   *               confirm: { type: boolean, enum: [true] }
+   *     responses:
+   *       200: { description: 'keepalived stopped', content: { application/json: { schema: { type: object } } } }
+   *       400: { description: 'confirm:true missing', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.post('/keepalived/stop', async (req, res, next) => {
     const actor = req.user?.id ?? null;
     if (req.body?.confirm !== true) {
@@ -99,7 +180,7 @@ export const keepalivedRouter = config => {
       });
       return;
     }
-    logger.info('POST /keepalived/stop', { ip: req.ip, actor });
+    log.api.info('POST /keepalived/stop', { ip: req.ip, actor });
     try {
       const result = await keepalivedControl.stop({ pidPath: config.paths.keepalivedPidFile });
       audit.record({
@@ -122,9 +203,23 @@ export const keepalivedRouter = config => {
     }
   });
 
+  /**
+   * @swagger
+   * /api/keepalived/start:
+   *   post:
+   *     summary: Start keepalived
+   *     description: Starts keepalived via the detected supervisor. May claim VIPs immediately or remain in BACKUP depending on `priority` + peer state.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     responses:
+   *       200: { description: 'keepalived started', content: { application/json: { schema: { type: object } } } }
+   *       500: { description: 'Direct strategy or supervisor failure', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
   router.post('/keepalived/start', async (req, res, next) => {
     const actor = req.user?.id ?? null;
-    logger.info('POST /keepalived/start', { ip: req.ip, actor });
+    log.api.info('POST /keepalived/start', { ip: req.ip, actor });
     try {
       const result = await keepalivedControl.start();
       audit.record({
@@ -152,8 +247,39 @@ export const keepalivedRouter = config => {
   // is left null for now — reading keepalived's runtime state requires
   // SIGUSR2 to /tmp/keepalived.data or a privileged DBus call, which has
   // platform-specific failure modes. UI consumers treat null as "checking".
+  /**
+   * @swagger
+   * /api/keepalived/state:
+   *   get:
+   *     summary: keepalived runtime state
+   *     description: Reports PID-file liveness plus configured instances. Per-instance VRRP state (MASTER/BACKUP) is currently left `null` — that requires SIGUSR2 to `/tmp/keepalived.data` or a privileged DBus call, both of which have platform-specific failure modes. UI consumers treat `null` as "checking".
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     responses:
+   *       200:
+   *         description: Runtime state
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 alive: { type: boolean }
+   *                 strategy: { type: string, enum: [s6, systemctl, direct] }
+   *                 instances:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       id: { type: string }
+   *                       name: { type: string }
+   *                       vip: { type: string }
+   *                       state: { type: string, nullable: true, enum: [MASTER, BACKUP, FAULT, null] }
+   *                       holding: { type: boolean, nullable: true }
+   */
   router.get('/keepalived/state', async (req, res, next) => {
-    logger.debug('GET /keepalived/state', { ip: req.ip });
+    log.api.debug('GET /keepalived/state', { ip: req.ip });
     try {
       const strategy = await keepalivedControl.getStrategy();
       const alive = await keepalivedControl.isAlive({

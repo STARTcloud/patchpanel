@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import * as audit from './audit.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 import * as peerClient from './peer-client.js';
 import { loadPeersStore, savePeersStore } from './peers-store.js';
 
@@ -48,7 +48,7 @@ const pushToPeer = async ({ peer, bundle, timeoutMs }) => {
       });
       clockSkew = computeClockSkew(clock?.time);
     } catch (err) {
-      logger.debug('peer clock probe failed (non-fatal)', { peer: peer.id, error: err.message });
+      log.app.debug('peer clock probe failed (non-fatal)', { peer: peer.id, error: err.message });
     }
     return {
       ...peer,
@@ -57,7 +57,7 @@ const pushToPeer = async ({ peer, bundle, timeoutMs }) => {
       healthy: true,
     };
   } catch (err) {
-    logger.warning('peer state push failed', {
+    log.app.warn('peer state push failed', {
       peer: peer.id,
       url: peer.url,
       error: err.message,

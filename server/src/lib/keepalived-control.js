@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 // Mirror of haproxy-control.js for keepalived. Same auto-detect of supervisor
 // strategy:
@@ -68,7 +68,7 @@ const pickStrategy = async () => {
     return cachedStrategy;
   }
   cachedStrategy = await detectStrategy();
-  logger.info('keepalived control strategy resolved', { strategy: cachedStrategy });
+  log.app.info('keepalived control strategy resolved', { strategy: cachedStrategy });
   return cachedStrategy;
 };
 
@@ -100,7 +100,7 @@ const requireOk = (result, action) => {
 // dropping the VIP. systemctl reload + s6-svc -h both translate to SIGHUP.
 export const reload = async (config = {}) => {
   const strategy = await pickStrategy();
-  logger.info('keepalived reload requested', { strategy });
+  log.app.info('keepalived reload requested', { strategy });
   if (strategy === 's6') {
     return requireOk(await runCommand('s6-svc', ['-h', S6_SERVICE_DIR], TIMEOUT_MS), 's6-svc -h');
   }
@@ -115,7 +115,7 @@ export const reload = async (config = {}) => {
 
 export const stop = async (config = {}) => {
   const strategy = await pickStrategy();
-  logger.info('keepalived stop requested', { strategy });
+  log.app.info('keepalived stop requested', { strategy });
   if (strategy === 's6') {
     return requireOk(await runCommand('s6-svc', ['-Dwd', S6_SERVICE_DIR], TIMEOUT_MS), 's6-svc -D');
   }
@@ -130,7 +130,7 @@ export const stop = async (config = {}) => {
 
 export const start = async () => {
   const strategy = await pickStrategy();
-  logger.info('keepalived start requested', { strategy });
+  log.app.info('keepalived start requested', { strategy });
   if (strategy === 's6') {
     return requireOk(await runCommand('s6-svc', ['-Uwu', S6_SERVICE_DIR], TIMEOUT_MS), 's6-svc -U');
   }

@@ -155,7 +155,33 @@ Mutations that don't require a config reload.
 
 ### Health
 
-- `GET /health` — Liveness probe (always public, no auth)
+- `GET /health` — Liveness probe (always public, no auth). Also returns
+  `frontendLogging: {enabled, level, categories}` — the runtime logging
+  configuration the React UI's logger reads on first call. Edit
+  `frontendLogging.*` in `/etc/patchpanel/config.yaml` (or via the Settings
+  page) to change browser log verbosity without rebuilding the frontend.
+
+### Documentation
+
+- `GET /api/openapi.json` — OpenAPI 3.1 spec generated from JSDoc `@swagger`
+  annotations on every route handler. Public — no auth required, since
+  the spec describes the interface, not data. The interactive Swagger UI
+  at `/api-docs` consumes this.
+- `POST /api/client-errors` — Receives error-level batches shipped by the
+  React UI's `Logger.js`. Public so pre-auth errors (login page, etc.)
+  ship too; capped to 200 entries per request and ~16 KB metadata per
+  entry. Each error is audit-logged under category `client-error`.
+
+### API token helpers (consumed by the in-app Swagger UI)
+
+- `GET /api/api-tokens/swagger-config` — Returns the user's tokens plus
+  capability flags (`allowFullKeyRetrieval` is permanently `false` because
+  patchpanel bcrypt-hashes secrets at rest; `allowTempKeyGeneration` is
+  `true`).
+- `POST /api/api-tokens/temp` — Mints a short-lived (1h) API token for
+  Swagger UI "Try it out" sessions. Returns the wire format exactly once.
+  Useful when you want to test an endpoint via the in-app docs without
+  pasting a long-lived production token.
 
 ## Examples
 

@@ -3,6 +3,8 @@ import express from 'express';
 import lusca from 'lusca';
 
 import { openAudit } from './lib/audit.js';
+import { i18nMiddleware } from './lib/i18n.js';
+import { requestLoggingMiddleware } from './lib/logger.js';
 import { createStatsSampler } from './lib/stats-sampler.js';
 import { apiError } from './middleware/api-error.js';
 import { authMiddleware } from './middleware/auth.js';
@@ -46,6 +48,8 @@ import { auditRouter } from './routes/audit.js';
 import { authRouter } from './routes/auth.js';
 import { byoCertsRouter } from './routes/byo-certs.js';
 import { certificatesRouter } from './routes/certificates.js';
+import { clientErrorsRouter } from './routes/client-errors.js';
+import { configRouter } from './routes/config.js';
 import { errorPagesRouter } from './routes/error-pages.js';
 import { geoipRouter } from './routes/geoip.js';
 import { haproxyRouter } from './routes/haproxy.js';
@@ -80,15 +84,22 @@ export const createApp = async config => {
   app.set('trust proxy', config.server.trustProxy ?? []);
   app.use(globalRateLimit(config.server.rateLimit ?? {}));
   app.use(express.json({ limit: '1mb' }));
-  app.use(express.urlencoded({ extended: false, limit: '1mb' }));
+  // No urlencoded body parser: the SPA + scripts speak JSON only, so any
+  // cross-site <form> POST (which can only emit application/x-www-form-
+  // urlencoded or multipart/form-data) arrives with req.body undefined and
+  // fails validation. Closes the classic CSRF-via-HTML-form vector
+  // independent of the lusca middleware mounted below.
   app.use(cookieParser());
+  app.use(requestLoggingMiddleware());
   app.use(authMiddleware(config));
   app.use(selectiveCSRF);
+  app.use(i18nMiddleware());
 
-  app.use(healthRouter());
+  app.use(healthRouter(config));
   app.use('/api', authRouter(config));
   app.use('/api', setupRouter(config));
   app.use('/api', apiTokensRouter(config));
+  app.use('/api', configRouter());
   app.use('/api', stateRouter(config));
   app.use('/api', certificatesRouter(config));
   app.use('/api', byoCertsRouter(config));
@@ -110,6 +121,7 @@ export const createApp = async config => {
   app.use('/api', systemRouter());
   app.use('/api', peerRouter(config));
   app.use('/api', openapiRouter());
+  app.use('/api', clientErrorsRouter());
 
   app.use(spaRouter(config));
 

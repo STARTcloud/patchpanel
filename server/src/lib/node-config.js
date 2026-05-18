@@ -5,7 +5,7 @@ import yaml from 'js-yaml';
 import { z } from 'zod';
 
 import { ensureDir, fileExists, writeAtomic } from './files.js';
-import * as logger from './logger.js';
+import { log } from './logger.js';
 
 // Per-node identity. Never syncs between cluster peers. Lives at
 // `config.paths.nodeConfig` (default `/etc/patchpanel/node.yaml`).
@@ -52,7 +52,7 @@ export const loadNodeConfig = async path => {
   const parsed = yaml.load(raw);
   const result = NodeConfigSchema.safeParse(parsed);
   if (!result.success) {
-    logger.warning('node.yaml failed schema validation; using defaults', {
+    log.app.warn('node.yaml failed schema validation; using defaults', {
       path,
       issues: result.error.issues,
     });
@@ -74,7 +74,7 @@ export const saveNodeConfig = async (path, candidate) => {
     await ensureDir(dir);
   }
   await writeAtomic(path, body, { mode: 0o644 });
-  logger.info('node.yaml persisted', { path, nodeId: parsed.nodeId });
+  log.app.info('node.yaml persisted', { path, nodeId: parsed.nodeId });
   return parsed;
 };
 

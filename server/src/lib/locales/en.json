@@ -1,0 +1,31 @@
+{
+  "api": {
+    "unknownError": "An unexpected error occurred",
+    "internalError": "Internal server error",
+    "notFound": "Resource not found",
+    "badRequest": "Bad request",
+    "rateLimited": "Too many requests — please slow down"
+  },
+  "auth": {
+    "required": "Authentication required",
+    "invalidCredentials": "Invalid username or password",
+    "sessionExpired": "Session expired — please sign in again",
+    "forbidden": "Access denied",
+    "roleRequired": "{{role}} role required",
+    "tokenRequired": "Bearer token required",
+    "tokenInvalid": "Invalid or expired bearer token"
+  },
+  "validation": {
+    "fieldRequired": "{{field}} is required",
+    "invalidValue": "Invalid value for {{field}}",
+    "invalidFormat": "{{field}} has an invalid format",
+    "tooShort": "{{field}} must be at least {{minLength}} characters",
+    "tooLong": "{{field}} must be at most {{maxLength}} characters",
+    "outOfRange": "{{field}} must be between {{min}} and {{max}}"
+  },
+  "config": {},
+  "state": {},
+  "cluster": {},
+  "cert": {},
+  "lua": {}
+}

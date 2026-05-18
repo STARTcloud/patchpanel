@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { log } from '../utils/Logger.js';
+
 const RECONNECT_DELAY_MS = 5_000;
 
 export const useSSE = (path, { events = {}, enabled = true } = {}) => {
@@ -33,9 +35,10 @@ export const useSSE = (path, { events = {}, enabled = true } = {}) => {
       try {
         handler(payload);
       } catch (err) {
-        if (typeof console !== 'undefined') {
-          console.error(`SSE handler "${eventName}" threw`, err);
-        }
+        log.app.error(`SSE handler "${eventName}" threw`, {
+          error: err?.message,
+          stack: err?.stack,
+        });
       }
     };
 

@@ -126,7 +126,7 @@ graph LR
 
     subgraph "Authentication"
         AUTH{Auth<br/>Middleware}
-        SESS[Session Cookie]
+        SESS[JWT cookie<br/>HS256, pwAt-bound]
         KEYS[API Keys<br/>bcrypt]
         HAUSR[X-Remote-User<br/>headers]
     end
@@ -215,12 +215,23 @@ graph LR
 
 ### Authentication
 
-- **Session cookies** (browser admin) — issued by `/api/auth/login` after
-  the first-run wizard creates the local admin. Sessions stored in the
-  audit SQLite database.
-- **API keys** — bcrypt-hashed tokens with per-key permission scopes
-  (`read`, `state-write`, `cert-renew`, etc.) and optional expiry up to
-  one year. Used as `Authorization: Bearer <token>`.
+- **Session cookies** (browser admin) — `/api/auth/login` verifies the
+  password and issues a stateless JWT (HS256, signed with
+  `security.jwtSecret`) in an httpOnly cookie named `patchpanel.sid`.
+  The token carries `{sub, username, role, pwAt}` where `pwAt` is the
+  user's `passwordChangedAt` timestamp at login time. On every request
+  the auth middleware verifies the signature, looks up the user, and
+  rejects the token if `pwAt` no longer matches the stored
+  `passwordChangedAt` — so `PUT /api/auth/change-password` (which bumps
+  `passwordChangedAt`) invalidates every other session for that user.
+  There is no server-side session store; JWT signature plus `pwAt`
+  comparison are the only state checks.
+- **API keys** — bcrypt-hashed Bearer tokens with wire format
+  `pp_<8hex-keyId>.<32hex-secret>`. Every token is `role: admin`; scoping
+  is not currently differentiated. Optional `expiresAt` and
+  `lastUsedAt` are tracked. Mint, list, and revoke via
+  `/api/api-tokens`. The plaintext wire string is shown exactly once at
+  mint time and never persisted (only its bcrypt hash is stored).
 - **HA-ingress mode** — bypasses local auth entirely; trusts HA's
   ingress headers and the supervisor proxy IP whitelist. No first-run
   wizard runs in this mode.
@@ -272,8 +283,12 @@ This is PatchPanel's core loop. Every write request flows through it:
 - **`state.json`** — `/data/state.json` (HA addon) or
   `/var/lib/patchpanel/state.json` (standalone). The single source of
   truth for everything HAProxy-related.
-- **`audit.sqlite`** — better-sqlite3, WAL-mode. Sessions + audit log
-  share this database.
+- **`audit.sqlite`** — better-sqlite3, WAL-mode. One table, `audit_log`
+  (`ts, actor, category, action, target, details, outcome`), capturing
+  every state mutation, auth attempt, runtime op, and cluster event.
+  Vacuumed after `logging.auditRetentionDays` (default 365). This
+  database stores audit events only — JWTs are stateless and
+  invalidated via the `pwAt` claim check (see Authentication above).
 - **`/etc/letsencrypt/`** — Certbot's account + cert store, unchanged
   from its standard layout. Symlinks under `live/` are referenced from
   the rendered HAProxy `crt-list`.

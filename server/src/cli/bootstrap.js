@@ -5,7 +5,7 @@ import { buildCertsList, ensureCertsDirs } from '../lib/cert-lineage.js';
 import configLoader from '../config/configLoader.js';
 import { fileExists, readJson, writeAtomic } from '../lib/files.js';
 import { validateRenderedCfg } from '../lib/haproxy-validate.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 import { renderHaproxyConfig } from '../lib/render.js';
 import { initStateIfMissing, saveState } from '../lib/state.js';
 import { emptyState } from '../lib/state-schema.js';
@@ -71,7 +71,7 @@ const tryRender = (state, config, loadableCertCount) => {
       loadableCertCount,
     });
   } catch (err) {
-    logger.error('renderHaproxyConfig threw', { error: err.message, stack: err.stack });
+    log.app.error('renderHaproxyConfig threw', { error: err.message, stack: err.stack });
     return null;
   }
 };
@@ -84,16 +84,16 @@ const writeWithFallback = async (config, primary) => {
     }));
     if (validation.code === 0) {
       await writeAtomic(config.paths.haproxyConfig, primary, { mode: 0o644 });
-      logger.info('haproxy.cfg written', { path: config.paths.haproxyConfig });
+      log.app.info('haproxy.cfg written', { path: config.paths.haproxyConfig });
       return;
     }
-    logger.error('rendered haproxy.cfg failed validation', { stderr: validation.stderr.trim() });
+    log.app.error('rendered haproxy.cfg failed validation', { stderr: validation.stderr.trim() });
   }
 
   await writeAtomic(config.paths.haproxyConfig, SAFE_MINIMAL_CFG, { mode: 0o644 }).catch(err => {
-    logger.error('failed to write safe-minimal haproxy.cfg', { error: err.message });
+    log.app.error('failed to write safe-minimal haproxy.cfg', { error: err.message });
   });
-  logger.warning('wrote SAFE_MINIMAL haproxy.cfg so HAProxy can start; fix state via UI');
+  log.app.warn('wrote SAFE_MINIMAL haproxy.cfg so HAProxy can start; fix state via UI');
 };
 
 const main = async () => {
@@ -109,7 +109,7 @@ const main = async () => {
   try {
     state = await initStateIfMissing(config.paths.state);
   } catch (err) {
-    logger.error(
+    log.app.error(
       'state.json failed schema validation; rendering with empty state in memory (file preserved on disk)',
       { error: err.message }
     );
@@ -128,7 +128,7 @@ const main = async () => {
     const emitted = await buildCertsList(config.paths, state.tls.certs, state.tls.providers);
     loadableCertCount = emitted.length;
   } catch (err) {
-    logger.error('buildCertsList threw; assuming zero loadable certs', { error: err.message });
+    log.app.error('buildCertsList threw; assuming zero loadable certs', { error: err.message });
   }
 
   const mapsDir = config.paths.haproxyMapsDir ?? '/etc/haproxy/maps';
@@ -139,7 +139,7 @@ const main = async () => {
         const body = map.entries.map(e => `${e.key} ${e.value}`).join('\n');
         const target = joinPath(mapsDir, `${map.name}.map`);
         await writeAtomic(target, body ? `${body}\n` : '', { mode: 0o644 }).catch(err =>
-          logger.warning('failed to write map file at bootstrap', {
+          log.app.warn('failed to write map file at bootstrap', {
             name: map.name,
             error: err.message,
           })

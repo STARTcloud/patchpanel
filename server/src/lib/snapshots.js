@@ -2,8 +2,8 @@ import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { join as joinPath } from 'node:path';
 
-import { ensureDir, fileExists, readJson, writeAtomic } from './files.js';
-import * as logger from './logger.js';
+import { ensureDir, fileExists, readJson, safePathUnder, writeAtomic } from './files.js';
+import { log } from './logger.js';
 
 const SNAPSHOT_SUFFIX = '.json';
 const KEEP_RECENT = 50;
@@ -80,7 +80,7 @@ const pruneSnapshots = async snapshotsDir => {
         fs
           .rm(joinPath(snapshotsDir, r.name), { force: true })
           .catch(err =>
-            logger.warning('snapshot prune rm failed', { id: r.name, error: err.message })
+            log.app.warn('snapshot prune rm failed', { id: r.name, error: err.message })
           )
       )
   );
@@ -100,9 +100,9 @@ export const writeSnapshot = async (snapshotsDir, state, meta = {}) => {
   const fileName = isoToFileName(iso, sha);
   const target = joinPath(snapshotsDir, fileName);
   await writeAtomic(target, `${body}\n`, { mode: 0o644 });
-  logger.info('state snapshot written', { fileName, sha, actor: meta.actor });
+  log.app.info('state snapshot written', { fileName, sha, actor: meta.actor });
   await pruneSnapshots(snapshotsDir).catch(err =>
-    logger.warning('snapshot pruning failed', { error: err.message })
+    log.app.warn('snapshot pruning failed', { error: err.message })
   );
   return { id: fileName, iso, sha };
 };
@@ -112,7 +112,11 @@ export const readSnapshot = async (snapshotsDir, id) => {
   if (!parsed) {
     return null;
   }
-  const target = joinPath(snapshotsDir, parsed.name);
+  // safePathUnder is the CodeQL-recognised path-injection barrier — needed
+  // even though parseFileName already validated the id against a strict
+  // regex, because the dataflow query doesn't model regex tests as
+  // sanitizers.
+  const target = safePathUnder(snapshotsDir, parsed.name);
   if (!(await fileExists(target))) {
     return null;
   }

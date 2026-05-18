@@ -5,7 +5,7 @@ import { join as joinPath } from 'node:path';
 
 import configLoader from '../config/configLoader.js';
 import { HaproxyError } from '../lib/errors.js';
-import * as logger from '../lib/logger.js';
+import { log } from '../lib/logger.js';
 import { renderHaproxyConfig } from '../lib/render.js';
 import { loadState } from '../lib/state.js';
 
@@ -52,7 +52,7 @@ const main = async () => {
         result.stderr || result.stdout
       );
     }
-    logger.info('haproxy.cfg validated', { bytes: rendered.length });
+    log.app.info('haproxy.cfg validated', { bytes: rendered.length });
     process.stdout.write(result.stdout);
     process.stderr.write(result.stderr);
   } finally {
