@@ -1,0 +1,105 @@
+{
+  "page": {
+    "title": "Runtime",
+    "description": "Live HAProxy operations via the runtime stats socket — no config reload, no session loss. Every action is recorded in the audit log."
+  },
+  "tabs": {
+    "tables": "Stick tables",
+    "sessions": "Sessions",
+    "acls": "ACLs",
+    "maps": "Maps",
+    "errors": "Recent errors",
+    "resolvers": "Resolvers"
+  },
+  "tables": {
+    "title": "Stick tables",
+    "help1": "Per-table key/value counters HAProxy keeps in memory (e.g.",
+    "help2": "tracked by source IP for rate-limiting). Empty if no",
+    "help3": "directives are declared in any frontend/backend.",
+    "inspect": "Inspect",
+    "help4": "dumps the current contents of one table;",
+    "clearAll": "Clear all",
+    "help5": "wipes the table; the per-row",
+    "help6": "evicts a single key (e.g. unban one client IP). Effective instantly — no reload, no session loss.",
+    "summary": "{{count}} stick table(s) live in HAProxy.",
+    "col": {
+      "name": "Name",
+      "type": "Type",
+      "used": "Used",
+      "size": "Size",
+      "actions": "Actions",
+      "key": "Key",
+      "fields": "Fields"
+    },
+    "empty": "No stick tables defined.",
+    "entriesCount": "{{count}} entries",
+    "modalEmpty": "Empty."
+  },
+  "aclMap": {
+    "inline": "(inline)",
+    "fileSource": "File / source",
+    "noneDefined": "None defined.",
+    "entriesTitle": "entries"
+  },
+  "acls": {
+    "title": "Runtime ACL lists",
+    "help": {
+      "intro1": "Only",
+      "fileBacked": "file-backed ACLs",
+      "intro2": "(lines like",
+      "intro3": ") appear here — the inline ACLs patchpanel writes for route hostnames are sample-based and don't show up in",
+      "usePrefix": "To use this tab:",
+      "useBody": "add a file-backed ACL directive to your config (Raw State tab, or as an advanced directive on a frontend) and create the file on disk. Then this tab lets you",
+      "addDelete": "Add / Delete",
+      "useEnd": "entries at runtime with no reload."
+    },
+    "addHint": "Add a file-backed ACL in your config to see it here.",
+    "valuePlaceholder": "Value (e.g. 10.0.0.1)"
+  },
+  "maps": {
+    "title": "Runtime maps",
+    "help": {
+      "intro": "Maps are key→value lookup tables HAProxy uses for geo routing, header→backend dispatch, etc. Only file-backed maps already loaded by HAProxy appear in this runtime list.",
+      "editPrefix": "To create or edit map entries:",
+      "use": "use",
+      "advancedLink": "Advanced → Maps",
+      "writes": "patchpanel writes",
+      "onApply": "on every apply, no Raw State editing needed. To",
+      "use2": "use",
+      "referenceFrontend": "a map, reference it from a frontend advanced directive:"
+    },
+    "addHint": "Add a file-backed map in your config to see it here.",
+    "keyPlaceholder": "Key",
+    "valuePlaceholder": "Value"
+  },
+  "sessions": {
+    "title": "Active client sessions",
+    "help1": "Each row is a single live connection HAProxy is currently handling — output of",
+    "help2": "The",
+    "source": "source",
+    "help3": "is the client IP/port. The",
+    "frontend": "frontend",
+    "help4": "is the HAProxy listener that accepted it; the",
+    "backend": "backend",
+    "help5": "is where it's being proxied to.",
+    "shutdown": "Shutdown",
+    "help6": "forcibly closes the session via the runtime socket — useful for kicking stuck connections, killing a misbehaving client, or testing reconnection behavior. The list also feeds the Top client IPs / Sessions by frontend / Sessions by backend cards on the Stats tab.",
+    "activeCount": "{{count}} active session(s).",
+    "col": {
+      "sessionId": "Session id",
+      "source": "Source",
+      "frontend": "Frontend",
+      "backend": "Backend"
+    },
+    "empty": "No sessions."
+  },
+  "rawEmpty": "(empty)",
+  "rawErrorsLabel": "Output of HAProxy `show errors` — recent malformed requests/responses.",
+  "rawResolversLabel": "Output of HAProxy `show resolvers` — DNS resolver state.",
+  "map": {
+    "keyValueRequired": "Both key and value are required"
+  },
+  "maxconn": {
+    "invalid": "maxconn must be a non-negative integer"
+  }
+}

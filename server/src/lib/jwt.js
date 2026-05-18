@@ -45,10 +45,10 @@ export const verify = (token, secret) => {
     });
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
-      throw new AuthError('session expired');
+      throw new AuthError('auth.sessionExpired', { cause: err });
     }
     if (err.name === 'JsonWebTokenError') {
-      throw new AuthError('invalid session');
+      throw new AuthError('auth.sessionInvalid', { cause: err });
     }
     throw err;
   }

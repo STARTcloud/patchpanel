@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 
 import { Router } from 'express';
 
+import { errorResponse, localizeMessage } from '../lib/api-response.js';
 import * as audit from '../lib/audit.js';
 import { log } from '../lib/logger.js';
 import {
@@ -14,6 +15,9 @@ import {
   validateTrustedCaPem,
   writeTrustedCa,
 } from '../lib/trusted-cas.js';
+
+const localizeIssues = (req, issues) =>
+  (issues ?? []).map(issue => localizeMessage(req, issue.code, issue.replacements));
 
 // Trusted CA endpoints mirror the byo-certs pattern:
 //   GET    /trusted-cas              list the PEM files on disk (mtime,
@@ -115,12 +119,16 @@ export const trustedCasRouter = config => {
     log.api.debug('GET /trusted-cas/:id', { ip: req.ip, id });
     const idError = validateTrustedCaId(id);
     if (idError) {
-      res.status(400).json({ ok: false, error: idError });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, idError.code, idError.replacements) });
       return;
     }
     try {
       if (!(await trustedCaFileExists(dir(), id))) {
-        res.status(404).json({ ok: false, error: 'not found' });
+        res
+          .status(404)
+          .json({ ok: false, ...errorResponse(req, 'cert.trustedCa.notFound', { id }) });
         return;
       }
       const pem = await readTrustedCa(dir(), id);
@@ -173,7 +181,11 @@ export const trustedCasRouter = config => {
   router.post('/trusted-cas/validate', (req, res) => {
     const { pem } = req.body ?? {};
     const result = validateTrustedCaPem({ pem });
-    res.json(result);
+    res.json({
+      ...result,
+      errors: localizeIssues(req, result.errors),
+      warnings: localizeIssues(req, result.warnings),
+    });
   });
 
   /**
@@ -216,12 +228,18 @@ export const trustedCasRouter = config => {
     const { id, pem } = req.body ?? {};
     const idError = validateTrustedCaId(id);
     if (idError) {
-      res.status(400).json({ ok: false, error: idError });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, idError.code, idError.replacements) });
       return;
     }
     const validation = validateTrustedCaPem({ pem });
     if (!validation.ok) {
-      res.status(400).json({ ok: false, errors: validation.errors, warnings: validation.warnings });
+      res.status(400).json({
+        ok: false,
+        errors: localizeIssues(req, validation.errors),
+        warnings: localizeIssues(req, validation.warnings),
+      });
       return;
     }
     try {
@@ -244,7 +262,7 @@ export const trustedCasRouter = config => {
         id,
         path: filePath,
         info: validation.info,
-        warnings: validation.warnings,
+        warnings: localizeIssues(req, validation.warnings),
       });
     } catch (err) {
       audit.record({
@@ -282,7 +300,9 @@ export const trustedCasRouter = config => {
     const { id } = req.params;
     const idError = validateTrustedCaId(id);
     if (idError) {
-      res.status(400).json({ ok: false, error: idError });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, idError.code, idError.replacements) });
       return;
     }
     try {

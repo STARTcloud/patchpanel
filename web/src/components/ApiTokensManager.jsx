@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Badge, Button, Card, Form, Modal, Spinner, Table } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiDelete, apiGet, apiPost } from '../api/client.js';
 import { useConfirmation } from '../hooks/useConfirmation.jsx';
@@ -11,32 +12,39 @@ import { useConfirmation } from '../hooks/useConfirmation.jsx';
 // keyId + name + dates.
 
 const EXPIRY_PRESETS = Object.freeze([
-  { label: '30 days', days: 30 },
-  { label: '90 days', days: 90 },
-  { label: '180 days', days: 180 },
-  { label: '1 year', days: 365 },
-  { label: 'Never', days: null },
+  { labelKey: 'auth:apiTokens.expiry30days', fallback: '30 days', days: 30 },
+  { labelKey: 'auth:apiTokens.expiry90days', fallback: '90 days', days: 90 },
+  { labelKey: 'auth:apiTokens.expiry180days', fallback: '180 days', days: 180 },
+  { labelKey: 'auth:apiTokens.expiry1year', fallback: '1 year', days: 365 },
+  { labelKey: 'auth:apiTokens.expiryNever', fallback: 'Never', days: null },
 ]);
 
 const formatDate = iso => (iso ? new Date(iso).toLocaleString() : '—');
 
-const expiryStatus = expiresAt => {
+const ExpiryStatus = ({ expiresAt }) => {
+  const { t } = useTranslation(['auth', 'common']);
+  const [now] = useState(() => Date.now());
   if (!expiresAt) {
-    return <Badge bg="secondary">never</Badge>;
+    return <Badge bg="secondary">{t('auth:apiTokens.statusNever', 'never')}</Badge>;
   }
-  const ms = new Date(expiresAt).getTime() - Date.now();
+  const ms = new Date(expiresAt).getTime() - now;
   if (ms < 0) {
-    return <Badge bg="danger">expired</Badge>;
+    return <Badge bg="danger">{t('auth:apiTokens.statusExpired', 'expired')}</Badge>;
   }
   const days = Math.ceil(ms / 86_400_000);
   return (
     <Badge bg={days <= 14 ? 'warning' : 'info'}>
-      in {days} day{days === 1 ? '' : 's'}
+      {t('auth:apiTokens.statusInDays', { count: days, defaultValue: 'in {{count}} day' })}
     </Badge>
   );
 };
 
+ExpiryStatus.propTypes = {
+  expiresAt: PropTypes.string,
+};
+
 const CreateTokenModal = ({ show, onClose, onCreated }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const [name, setName] = useState('');
   const [expiryDays, setExpiryDays] = useState(90);
   const [submitting, setSubmitting] = useState(false);
@@ -68,7 +76,11 @@ const CreateTokenModal = ({ show, onClose, onCreated }) => {
       const data = await apiPost('api/api-tokens', { name, expiresAt });
       setCreated(data);
     } catch (err) {
-      setError(err.payload?.message ?? err.message ?? 'failed to create token');
+      setError(
+        err.payload?.message ??
+          err.message ??
+          t('auth:apiTokens.createFailed', 'failed to create token')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -81,12 +93,12 @@ const CreateTokenModal = ({ show, onClose, onCreated }) => {
           {created ? (
             <>
               <i className="bi bi-check-circle text-success me-2" />
-              Token created
+              {t('auth:apiTokens.tokenCreatedTitle', 'Token created')}
             </>
           ) : (
             <>
               <i className="bi bi-plus-circle me-2" />
-              New API token
+              {t('auth:apiTokens.newTokenTitle', 'New API token')}
             </>
           )}
         </Modal.Title>
@@ -96,10 +108,10 @@ const CreateTokenModal = ({ show, onClose, onCreated }) => {
           <Modal.Body>
             <Alert variant="warning" className="py-2 small mb-3">
               <i className="bi bi-exclamation-triangle me-2" />
-              Copy this token now — it will <strong>not</strong> be shown again.
+              {t('auth:apiTokens.copyWarning')}
             </Alert>
             <Form.Group className="mb-3">
-              <Form.Label>Token</Form.Label>
+              <Form.Label>{t('auth:apiTokens.tokenLabel', 'Token')}</Form.Label>
               <div className="d-flex gap-2">
                 <Form.Control type="text" value={created.wire} readOnly />
                 <Button
@@ -111,7 +123,7 @@ const CreateTokenModal = ({ show, onClose, onCreated }) => {
               </div>
             </Form.Group>
             <Form.Group>
-              <Form.Label>Usage example</Form.Label>
+              <Form.Label>{t('auth:apiTokens.usageExample', 'Usage example')}</Form.Label>
               <pre
                 className="small p-2 bg-body-tertiary border rounded"
                 style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}
@@ -123,7 +135,7 @@ const CreateTokenModal = ({ show, onClose, onCreated }) => {
           </Modal.Body>
           <Modal.Footer>
             <Button variant="primary" onClick={handleClose}>
-              I&apos;ve saved the token
+              {t('auth:apiTokens.savedTokenAck', "I've saved the token")}
             </Button>
           </Modal.Footer>
         </>
@@ -136,20 +148,23 @@ const CreateTokenModal = ({ show, onClose, onCreated }) => {
               </Alert>
             ) : null}
             <Form.Group className="mb-3">
-              <Form.Label>Name</Form.Label>
+              <Form.Label>{t('auth:apiTokens.name')}</Form.Label>
               <Form.Control
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="ci-pipeline, backup-script, …"
+                placeholder={t('auth:apiTokens.namePlaceholder', 'ci-pipeline, backup-script, …')}
                 required
               />
               <Form.Text className="text-muted">
-                Human-readable label. Letters, digits, space, dot, underscore, hyphen.
+                {t(
+                  'auth:apiTokens.nameHelp',
+                  'Human-readable label. Letters, digits, space, dot, underscore, hyphen.'
+                )}
               </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Expires</Form.Label>
+              <Form.Label>{t('auth:apiTokens.expiresLabel', 'Expires')}</Form.Label>
               <Form.Select
                 value={expiryDays === null ? 'never' : String(expiryDays)}
                 onChange={e =>
@@ -159,8 +174,8 @@ const CreateTokenModal = ({ show, onClose, onCreated }) => {
                 }
               >
                 {EXPIRY_PRESETS.map(opt => (
-                  <option key={opt.label} value={opt.days === null ? 'never' : String(opt.days)}>
-                    {opt.label}
+                  <option key={opt.labelKey} value={opt.days === null ? 'never' : String(opt.days)}>
+                    {t(opt.labelKey, opt.fallback)}
                   </option>
                 ))}
               </Form.Select>
@@ -168,16 +183,16 @@ const CreateTokenModal = ({ show, onClose, onCreated }) => {
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={handleClose} disabled={submitting}>
-              Cancel
+              {t('common:buttons.cancel')}
             </Button>
             <Button type="submit" variant="primary" disabled={submitting}>
               {submitting ? (
                 <>
                   <Spinner as="span" animation="border" size="sm" className="me-2" />
-                  Creating…
+                  {t('auth:apiTokens.creating', 'Creating…')}
                 </>
               ) : (
-                'Create token'
+                t('auth:apiTokens.create')
               )}
             </Button>
           </Modal.Footer>
@@ -193,7 +208,8 @@ CreateTokenModal.propTypes = {
   onCreated: PropTypes.func.isRequired,
 };
 
-const renderTokensList = ({ loading, tokens, onRevoke }) => {
+const TokensList = ({ loading, tokens, onRevoke }) => {
+  const { t } = useTranslation(['auth', 'common']);
   if (loading) {
     return (
       <div className="d-flex justify-content-center py-3">
@@ -204,7 +220,9 @@ const renderTokensList = ({ loading, tokens, onRevoke }) => {
   if (tokens.length === 0) {
     return (
       <Alert variant="light" className="border small mb-0">
-        No API tokens yet. Click <strong>New token</strong> to mint one.
+        {t('auth:apiTokens.emptyHintPrefix', 'No API tokens yet. Click')}{' '}
+        <strong>{t('auth:apiTokens.newToken', 'New token')}</strong>{' '}
+        {t('auth:apiTokens.emptyHintSuffix', 'to mint one.')}
       </Alert>
     );
   }
@@ -212,26 +230,28 @@ const renderTokensList = ({ loading, tokens, onRevoke }) => {
     <Table size="sm" hover className="mb-0">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Key ID</th>
-          <th>Created</th>
-          <th>Last used</th>
-          <th>Expires</th>
+          <th>{t('auth:apiTokens.name')}</th>
+          <th>{t('auth:apiTokens.keyId', 'Key ID')}</th>
+          <th>{t('auth:apiTokens.createdAt')}</th>
+          <th>{t('auth:apiTokens.lastUsed')}</th>
+          <th>{t('auth:apiTokens.expiresLabel', 'Expires')}</th>
           <th />
         </tr>
       </thead>
       <tbody>
-        {tokens.map(t => (
-          <tr key={t.keyId}>
-            <td>{t.name}</td>
+        {tokens.map(row => (
+          <tr key={row.keyId}>
+            <td>{row.name}</td>
             <td>
-              <code>{t.keyId}</code>
+              <code>{row.keyId}</code>
             </td>
-            <td>{formatDate(t.createdAt)}</td>
-            <td>{formatDate(t.lastUsedAt)}</td>
-            <td>{expiryStatus(t.expiresAt)}</td>
+            <td>{formatDate(row.createdAt)}</td>
+            <td>{formatDate(row.lastUsedAt)}</td>
             <td>
-              <Button variant="outline-danger" size="sm" onClick={() => onRevoke(t.keyId)}>
+              <ExpiryStatus expiresAt={row.expiresAt} />
+            </td>
+            <td>
+              <Button variant="outline-danger" size="sm" onClick={() => onRevoke(row.keyId)}>
                 <i className="bi bi-trash" />
               </Button>
             </td>
@@ -242,7 +262,14 @@ const renderTokensList = ({ loading, tokens, onRevoke }) => {
   );
 };
 
+TokensList.propTypes = {
+  loading: PropTypes.bool.isRequired,
+  tokens: PropTypes.array.isRequired,
+  onRevoke: PropTypes.func.isRequired,
+};
+
 export const ApiTokensManager = () => {
+  const { t } = useTranslation(['auth', 'common']);
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -256,11 +283,15 @@ export const ApiTokensManager = () => {
       const data = await apiGet('api/api-tokens');
       setTokens(data?.tokens ?? []);
     } catch (err) {
-      setError(err.payload?.message ?? err.message ?? 'failed to load tokens');
+      setError(
+        err.payload?.message ??
+          err.message ??
+          t('auth:apiTokens.loadFailed', 'failed to load tokens')
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   // Initial load. Inlined (rather than calling reload()) so the lint rule
   // react-hooks/set-state-in-effect can see that setState only happens
@@ -280,24 +311,31 @@ export const ApiTokensManager = () => {
         if (cancelled) {
           return;
         }
-        setError(err.payload?.message ?? err.message ?? 'failed to load tokens');
+        setError(
+          err.payload?.message ??
+            err.message ??
+            t('auth:apiTokens.loadFailed', 'failed to load tokens')
+        );
         setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   const revoke = async keyId => {
     const ok = await confirm({
-      title: 'Revoke API token?',
+      title: t('auth:apiTokens.revokeConfirmTitle', 'Revoke API token?'),
       body: (
         <p className="mb-2">
-          Revoke token <code>{keyId}</code>? Any scripts using it will start receiving 401 responses
-          immediately. This cannot be undone.
+          {t('auth:apiTokens.revokeConfirmBodyPrefix', 'Revoke token')} <code>{keyId}</code>?{' '}
+          {t(
+            'auth:apiTokens.revokeConfirmBodySuffix',
+            'Any scripts using it will start receiving 401 responses immediately. This cannot be undone.'
+          )}
         </p>
       ),
-      confirmLabel: 'Revoke token',
+      confirmLabel: t('auth:apiTokens.revokeConfirmLabel', 'Revoke token'),
       confirmVariant: 'danger',
     });
     if (!ok) {
@@ -307,7 +345,9 @@ export const ApiTokensManager = () => {
       await apiDelete(`api/api-tokens/${encodeURIComponent(keyId)}`);
       await reload();
     } catch (err) {
-      setError(err.payload?.message ?? err.message ?? 'failed to revoke');
+      setError(
+        err.payload?.message ?? err.message ?? t('auth:apiTokens.revokeFailed', 'failed to revoke')
+      );
     }
   };
 
@@ -318,16 +358,20 @@ export const ApiTokensManager = () => {
           <div>
             <Card.Title className="mb-1">
               <i className="bi bi-key me-2" />
-              API tokens
+              {t('auth:apiTokens.title')}
             </Card.Title>
             <Card.Text className="text-muted small mb-0">
-              Programmatic access via <code>Authorization: Bearer pp_…</code>. The secret is shown
-              once at creation and cannot be retrieved later — revoke and re-issue if lost.
+              {t('auth:apiTokens.subtitlePrefix', 'Programmatic access via')}{' '}
+              <code>Authorization: Bearer pp_…</code>.{' '}
+              {t(
+                'auth:apiTokens.subtitleSuffix',
+                'The secret is shown once at creation and cannot be retrieved later — revoke and re-issue if lost.'
+              )}
             </Card.Text>
           </div>
           <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
             <i className="bi bi-plus-lg me-1" />
-            New token
+            {t('auth:apiTokens.newToken', 'New token')}
           </Button>
         </div>
         {error ? (
@@ -335,7 +379,7 @@ export const ApiTokensManager = () => {
             {error}
           </Alert>
         ) : null}
-        {renderTokensList({ loading, tokens, onRevoke: revoke })}
+        <TokensList loading={loading} tokens={tokens} onRevoke={revoke} />
       </Card.Body>
       <CreateTokenModal show={showCreate} onClose={() => setShowCreate(false)} onCreated={reload} />
       <ConfirmationDialog />

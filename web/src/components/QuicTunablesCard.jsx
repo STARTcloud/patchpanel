@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Button, Card, Col, Form, Row, Tab, Tabs } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 
@@ -150,38 +151,43 @@ TriStateField.propTypes = {
   setSide: PropTypes.func.isRequired,
 };
 
-const SidePanel = ({ side, setSide, includeFeExtras }) => (
-  <div className="pt-3">
-    <Row className="g-2">
-      <Col md={4}>
-        <Form.Group className="mb-2">
-          <Form.Label>max-idle-timeout</Form.Label>
-          <Form.Control
-            type="text"
-            value={side.maxIdleTimeout ?? ''}
-            placeholder="e.g. 30s"
-            onChange={e => setSide({ maxIdleTimeout: e.target.value || undefined })}
-          />
-          <Form.Text className="text-muted">QUIC idle timeout on this side.</Form.Text>
-        </Form.Group>
-      </Col>
-      {includeFeExtras
-        ? FE_EXTRA_NUMERIC_FIELDS.map(field => (
-            <NumericField key={field.key} field={field} side={side} setSide={setSide} />
-          ))
-        : null}
-      {SHARED_NUMERIC_FIELDS.map(field => (
-        <NumericField key={field.key} field={field} side={side} setSide={setSide} />
-      ))}
-      {SHARED_SIZE_FIELDS.map(field => (
-        <SizeField key={field.key} field={field} side={side} setSide={setSide} />
-      ))}
-      {SHARED_BOOL_FIELDS.map(field => (
-        <TriStateField key={field.key} field={field} side={side} setSide={setSide} />
-      ))}
-    </Row>
-  </div>
-);
+const SidePanel = ({ side, setSide, includeFeExtras }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <div className="pt-3">
+      <Row className="g-2">
+        <Col md={4}>
+          <Form.Group className="mb-2">
+            <Form.Label>max-idle-timeout</Form.Label>
+            <Form.Control
+              type="text"
+              value={side.maxIdleTimeout ?? ''}
+              placeholder="e.g. 30s"
+              onChange={e => setSide({ maxIdleTimeout: e.target.value || undefined })}
+            />
+            <Form.Text className="text-muted">
+              {t('haproxy:quic.maxIdleTimeoutHelp', 'QUIC idle timeout on this side.')}
+            </Form.Text>
+          </Form.Group>
+        </Col>
+        {includeFeExtras
+          ? FE_EXTRA_NUMERIC_FIELDS.map(field => (
+              <NumericField key={field.key} field={field} side={side} setSide={setSide} />
+            ))
+          : null}
+        {SHARED_NUMERIC_FIELDS.map(field => (
+          <NumericField key={field.key} field={field} side={side} setSide={setSide} />
+        ))}
+        {SHARED_SIZE_FIELDS.map(field => (
+          <SizeField key={field.key} field={field} side={side} setSide={setSide} />
+        ))}
+        {SHARED_BOOL_FIELDS.map(field => (
+          <TriStateField key={field.key} field={field} side={side} setSide={setSide} />
+        ))}
+      </Row>
+    </div>
+  );
+};
 
 SidePanel.propTypes = {
   side: PropTypes.object.isRequired,
@@ -189,58 +195,73 @@ SidePanel.propTypes = {
   includeFeExtras: PropTypes.bool.isRequired,
 };
 
-const ProcessPanel = ({ current, setCurrent }) => (
-  <div className="pt-3">
-    <Row className="g-2">
-      <Col md={4}>
-        <Form.Group className="mb-2">
-          <Form.Label>tune.quic.listen</Form.Label>
-          <Form.Select
-            value={triStateBoolToString(current.listen)}
-            onChange={e => setCurrent({ ...current, listen: triStateStringToBool(e.target.value) })}
-          >
-            <option value="">(default)</option>
-            <option value="on">on (accept QUIC binds)</option>
-            <option value="off">off (disable QUIC globally)</option>
-          </Form.Select>
-          <Form.Text className="text-muted">
-            Master switch for QUIC listeners. Replaces the legacy <code>no-quic</code> global flag.
-          </Form.Text>
-        </Form.Group>
-      </Col>
-      <Col md={4}>
-        <Form.Group className="mb-2">
-          <Form.Label>tune.quic.mem.tx-max</Form.Label>
-          <Form.Control
-            type="text"
-            value={current.memTxMax ?? ''}
-            placeholder="e.g. 100m"
-            onChange={e => setCurrent({ ...current, memTxMax: e.target.value || undefined })}
-          />
-          <Form.Text className="text-muted">Process-wide TX memory ceiling for QUIC.</Form.Text>
-        </Form.Group>
-      </Col>
-      <Col md={4}>
-        <Form.Group className="mb-2">
-          <Form.Label>tune.quic.zero-copy-fwd-send</Form.Label>
-          <Form.Select
-            value={triStateBoolToString(current.zeroCopyFwdSend)}
-            onChange={e =>
-              setCurrent({ ...current, zeroCopyFwdSend: triStateStringToBool(e.target.value) })
-            }
-          >
-            <option value="">(default)</option>
-            <option value="on">on</option>
-            <option value="off">off</option>
-          </Form.Select>
-          <Form.Text className="text-muted">
-            Use zero-copy egress forwarding when the kernel supports it.
-          </Form.Text>
-        </Form.Group>
-      </Col>
-    </Row>
-  </div>
-);
+const ProcessPanel = ({ current, setCurrent }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <div className="pt-3">
+      <Row className="g-2">
+        <Col md={4}>
+          <Form.Group className="mb-2">
+            <Form.Label>tune.quic.listen</Form.Label>
+            <Form.Select
+              value={triStateBoolToString(current.listen)}
+              onChange={e =>
+                setCurrent({ ...current, listen: triStateStringToBool(e.target.value) })
+              }
+            >
+              <option value="">({t('haproxy:common.default', 'default')})</option>
+              <option value="on">{t('haproxy:quic.listenOn', 'on (accept QUIC binds)')}</option>
+              <option value="off">
+                {t('haproxy:quic.listenOff', 'off (disable QUIC globally)')}
+              </option>
+            </Form.Select>
+            <Form.Text className="text-muted">
+              {t(
+                'haproxy:quic.listenHelp',
+                'Master switch for QUIC listeners. Replaces the legacy no-quic global flag.'
+              )}
+            </Form.Text>
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group className="mb-2">
+            <Form.Label>tune.quic.mem.tx-max</Form.Label>
+            <Form.Control
+              type="text"
+              value={current.memTxMax ?? ''}
+              placeholder="e.g. 100m"
+              onChange={e => setCurrent({ ...current, memTxMax: e.target.value || undefined })}
+            />
+            <Form.Text className="text-muted">
+              {t('haproxy:quic.memTxMaxHelp', 'Process-wide TX memory ceiling for QUIC.')}
+            </Form.Text>
+          </Form.Group>
+        </Col>
+        <Col md={4}>
+          <Form.Group className="mb-2">
+            <Form.Label>tune.quic.zero-copy-fwd-send</Form.Label>
+            <Form.Select
+              value={triStateBoolToString(current.zeroCopyFwdSend)}
+              onChange={e =>
+                setCurrent({ ...current, zeroCopyFwdSend: triStateStringToBool(e.target.value) })
+              }
+            >
+              <option value="">({t('haproxy:common.default', 'default')})</option>
+              <option value="on">on</option>
+              <option value="off">off</option>
+            </Form.Select>
+            <Form.Text className="text-muted">
+              {t(
+                'haproxy:quic.zeroCopyHelp',
+                'Use zero-copy egress forwarding when the kernel supports it.'
+              )}
+            </Form.Text>
+          </Form.Group>
+        </Col>
+      </Row>
+    </div>
+  );
+};
 
 ProcessPanel.propTypes = {
   current: PropTypes.object.isRequired,
@@ -250,6 +271,7 @@ ProcessPanel.propTypes = {
 const emptyQuic = () => ({ fe: {}, be: {} });
 
 export const QuicTunablesCard = ({ doc, onSave }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [draft, setDraft] = useState(null);
   const [status, setStatus] = useState(null);
   const live = doc.globalSettings.quic ?? emptyQuic();
@@ -271,7 +293,7 @@ export const QuicTunablesCard = ({ doc, onSave }) => {
       globalSettings: { ...doc.globalSettings, quic: current },
     })
       .then(() => {
-        setStatus({ kind: 'success', message: 'Saved.' });
+        setStatus({ kind: 'success', message: t('haproxy:common.saved', 'Saved.') });
         setDraft(null);
       })
       .catch(err => setStatus({ kind: 'danger', message: err.message }));
@@ -280,34 +302,33 @@ export const QuicTunablesCard = ({ doc, onSave }) => {
   return (
     <Card className="mb-3">
       <Card.Body>
-        <Card.Title>QUIC tunables (global)</Card.Title>
+        <Card.Title>{t('haproxy:quic.title', 'QUIC tunables (global)')}</Card.Title>
         <Card.Text className="text-muted small">
-          Process-wide and per-side QUIC knobs rendered as <code>tune.quic.*</code> directives in
-          the <code>global</code> section. Per-bind QUIC keywords (<code>quic-cc-algo</code>,{' '}
-          <code>quic-force-retry</code>, <code>quic-socket</code>) are configured per-frontend on
-          each <code>quic4@</code> / <code>quic6@</code> bind. Backend QUIC requires a server
-          address prefixed with <code>quic4@</code> or <code>quic6@</code>.
+          {t(
+            'haproxy:quic.description',
+            'Process-wide and per-side QUIC knobs rendered as tune.quic.* directives in the global section. Per-bind QUIC keywords (quic-cc-algo, quic-force-retry, quic-socket) are configured per-frontend on each quic4@ / quic6@ bind. Backend QUIC requires a server address prefixed with quic4@ or quic6@.'
+          )}
         </Card.Text>
         {status ? <Alert variant={status.kind}>{status.message}</Alert> : null}
         <Form onSubmit={submit}>
           <Tabs defaultActiveKey="process" id="quic-tunables-tabs" className="mb-1">
-            <Tab eventKey="process" title="Process">
+            <Tab eventKey="process" title={t('haproxy:quic.tabs.process', 'Process')}>
               <ProcessPanel current={current} setCurrent={update} />
             </Tab>
-            <Tab eventKey="fe" title="Frontend (tune.quic.fe.*)">
+            <Tab eventKey="fe" title={t('haproxy:quic.tabs.frontend', 'Frontend (tune.quic.fe.*)')}>
               <SidePanel side={current.fe} setSide={setFe} includeFeExtras />
             </Tab>
-            <Tab eventKey="be" title="Backend (tune.quic.be.*)">
+            <Tab eventKey="be" title={t('haproxy:quic.tabs.backend', 'Backend (tune.quic.be.*)')}>
               <SidePanel side={current.be} setSide={setBe} includeFeExtras={false} />
             </Tab>
           </Tabs>
           <div className="mt-3 d-flex gap-2">
             <Button type="submit" variant="primary" disabled={!draft}>
-              Save QUIC tunables
+              {t('haproxy:quic.save', 'Save QUIC tunables')}
             </Button>
             {draft ? (
               <Button variant="outline-secondary" onClick={() => setDraft(null)}>
-                Discard changes
+                {t('haproxy:common.discard', 'Discard changes')}
               </Button>
             ) : null}
           </div>

@@ -1,3 +1,5 @@
+import { ConfigError } from './errors.js';
+
 // Per-provider credential templates. Each DNS plugin certbot supports needs
 // a different set of fields, and the .ini file format differs (key=value for
 // most, raw JSON for dns-google, key=value plus passthrough lines for
@@ -240,7 +242,7 @@ const renderPassthroughBody = values => {
 export const renderProviderIni = (type, values) => {
   const template = TEMPLATES[type];
   if (!template) {
-    throw new Error(`unknown provider type: ${type}`);
+    throw new ConfigError('cert.provider.unknownType', { replacements: { type } });
   }
   if (template.format === 'none') {
     return '';
@@ -298,7 +300,7 @@ const parsePassthroughBody = content => {
 export const parseProviderIni = (type, content) => {
   const template = TEMPLATES[type];
   if (!template) {
-    throw new Error(`unknown provider type: ${type}`);
+    throw new ConfigError('cert.provider.unknownType', { replacements: { type } });
   }
   if (template.format === 'none') {
     return {};
@@ -331,17 +333,24 @@ export const maskProviderValues = (type, values) => {
 
 // Merge incoming PATCH values with on-disk values. Secret fields whose
 // incoming value is the preserve sentinel (`'***'`) keep their on-disk
-// value; everything else replaces. Unknown keys cause an error.
+// value; everything else replaces. Unknown keys cause an error. Failure
+// path returns `{ ok: false, error: { code, replacements } }`.
 export const mergeProviderValues = (type, existing, incoming) => {
   const template = TEMPLATES[type];
   if (!template) {
-    return { ok: false, error: `unknown provider type: ${type}` };
+    return {
+      ok: false,
+      error: { code: 'cert.provider.unknownType', replacements: { type } },
+    };
   }
   const allowed = new Set(template.fields.map(f => f.key));
   const merged = { ...existing };
   for (const [key, value] of Object.entries(incoming ?? {})) {
     if (!allowed.has(key)) {
-      return { ok: false, error: `unknown field: ${key}` };
+      return {
+        ok: false,
+        error: { code: 'cert.provider.unknownField', replacements: { field: key } },
+      };
     }
     const field = template.fields.find(f => f.key === key);
     if (field.secret && value === PRESERVE_SENTINEL) {
@@ -353,19 +362,24 @@ export const mergeProviderValues = (type, existing, incoming) => {
 };
 
 // Validate the merged result has every required field set and that all
-// declared values are the right shape. The route uses this after merging
-// so PATCH-style updates against an existing file don't trip "required"
-// errors just because the client only sent the changed field.
+// declared values are the right shape. `errors[]` carries
+// `{ code, replacements }` objects.
 export const validateMergedValues = (type, values) => {
   const template = TEMPLATES[type];
   if (!template) {
-    return { ok: false, errors: [`unknown provider type: ${type}`] };
+    return {
+      ok: false,
+      errors: [{ code: 'cert.provider.unknownType', replacements: { type } }],
+    };
   }
   const errors = [];
   for (const field of template.fields) {
     const v = values[field.key];
     if (field.required && (v === undefined || v === null || v === '')) {
-      errors.push(`required field missing: ${field.key}`);
+      errors.push({
+        code: 'cert.provider.requiredFieldMissing',
+        replacements: { field: field.key },
+      });
       continue;
     }
     if (v === undefined || v === null) {
@@ -374,13 +388,19 @@ export const validateMergedValues = (type, values) => {
     if (field.type === 'integer') {
       const n = Number(v);
       if (!Number.isInteger(n)) {
-        errors.push(`field ${field.key} must be an integer`);
+        errors.push({
+          code: 'cert.provider.fieldNotInteger',
+          replacements: { field: field.key },
+        });
       }
     }
     if (field.type === 'select' && Array.isArray(field.options)) {
       const allowed = new Set(field.options.map(o => o.value));
       if (!allowed.has(v)) {
-        errors.push(`field ${field.key} must be one of: ${[...allowed].join(', ')}`);
+        errors.push({
+          code: 'cert.provider.fieldNotInOptions',
+          replacements: { field: field.key, options: [...allowed].join(', ') },
+        });
       }
     }
   }
@@ -390,7 +410,10 @@ export const validateMergedValues = (type, values) => {
       try {
         JSON.parse(blob);
       } catch (err) {
-        errors.push(`service_account_json is not valid JSON: ${err.message}`);
+        errors.push({
+          code: 'cert.provider.serviceAccountJsonInvalid',
+          replacements: { reason: err.message },
+        });
       }
     }
   }

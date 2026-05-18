@@ -9,11 +9,48 @@
   "auth": {
     "required": "Authentication required",
     "invalidCredentials": "Invalid username or password",
-    "sessionExpired": "Session expired — please sign in again",
-    "forbidden": "Access denied",
+    "sessionExpired": "Your session has expired — please sign in again",
+    "sessionInvalid": "Invalid session — please sign in again",
+    "forbidden": {
+      "default": "Access denied",
+      "sessionOnly": "This endpoint requires a browser session, not an API token"
+    },
     "roleRequired": "{{role}} role required",
     "tokenRequired": "Bearer token required",
-    "tokenInvalid": "Invalid or expired bearer token"
+    "tokenInvalid": "Invalid or expired bearer token",
+    "user": {
+      "usernameInvalid": "Username must start with a letter and contain only lowercase letters, digits, dot, underscore, or hyphen (2-32 characters)",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "passwordTooLong": "Password must be at most 256 characters",
+      "roleInvalid": "Role must be one of: {{roles}}",
+      "fileMalformed": "Users file at {{path}} is malformed",
+      "usernameExists": "Username already exists: {{username}}",
+      "notFound": "User not found",
+      "notFoundByName": "User not found: {{username}}",
+      "currentPasswordIncorrect": "Current password is incorrect"
+    },
+    "token": {
+      "keyIdCollision": "API token keyId collision (improbable; please retry)",
+      "nameRequired": "Token name is required",
+      "nameInvalid": "Token name must contain only letters, digits, dot, dash, underscore (1-64 chars)",
+      "nameExists": "A token named {{name}} already exists",
+      "notFound": "Token not found",
+      "fileMalformed": "API tokens file at {{path}} is malformed",
+      "expiresAtInvalid": "expiresAt must be a valid ISO date string",
+      "expiresAtPast": "expiresAt must be in the future"
+    },
+    "login": {
+      "fieldsRequired": "Username and password are required"
+    },
+    "changePassword": {
+      "fieldsRequired": "Current and new passwords are required"
+    },
+    "setup": {
+      "fieldsRequired": "Token, username, and password are required",
+      "notAvailable": "Initial setup is not available",
+      "tokenInvalid": "Setup token is invalid or has been used",
+      "alreadyCompleted": "Initial setup has already been completed"
+    }
   },
   "validation": {
     "fieldRequired": "{{field}} is required",
@@ -23,9 +60,274 @@
     "tooLong": "{{field}} must be at most {{maxLength}} characters",
     "outOfRange": "{{field}} must be between {{min}} and {{max}}"
   },
-  "config": {},
-  "state": {},
-  "cluster": {},
-  "cert": {},
-  "lua": {}
+  "config": {
+    "loadedPathUnknown": "Configuration loader has no known on-disk path",
+    "validation": {
+      "bodyPatchObject": "body.patch must be an object",
+      "patchEmpty": "patch must not be empty"
+    },
+    "upload": {
+      "targetAndContentRequired": "targetPath and content are required strings",
+      "filenamePattern": "filename must match [a-zA-Z0-9._-]+.(pem|crt|key|ca-bundle)",
+      "targetMustBeUnderRoot": "target must be under {{root}}"
+    },
+    "errorPages": {
+      "unsupportedCode": "Unsupported HTTP status code: {{code}}"
+    }
+  },
+  "state": {
+    "schema": {
+      "invalid": "Submitted state failed schema validation"
+    },
+    "load": {
+      "schemaInvalid": "State at {{path}} failed schema validation"
+    },
+    "snapshot": {
+      "invalidId": "Invalid snapshot id: {{id}}",
+      "notFound": "Snapshot {{id}} not found",
+      "notFoundOrInvalid": "Snapshot {{id}} not found or invalid"
+    },
+    "apply": {
+      "keepalivedRenderFailed": "Keepalived render failed: {{detail}}",
+      "keepalivedValidateFailed": "Keepalived validation rejected the rendered config: {{output}}",
+      "reloadFailed": "Reload failed after applying state: {{detail}}"
+    },
+    "files": {
+      "invalidName": "File name must be a non-empty string",
+      "pathEscape": "Name resolves outside root: {{name}}"
+    },
+    "audit": {
+      "notOpen": "Audit log is not open"
+    },
+    "patch": {
+      "notObject": "Patch must be an object",
+      "invalidPath": "Invalid config path: {{path}}",
+      "unknownPath": "Unknown config path: {{path}}",
+      "fieldInvalid": "{{path}}: {{detail}}"
+    }
+  },
+  "cluster": {
+    "state": {
+      "notInitialized": "Cluster state not initialized"
+    },
+    "keepalived": {
+      "configNotFound": "keepalived.conf not found at {{path}}",
+      "stopConfirmRequired": "Stop requires { \"confirm\": true } in body — VIPs held by this node will fail over to a peer (if one exists)",
+      "pidUnreadable": "Could not read keepalived pid from {{path}}",
+      "reloadFailed": "{{action}} failed (exit {{code}}): {{output}}",
+      "startUnsupported": "Direct strategy cannot restart keepalived from scratch — no supervisor configured. Set KEEPALIVED_CONTROL_STRATEGY to s6 or systemd, or start keepalived manually."
+    },
+    "peersStore": {
+      "pathMissing": "paths.peersStore is not configured"
+    },
+    "node": {
+      "config": {
+        "pathMissing": "paths.nodeConfig is not configured",
+        "invalid": "Invalid node configuration"
+      }
+    },
+    "peer": {
+      "tokenMissing": "Bearer token required for peer endpoint",
+      "tokenUnknown": "Unknown inbound token",
+      "urlRequired": "Peer URL is required",
+      "nameRequired": "Peer name is required",
+      "outboundTokenRequired": "Outbound token is required — paste a token from the peer's inbound-tokens list",
+      "peerIdInvalid": "Invalid peer id",
+      "noLocalStateToPush": "No local state to push",
+      "noLocalState": "No local state available",
+      "labelMustBeString": "Label must be a string when provided",
+      "labelRequired": "Label is required (non-empty string)",
+      "tokenIdInvalid": "Invalid token id",
+      "tokenNotFound": "Token not found",
+      "stateBodyRequired": "State body is required",
+      "blobKindUnknown": "Unknown blob kind: {{kind}}",
+      "blobIdInvalid": "Invalid blob id",
+      "blobDirNotConfigured": "paths.{{dirKey}} is not configured",
+      "blobPathInvalid": "Invalid blob path",
+      "blobNotFound": "Blob not found",
+      "blobBodyRequired": "Blob body is required"
+    }
+  },
+  "cert": {
+    "state": {
+      "notInitialized": "Certificate state is not initialized"
+    },
+    "notFound": "Certificate not found: {{certId}}",
+    "renewal": {
+      "providerMissing": "Cert {{certName}} references unknown provider {{providerId}}",
+      "acmeAccountMissing": "Cert {{certName}} references unknown ACME account {{acmeAccountId}}",
+      "certIdNotFound": "Cert not found in state: {{certId}}",
+      "notLeader": "Renewal skipped on node {{nodeId}}: this node is not the renewal leader. Configure renewalLeader: true in node.yaml or run renewal on the leader; renewed certs sync to peers automatically."
+    },
+    "certbot": {
+      "acmeCustomDirectoryUrlMissing": "ACME account {{accountId}} has server \"custom\" but no directoryUrl",
+      "acmeServerUnknown": "ACME account {{accountId}} has unknown server \"{{server}}\"",
+      "byoNotApplicable": "BYO certificates do not use certbot",
+      "unknownProviderType": "Unknown TLS provider type: {{type}}",
+      "commandFailed": "Certbot exited with code {{exitCode}}",
+      "listFailed": "Certbot certificates exited with code {{exitCode}}"
+    },
+    "byo": {
+      "nameInvalidChars": "Name must contain only letters, digits, dot, dash, underscore",
+      "nameInvalidLength": "Name must be 1-128 characters",
+      "fullchainRequired": "fullchainPem is required",
+      "privKeyRequired": "privkeyPem is required",
+      "fullchainNoCertBlocks": "fullchainPem contains no CERTIFICATE blocks",
+      "leafParseFailed": "Leaf certificate parse failed: {{reason}}",
+      "privKeyParseFailed": "Private key parse failed: {{reason}}",
+      "certPubKeyExportFailed": "Cert public key export failed: {{reason}}",
+      "privKeyMismatch": "Private key does not match the leaf certificate",
+      "leafExpired": "Leaf cert already expired (notAfter {{notAfter}})",
+      "leafNotYetValid": "Leaf cert not yet valid (notBefore {{notBefore}})",
+      "leafNoSans": "Leaf cert has no Subject Alternative Names — HAProxy needs SANs for SNI matching",
+      "fileNotFound": "{{basename}} not found for {{name}}"
+    },
+    "trustedCa": {
+      "idInvalid": "Id must match a-z, 0-9, _, - (1-63 chars, letter-start)",
+      "notFound": "Trusted CA not found: {{id}}",
+      "pemRequired": "pem is required",
+      "noCertBlocks": "No CERTIFICATE blocks found",
+      "certParseFailed": "Cert #{{index}} parse failed: {{reason}}",
+      "certExpired": "Cert #{{index}} ({{subject}}) expired {{notAfter}}",
+      "certNotYetValid": "Cert #{{index}} not yet valid (notBefore {{notBefore}})",
+      "noCaTrueCert": "No certificate in the bundle has BasicConstraints CA:TRUE — this is unusual for a trusted CA file"
+    },
+    "trustedCrl": {
+      "idInvalid": "Id must match a-z, 0-9, _, - (1-63 chars, letter-start)",
+      "notFound": "CRL not found: {{id}}",
+      "pemRequired": "pem is required",
+      "noCrlBlock": "No X509 CRL block found — expected -----BEGIN X509 CRL----- … -----END X509 CRL-----",
+      "bodyNotBase64": "CRL body is not valid base64"
+    },
+    "provider": {
+      "idInvalid": "Id must match a-z, 0-9, _, - (1-63 chars, letter-start)",
+      "notFound": "TLS provider not found: {{id}}",
+      "unknownType": "Unknown provider type: {{type}}",
+      "unknownField": "Unknown field: {{field}}",
+      "noCredentialsToManage": "Provider type \"{{type}}\" has no credentials to manage",
+      "requiredFieldMissing": "Required field missing: {{field}}",
+      "fieldNotInteger": "Field {{field}} must be an integer",
+      "fieldNotInOptions": "Field {{field}} must be one of: {{options}}",
+      "serviceAccountJsonInvalid": "service_account_json is not valid JSON: {{reason}}"
+    },
+    "authProvider": {
+      "notFound": "Auth provider not found: {{id}}"
+    }
+  },
+  "lua": {
+    "plugin": {
+      "dirNotWhitelisted": "dir is not in the configured whitelist",
+      "idInvalid": "name must match a-z, 0-9, _, - (1-63 chars, letter-start)",
+      "sourceRequired": "source is required",
+      "sourceTooLarge": "source exceeds {{maxBytes}} bytes",
+      "notFound": "Lua plugin not found"
+    }
+  },
+  "haproxy": {
+    "cfg": {
+      "stateNotInitialized": "State not initialized",
+      "notFound": "HAProxy config not found at {{path}}"
+    },
+    "stop": {
+      "confirmRequired": "Stopping HAProxy requires { \"confirm\": true } in the body — this will drop all proxied connections"
+    },
+    "server": {
+      "invalidState": "Server state must be one of: {{allowed}}",
+      "invalidWeight": "Server weight must be an integer between 0 and 256"
+    },
+    "reloadFailed": "HAProxy reload failed: {{output}}",
+    "master": {
+      "timeout": "HAProxy master socket timed out after {{timeoutMs}}ms"
+    },
+    "validate": {
+      "failed": "HAProxy config validation failed (exit code {{code}})"
+    },
+    "stats": {
+      "timeout": "HAProxy stats socket timed out after {{timeoutMs}}ms"
+    },
+    "runtime": {
+      "invalidId": "Invalid {{label}}: {{value}}",
+      "invalidKey": "Invalid {{label}}: {{value}}",
+      "invalidMapValue": "Invalid map value",
+      "invalidSessionId": "Invalid session id: {{value}}"
+    },
+    "control": {
+      "pidUnreadable": "Could not read HAProxy pid from {{path}}",
+      "directStartUnavailable": "Direct control strategy cannot start HAProxy — no supervisor configured. Set HAPROXY_CONTROL_STRATEGY to s6 or systemd, or start HAProxy manually.",
+      "commandFailed": "{{action}} failed (exit {{exit}}): {{output}}"
+    }
+  },
+  "runtime": {
+    "map": {
+      "keyValueRequired": "Both key and value are required"
+    },
+    "maxconn": {
+      "invalid": "maxconn must be a non-negative integer"
+    }
+  },
+  "stats": {
+    "unavailable": "HAProxy stats are currently unavailable",
+    "sessions": {
+      "unavailable": "HAProxy session data is currently unavailable"
+    },
+    "sampler": {
+      "notRunning": "Stats sampler is not running"
+    }
+  },
+  "logs": {
+    "supervisorTokenMissing": "Supervisor token not available; the logs endpoint is only functional inside a Home Assistant addon",
+    "supervisorFailed": "Supervisor returned HTTP {{status}}"
+  },
+  "notify": {
+    "channel": {
+      "notFound": "Notification channel not found: {{channelId}}",
+      "unsupportedType": "Unsupported notification channel type: {{type}}"
+    },
+    "haNotify": {
+      "tokenMissing": "SUPERVISOR_TOKEN not set; HA notify channel only works inside a Home Assistant addon",
+      "invalidService": "Invalid HA notify service: {{service}}",
+      "failed": "HA notify failed: HTTP {{status}} {{body}}"
+    },
+    "webhook": {
+      "urlMissing": "Webhook URL is missing",
+      "failed": "Webhook {{url}} returned HTTP {{status}}: {{body}}"
+    },
+    "discord": {
+      "webhookUrlMissing": "Discord webhook URL is missing",
+      "failed": "Discord webhook returned HTTP {{status}}: {{body}}"
+    },
+    "ntfy": {
+      "topicMissing": "ntfy topic is missing",
+      "failed": "ntfy returned HTTP {{status}}: {{body}}"
+    },
+    "slack": {
+      "webhookUrlMissing": "Slack webhook URL is missing",
+      "failed": "Slack webhook returned HTTP {{status}}: {{body}}"
+    }
+  },
+  "geoip": {
+    "invalidIp": "Invalid IP address",
+    "notEnabled": "GeoIP is not enabled",
+    "noData": "No GeoIP data for that IP",
+    "bulk": {
+      "empty": "body.ips must be a non-empty array",
+      "invalidEntry": "Every IP must be a valid v4 or v6 string"
+    },
+    "download": {
+      "sourceNone": "Local DB source is set to \"none\"; nothing to download",
+      "maxmindKeyRequired": "MaxMind license key required when localDbSource is \"maxmind\"",
+      "maxmindFailed": "MaxMind download failed: HTTP {{status}}",
+      "maxmindEmpty": "MaxMind download returned empty body",
+      "maxmindMissingMmdb": "MaxMind tarball did not contain an .mmdb file",
+      "dbipFailed": "DB-IP download failed: HTTP {{status}} from {{url}}",
+      "dbipEmpty": "DB-IP download returned empty body",
+      "sourceUnavailable": "Local DB source is \"{{source}}\"; no download available"
+    }
+  },
+  "cron": {
+    "noFutureOccurrence": "Cron expression has no future occurrences: {{expression}}"
+  },
+  "lock": {
+    "acquireTimeout": "Could not acquire lock at {{path}} within timeout"
+  }
 }

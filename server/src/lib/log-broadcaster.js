@@ -1,3 +1,4 @@
+import { StateError } from './errors.js';
 import { log } from './logger.js';
 
 const SUPERVISOR_BASE = 'http://supervisor';
@@ -10,9 +11,10 @@ const fetchAddonLogs = async token => {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
-    const err = new Error(`supervisor returned ${response.status}`);
-    err.status = response.status;
-    throw err;
+    throw new StateError('logs.supervisorFailed', {
+      message: `supervisor returned ${response.status}`,
+      replacements: { status: response.status },
+    });
   }
   return response.text();
 };

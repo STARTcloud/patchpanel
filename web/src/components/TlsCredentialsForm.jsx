@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { Col, Form, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 // Matches the server's PRESERVE_SENTINEL in lib/dns-provider-templates.js.
 // When a secret field's value on PUT is this string, the server keeps the
@@ -87,12 +88,13 @@ export const TlsCredentialsForm = ({
   loading = false,
   exists = false,
 }) => {
+  const { t } = useTranslation(['cert']);
   if (loading) {
     return (
       <Col xs={12}>
         <div className="d-flex align-items-center gap-2 small text-muted py-2">
           <Spinner as="span" animation="border" size="sm" />
-          Loading existing credentials…
+          {t('cert:credentials.loading', 'Loading existing credentials…')}
         </div>
       </Col>
     );
@@ -115,7 +117,7 @@ export const TlsCredentialsForm = ({
                 {field.required ? <span className="text-danger ms-1">*</span> : null}
                 {field.secret ? (
                   <span className="ms-2 text-muted small">
-                    <i className="bi bi-lock-fill" /> secret
+                    <i className="bi bi-lock-fill" /> {t('cert:credentials.secret', 'secret')}
                   </span>
                 ) : null}
               </Form.Label>
@@ -129,7 +131,10 @@ export const TlsCredentialsForm = ({
               ) : null}
               {showPreservedHint ? (
                 <Form.Text className="text-info">
-                  Existing value preserved on save. Clear and retype to replace.
+                  {t(
+                    'cert:credentials.preservedHint',
+                    'Existing value preserved on save. Clear and retype to replace.'
+                  )}
                 </Form.Text>
               ) : null}
             </Form.Group>

@@ -7,12 +7,17 @@ import { apiGet } from '../api/client.js';
 // (same shape, same tri-state `alive`, same one-poll-loop model) but reads
 // from /api/keepalived/state, which returns:
 //
-//   { alive: bool|null, strategy: 's6'|'systemd'|'direct'|'docker-exec'|'none',
+//   { installed: bool, alive: bool|null,
+//     strategy: 's6'|'systemd'|'direct'|'docker-exec'|'none',
 //     instances: [{ id, state: 'MASTER'|'BACKUP'|'FAULT'|'INIT', holding: bool }] }
 //
 // `alive` is tri-state until the first probe resolves so the UI can show
-// "checking…" instead of falsely reporting "stopped." `strategy` is the
-// reload-control strategy detected at server startup (cached server-side).
+// "checking…" instead of falsely reporting "stopped." `installed` lets the
+// navbar hide the badge entirely on deployments that don't ship keepalived
+// (e.g. HA addons without the binary installed) — distinct from "installed
+// but currently stopped" (alive: false, badge shows red with Start menu).
+// `strategy` is the reload-control strategy detected at server startup
+// (cached server-side).
 
 const DEFAULT_POLL_MS = 5_000;
 
@@ -27,6 +32,10 @@ const fetchState = async setters => {
     setters.setAlive(payload?.alive ?? null);
     setters.setStrategy(payload?.strategy ?? null);
     setters.setInstances(payload?.instances ?? []);
+    // Default to true when the server doesn't include `installed` (older
+    // servers, or future ones that drop the flag) so existing deployments
+    // don't accidentally hide the badge after an upgrade race.
+    setters.setInstalled(payload?.installed ?? true);
     setters.setError(null);
   } catch (err) {
     setters.setError(err);
@@ -40,6 +49,7 @@ export const KeepalivedLiveProvider = ({ pollMs = DEFAULT_POLL_MS, children }) =
   const [alive, setAlive] = useState(null);
   const [strategy, setStrategy] = useState(null);
   const [instances, setInstances] = useState([]);
+  const [installed, setInstalled] = useState(true);
   const [error, setError] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [version, setVersion] = useState(0);
@@ -52,6 +62,7 @@ export const KeepalivedLiveProvider = ({ pollMs = DEFAULT_POLL_MS, children }) =
       setAlive: v => active && setAlive(v),
       setStrategy: v => active && setStrategy(v),
       setInstances: v => active && setInstances(v),
+      setInstalled: v => active && setInstalled(v),
       setError: v => active && setError(v),
       setLoaded: v => active && setLoaded(v),
     };
@@ -68,11 +79,12 @@ export const KeepalivedLiveProvider = ({ pollMs = DEFAULT_POLL_MS, children }) =
       alive: loaded ? alive : null,
       strategy,
       instances,
+      installed,
       error,
       loaded,
       refresh,
     }),
-    [alive, strategy, instances, error, loaded, refresh]
+    [alive, strategy, instances, installed, error, loaded, refresh]
   );
 
   return <KeepalivedLiveContext.Provider value={value}>{children}</KeepalivedLiveContext.Provider>;

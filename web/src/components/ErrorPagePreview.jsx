@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo } from 'react';
 import { Badge } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 // Renders an HAProxy `.http` errorfile as it would appear to a browser.
 // Input is the raw HTTP/1.0 response (status line + headers + blank line +
@@ -161,12 +162,14 @@ const renderableSrcDoc = (body, contentType, theme) => {
 
 export const ErrorPagePreview = ({
   source,
-  title = 'preview',
+  title = null,
   height = '20rem',
   variables = null,
   viewport = 'desktop',
   theme = 'light',
 }) => {
+  const { t } = useTranslation(['config']);
+  const resolvedTitle = title ?? t('config:errorPages.preview.title', 'preview');
   const expandedSource = useMemo(() => {
     if (!variables || Object.keys(variables).length === 0) {
       return source;
@@ -181,7 +184,11 @@ export const ErrorPagePreview = ({
   );
 
   const isEmpty = expandedSource.length === 0 || parsed.body.trim().length === 0;
-  const ctLabel = parsed.contentType || (parsed.hasHeaders ? '(no content-type)' : 'raw body');
+  const ctLabel =
+    parsed.contentType ||
+    (parsed.hasHeaders
+      ? t('config:errorPages.preview.noContentType', '(no content-type)')
+      : t('config:errorPages.preview.rawBody', 'raw body'));
   const bytes = new TextEncoder().encode(parsed.body).length;
   const frameWidth = VIEWPORT_WIDTHS[viewport] ?? VIEWPORT_WIDTHS.desktop;
   const { iframeBackground } = themeStyles(theme);
@@ -195,16 +202,20 @@ export const ErrorPagePreview = ({
           </code>
         ) : (
           <Badge bg="secondary" className="bg-opacity-25 text-body-secondary border">
-            no HTTP headers
+            {t('config:errorPages.preview.noHttpHeaders', 'no HTTP headers')}
           </Badge>
         )}
         <Badge bg="info" className="bg-opacity-25 text-body border">
           {ctLabel}
         </Badge>
-        <span className="text-muted ms-auto text-nowrap">{bytes.toLocaleString()} bytes</span>
+        <span className="text-muted ms-auto text-nowrap">
+          {t('config:errorPages.preview.bytes', '{{count}} bytes', { count: bytes })}
+        </span>
       </div>
       {isEmpty ? (
-        <div className="p-3 small text-muted">(empty)</div>
+        <div className="p-3 small text-muted">
+          {t('config:errorPages.preview.empty', '(empty)')}
+        </div>
       ) : (
         <div
           style={{
@@ -215,7 +226,7 @@ export const ErrorPagePreview = ({
           }}
         >
           <iframe
-            title={title}
+            title={resolvedTitle}
             srcDoc={srcDoc}
             sandbox=""
             style={{

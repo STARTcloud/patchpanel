@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 
+import { StateError } from './errors.js';
 import { log } from './logger.js';
 
 // Process-control strategies. The patchpanel addon runs under s6-overlay in
@@ -86,24 +87,33 @@ const stopViaDirect = async pidPath => {
   const raw = await fs.readFile(pidPath ?? DEFAULT_PID_PATH, 'utf8').catch(() => '');
   const pid = Number.parseInt(raw.trim().split(/\s+/u)[0], 10);
   if (!Number.isInteger(pid) || pid <= 1) {
-    throw new Error(`could not read HAProxy pid from ${pidPath ?? DEFAULT_PID_PATH}`);
+    throw new StateError('haproxy.control.pidUnreadable', {
+      message: `could not read HAProxy pid from ${pidPath ?? DEFAULT_PID_PATH}`,
+      replacements: { path: pidPath ?? DEFAULT_PID_PATH },
+    });
   }
   process.kill(pid, 'SIGTERM');
   return { code: 0, stdout: `SIGTERM sent to pid ${pid}`, stderr: '' };
 };
 
 const startViaDirect = () => {
-  throw new Error(
-    'direct strategy cannot restart HAProxy from scratch — no supervisor configured. ' +
-      'Set HAPROXY_CONTROL_STRATEGY to s6 or systemd, or start HAProxy manually.'
-  );
+  throw new StateError('haproxy.control.directStartUnavailable', {
+    message:
+      'direct strategy cannot restart HAProxy from scratch — no supervisor configured. ' +
+      'Set HAPROXY_CONTROL_STRATEGY to s6 or systemd, or start HAProxy manually.',
+  });
 };
 
 const requireOk = (result, action) => {
   if (result.code !== 0) {
-    throw new Error(
-      `${action} failed (exit ${result.code}): ${(result.stderr || result.stdout).trim()}`
-    );
+    throw new StateError('haproxy.control.commandFailed', {
+      message: `${action} failed (exit ${result.code}): ${(result.stderr || result.stdout).trim()}`,
+      replacements: {
+        action,
+        exit: result.code,
+        output: (result.stderr || result.stdout).trim(),
+      },
+    });
   }
   return result;
 };

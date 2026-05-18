@@ -94,22 +94,26 @@ const validateValue = (leaf, value) => {
 
 export const applyConfigPatch = (raw, patch) => {
   if (!isPlainObject(patch)) {
-    throw new ValidationError('patch must be an object');
+    throw new ValidationError('state.patch.notObject');
   }
   // Deep-clone the raw tree before mutating so a validation failure halfway
   // through doesn't leave the loader's cached tree partially modified.
   const updated = JSON.parse(JSON.stringify(raw));
   for (const [path, value] of Object.entries(patch)) {
     if (typeof path !== 'string' || path.length === 0) {
-      throw new ValidationError(`invalid path: ${String(path)}`);
+      throw new ValidationError('state.patch.invalidPath', {
+        replacements: { path: String(path) },
+      });
     }
     const leaf = findMetadataLeaf(updated, path);
     if (!leaf) {
-      throw new ValidationError(`unknown config path: ${path}`);
+      throw new ValidationError('state.patch.unknownPath', { replacements: { path } });
     }
     const err = validateValue(leaf, value);
     if (err) {
-      throw new ValidationError(`${path}: ${err}`);
+      throw new ValidationError('state.patch.fieldInvalid', {
+        replacements: { path, detail: err },
+      });
     }
     leaf.value = value;
   }

@@ -2,6 +2,7 @@ import { Chart } from '@highcharts/react';
 import PropTypes from 'prop-types';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Card, Col, Row, Spinner, Table } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { apiGet } from '../api/client.js';
@@ -106,23 +107,28 @@ const formatTimestamp = ts => {
 
 const RUNTIME_GROUPS = Object.freeze([
   {
-    label: 'Process',
+    labelKey: 'stats:runtimeGroup.process',
+    labelFallback: 'Process',
     fields: ['Version', 'Pid', 'Nbthread', 'Uptime', 'Node'],
   },
   {
-    label: 'Connections',
+    labelKey: 'stats:runtimeGroup.connections',
+    labelFallback: 'Connections',
     fields: ['CurrConns', 'MaxConn', 'CurrSslConns', 'MaxSslConns', 'Maxpipes', 'PipesUsed'],
   },
   {
-    label: 'Rates',
+    labelKey: 'stats:runtimeGroup.rates',
+    labelFallback: 'Rates',
     fields: ['ConnRate', 'MaxConnRate', 'SessRate', 'MaxSessRate', 'SslRate', 'MaxSslRate'],
   },
   {
-    label: 'Cumulative',
+    labelKey: 'stats:runtimeGroup.cumulative',
+    labelFallback: 'Cumulative',
     fields: ['CumConns', 'CumReq', 'CumSslConns', 'Tasks', 'Run_queue'],
   },
   {
-    label: 'Health',
+    labelKey: 'stats:runtimeGroup.health',
+    labelFallback: 'Health',
     fields: ['Idle_pct', 'Jobs', 'Listeners', 'Stopping', 'Hard_maxconn', 'Maxsock'],
   },
 ]);
@@ -177,6 +183,7 @@ RuntimeFieldGroup.propTypes = {
 };
 
 const RuntimeCard = ({ info }) => {
+  const { t } = useTranslation(['stats']);
   if (!info) {
     return null;
   }
@@ -185,13 +192,13 @@ const RuntimeCard = ({ info }) => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-speedometer2 me-2" />
-          HAProxy runtime
+          {t('stats:runtimeCard.title', 'HAProxy runtime')}
         </Card.Title>
         <Row className="g-2">
           {RUNTIME_GROUPS.map(group => (
             <RuntimeFieldGroup
-              key={group.label}
-              label={group.label}
+              key={group.labelKey}
+              label={t(group.labelKey, group.labelFallback)}
               fields={group.fields}
               info={info}
             />
@@ -207,6 +214,7 @@ RuntimeCard.propTypes = {
 };
 
 const BackendHealthCard = ({ rows }) => {
+  const { t } = useTranslation(['stats']);
   const backends = rows.filter(r => r.svname === 'BACKEND');
   const servers = rows.filter(r => r.svname && r.svname !== 'BACKEND' && r.svname !== 'FRONTEND');
   const bucketize = list => {
@@ -230,20 +238,32 @@ const BackendHealthCard = ({ rows }) => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-heart-pulse me-2" />
-          Backend health
+          {t('stats:health.title', 'Backend health')}
         </Card.Title>
         <div className="d-flex flex-column gap-2 small">
           <div className="d-flex flex-wrap align-items-center gap-1">
-            <strong>Backends:</strong>
-            <Badge bg="success">{beBuckets.up} UP</Badge>
-            <Badge bg="danger">{beBuckets.down} DOWN</Badge>
-            <Badge bg="secondary">{beBuckets.other} other</Badge>
+            <strong>{t('stats:health.backends', 'Backends:')}</strong>
+            <Badge bg="success">
+              {t('stats:health.upCount', '{{count}} UP', { count: beBuckets.up })}
+            </Badge>
+            <Badge bg="danger">
+              {t('stats:health.downCount', '{{count}} DOWN', { count: beBuckets.down })}
+            </Badge>
+            <Badge bg="secondary">
+              {t('stats:health.otherCount', '{{count}} other', { count: beBuckets.other })}
+            </Badge>
           </div>
           <div className="d-flex flex-wrap align-items-center gap-1">
-            <strong>Servers:</strong>
-            <Badge bg="success">{svBuckets.up} UP</Badge>
-            <Badge bg="danger">{svBuckets.down} DOWN</Badge>
-            <Badge bg="secondary">{svBuckets.other} other</Badge>
+            <strong>{t('stats:health.servers', 'Servers:')}</strong>
+            <Badge bg="success">
+              {t('stats:health.upCount', '{{count}} UP', { count: svBuckets.up })}
+            </Badge>
+            <Badge bg="danger">
+              {t('stats:health.downCount', '{{count}} DOWN', { count: svBuckets.down })}
+            </Badge>
+            <Badge bg="secondary">
+              {t('stats:health.otherCount', '{{count}} other', { count: svBuckets.other })}
+            </Badge>
           </div>
         </div>
       </Card.Body>
@@ -280,22 +300,33 @@ ActionButton.propTypes = {
   title: PropTypes.string,
 };
 
-const QUICK_ACTION_MESSAGES = Object.freeze({
-  reload: () => 'HAProxy reloaded.',
-  stop: () => 'HAProxy stopped.',
-  start: () => 'HAProxy started.',
-  renew: result => `Renewal completed (loadable: ${result.loadableCertCount}).`,
-});
+const buildQuickActionMessage = (t, lastResult) => {
+  switch (lastResult?.kind) {
+    case 'reload':
+      return t('stats:quickActions.reloaded', 'HAProxy reloaded.');
+    case 'stop':
+      return t('stats:quickActions.stopped', 'HAProxy stopped.');
+    case 'start':
+      return t('stats:quickActions.started', 'HAProxy started.');
+    case 'renew':
+      return t('stats:quickActions.renewalCompleted', 'Renewal completed (loadable: {{count}}).', {
+        count: lastResult.loadableCertCount,
+      });
+    default:
+      return null;
+  }
+};
 
 const QuickActionResultBanner = ({ lastResult, error }) => {
+  const { t } = useTranslation(['stats']);
   if (error) {
     return <p className="text-danger small mt-2 mb-0">{error.message}</p>;
   }
-  const renderer = lastResult ? QUICK_ACTION_MESSAGES[lastResult.kind] : null;
-  if (!renderer) {
+  const message = buildQuickActionMessage(t, lastResult);
+  if (!message) {
     return null;
   }
-  return <p className="text-success small mt-2 mb-0">{renderer(lastResult)}</p>;
+  return <p className="text-success small mt-2 mb-0">{message}</p>;
 };
 
 QuickActionResultBanner.propTypes = {
@@ -306,22 +337,8 @@ QuickActionResultBanner.propTypes = {
   error: PropTypes.shape({ message: PropTypes.string }),
 };
 
-const STOP_CONFIRM_BODY = strategy => (
-  <>
-    <p className="mb-2">
-      This will <strong>stop the HAProxy process</strong>. All proxied connections will be dropped
-      immediately and the proxy will be unreachable until you start it again.
-    </p>
-    <p className="mb-0 small text-muted">
-      Strategy: <code>{strategy ?? 'unknown'}</code>.{' '}
-      {strategy === 'direct'
-        ? 'Direct mode has no supervisor — patchpanel cannot restart HAProxy from the UI.'
-        : 'Restart available via the Start button.'}
-    </p>
-  </>
-);
-
 const QuickActionsCard = () => {
+  const { t } = useTranslation(['stats', 'common']);
   const actions = useActions();
   const { alive, strategy, refresh } = useHaproxyLive();
   const { confirm, ConfirmationDialog } = useConfirmation();
@@ -330,12 +347,35 @@ const QuickActionsCard = () => {
   const isStopped = alive === false;
   const directStart = strategy === 'direct';
 
+  const stopBody = (
+    <>
+      <p className="mb-2">
+        {t('stats:quickActions.stopBody1Prefix', 'This will')}{' '}
+        <strong>{t('stats:quickActions.stopProcess', 'stop the HAProxy process')}</strong>.{' '}
+        {t(
+          'stats:quickActions.stopBody1Suffix',
+          'All proxied connections will be dropped immediately and the proxy will be unreachable until you start it again.'
+        )}
+      </p>
+      <p className="mb-0 small text-muted">
+        {t('stats:quickActions.strategyLabel', 'Strategy:')}{' '}
+        <code>{strategy ?? t('stats:quickActions.unknown', 'unknown')}</code>.{' '}
+        {strategy === 'direct'
+          ? t(
+              'stats:quickActions.directMode',
+              'Direct mode has no supervisor — patchpanel cannot restart HAProxy from the UI.'
+            )
+          : t('stats:quickActions.restartHint', 'Restart available via the Start button.')}
+      </p>
+    </>
+  );
+
   const wrap = promise => promise.catch(() => undefined).finally(refresh);
   const handleStop = async () => {
     const ok = await confirm({
-      title: 'Stop HAProxy?',
-      body: STOP_CONFIRM_BODY(strategy),
-      confirmLabel: 'Stop HAProxy',
+      title: t('stats:quickActions.stopTitle', 'Stop HAProxy?'),
+      body: stopBody,
+      confirmLabel: t('stats:quickActions.stopHaproxy', 'Stop HAProxy'),
       confirmVariant: 'danger',
     });
     if (ok) {
@@ -346,17 +386,29 @@ const QuickActionsCard = () => {
   const handleReload = () => wrap(actions.reloadHaproxy());
   const handleRenew = () => actions.renewCerts({ force: false }).catch(() => undefined);
 
-  const statusTitle =
-    alive === null
-      ? 'Checking HAProxy status…'
-      : `HAProxy ${alive ? 'running' : 'stopped'}${strategy ? ` · strategy: ${strategy}` : ''}`;
+  let statusTitle;
+  if (alive === null) {
+    statusTitle = t('stats:quickActions.checkingStatus', 'Checking HAProxy status…');
+  } else {
+    const stateLabel = alive
+      ? t('stats:quickActions.running', 'running')
+      : t('stats:quickActions.stopped', 'stopped');
+    statusTitle = t('stats:quickActions.haproxyStatus', 'HAProxy {{state}}', {
+      state: stateLabel,
+    });
+    if (strategy) {
+      statusTitle += t('stats:quickActions.strategySuffix', ' · strategy: {{strategy}}', {
+        strategy,
+      });
+    }
+  }
 
   return (
     <Card className="h-100">
       <Card.Body>
         <Card.Title className="mb-2 d-flex align-items-center gap-2">
           <i className="bi bi-tools" />
-          <span>Quick actions</span>
+          <span>{t('stats:quickActions.title', 'Quick actions')}</span>
           <span className="ms-1 small">
             <HaproxyStatusBadge alive={alive} title={statusTitle} />
           </span>
@@ -365,41 +417,44 @@ const QuickActionsCard = () => {
           <ActionButton
             variant="secondary"
             busy={actions.busy === 'reload'}
-            busyLabel="Reloading…"
+            busyLabel={t('stats:quickActions.reloading', 'Reloading…')}
             icon="arrow-clockwise"
-            label="Reload HAProxy"
+            label={t('stats:quickActions.reloadHaproxy', 'Reload HAProxy')}
             onClick={handleReload}
             disabled={isBusy || !isRunning}
           />
           <ActionButton
             variant="danger"
             busy={actions.busy === 'stop'}
-            busyLabel="Stopping…"
+            busyLabel={t('stats:quickActions.stopping', 'Stopping…')}
             icon="stop-circle"
-            label="Stop HAProxy"
+            label={t('stats:quickActions.stopHaproxy', 'Stop HAProxy')}
             onClick={handleStop}
             disabled={isBusy || !isRunning}
           />
           <ActionButton
             variant="success"
             busy={actions.busy === 'start'}
-            busyLabel="Starting…"
+            busyLabel={t('stats:quickActions.starting', 'Starting…')}
             icon="play-circle"
-            label="Start HAProxy"
+            label={t('stats:quickActions.startHaproxy', 'Start HAProxy')}
             onClick={handleStart}
             disabled={isBusy || !isStopped || directStart}
             title={
               directStart
-                ? 'Direct strategy cannot start HAProxy — no supervisor configured.'
+                ? t(
+                    'stats:quickActions.directStartDisabled',
+                    'Direct strategy cannot start HAProxy — no supervisor configured.'
+                  )
                 : undefined
             }
           />
           <ActionButton
             variant="primary"
             busy={actions.busy === 'renew'}
-            busyLabel="Renewing…"
+            busyLabel={t('stats:quickActions.renewing', 'Renewing…')}
             icon="shield-lock"
-            label="Renew all certs"
+            label={t('stats:quickActions.renewAll', 'Renew all certs')}
             onClick={handleRenew}
             disabled={isBusy}
           />
@@ -412,6 +467,7 @@ const QuickActionsCard = () => {
 };
 
 const PerFrontendTrafficCard = ({ name, theme }) => {
+  const { t } = useTranslation(['stats']);
   const stats = useStatsHistory();
   const history = stats.history?.[`${name}/FRONTEND`] ?? [];
   return (
@@ -423,7 +479,7 @@ const PerFrontendTrafficCard = ({ name, theme }) => {
         </Card.Title>
         <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
           {history.length < 2 ? (
-            <p className="text-muted small mb-0">Sampling… (5s ticks)</p>
+            <p className="text-muted small mb-0">{t('stats:sampling', 'Sampling… (5s ticks)')}</p>
           ) : (
             <TrafficChart title="" history={history} theme={theme} />
           )}
@@ -439,6 +495,7 @@ PerFrontendTrafficCard.propTypes = {
 };
 
 const RecentActivity = () => {
+  const { t } = useTranslation(['stats']);
   const [entries, setEntries] = useState([]);
   useEffect(() => {
     let active = true;
@@ -462,10 +519,12 @@ const RecentActivity = () => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-journal-text me-2" />
-          Recent activity
+          {t('stats:recentActivity.title', 'Recent activity')}
         </Card.Title>
         {entries.length === 0 ? (
-          <p className="text-muted small mb-0">No audit entries yet.</p>
+          <p className="text-muted small mb-0">
+            {t('stats:recentActivity.empty', 'No audit entries yet.')}
+          </p>
         ) : (
           <Table size="sm" responsive>
             <tbody>
@@ -497,6 +556,7 @@ const RecentActivity = () => {
 };
 
 const CertStatusCard = () => {
+  const { t } = useTranslation(['stats']);
   const [data, setData] = useState(null);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -528,10 +588,12 @@ const CertStatusCard = () => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-shield-lock me-2" />
-          Certificate status
+          {t('stats:certStatus.title', 'Certificate status')}
         </Card.Title>
         {data.certs.length === 0 ? (
-          <p className="text-muted small mb-0">No certificates configured.</p>
+          <p className="text-muted small mb-0">
+            {t('stats:certStatus.empty', 'No certificates configured.')}
+          </p>
         ) : (
           <Table size="sm" responsive>
             <tbody>
@@ -541,11 +603,11 @@ const CertStatusCard = () => {
                   ? Math.round((new Date(newest.notAfter).getTime() - now) / (24 * 60 * 60 * 1000))
                   : null;
                 let variant = 'secondary';
-                let label = 'missing';
+                let label = t('stats:certStatus.missing', 'missing');
                 if (days !== null) {
                   if (days < 0) {
                     variant = 'danger';
-                    label = 'expired';
+                    label = t('stats:certStatus.expired', 'expired');
                   } else if (days < 14) {
                     variant = 'warning';
                     label = `${days}d`;
@@ -573,25 +635,33 @@ const CertStatusCard = () => {
   );
 };
 
-const StatsSocketUnavailable = ({ message = null }) => (
-  <Card>
-    <Card.Body>
-      <Card.Title className="d-flex align-items-center gap-2">
-        <i className="bi bi-plug-fill text-warning" />
-        HAProxy stats socket unavailable
-      </Card.Title>
-      <p className="text-muted small mb-0">
-        {message ?? 'HAProxy may not be running yet, or the runtime socket is unreachable.'}
-      </p>
-    </Card.Body>
-  </Card>
-);
+const StatsSocketUnavailable = ({ message = null }) => {
+  const { t } = useTranslation(['stats']);
+  return (
+    <Card>
+      <Card.Body>
+        <Card.Title className="d-flex align-items-center gap-2">
+          <i className="bi bi-plug-fill text-warning" />
+          {t('stats:socket.unavailable', 'HAProxy stats socket unavailable')}
+        </Card.Title>
+        <p className="text-muted small mb-0">
+          {message ??
+            t(
+              'stats:socket.fallbackMessage',
+              'HAProxy may not be running yet, or the runtime socket is unreachable.'
+            )}
+        </p>
+      </Card.Body>
+    </Card>
+  );
+};
 
 StatsSocketUnavailable.propTypes = {
   message: PropTypes.string,
 };
 
 const SlowestBackendsCard = () => {
+  const { t } = useTranslation(['stats']);
   const [rows, setRows] = useState([]);
   useEffect(() => {
     let active = true;
@@ -615,23 +685,28 @@ const SlowestBackendsCard = () => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-stopwatch me-2" />
-          Slowest backends
+          {t('stats:slowest.title', 'Slowest backends')}
         </Card.Title>
         <Card.Text className="text-muted small mb-2">
-          Sorted by HAProxy <code>rtime</code> (average response time over the last 1024 requests
-          per backend).
+          {t('stats:slowest.sortedPrefix', 'Sorted by HAProxy')} <code>rtime</code>{' '}
+          {t(
+            'stats:slowest.sortedSuffix',
+            '(average response time over the last 1024 requests per backend).'
+          )}
         </Card.Text>
         {rows.length === 0 ? (
-          <p className="text-muted small mb-0">No backends with recorded response times.</p>
+          <p className="text-muted small mb-0">
+            {t('stats:slowest.empty', 'No backends with recorded response times.')}
+          </p>
         ) : (
           <Table size="sm" responsive>
             <thead>
               <tr>
-                <th>Backend</th>
-                <th className="text-end">rtime</th>
-                <th className="text-end">rtime-max</th>
-                <th className="text-end">qtime</th>
-                <th className="text-end">scur</th>
+                <th>{t('stats:slowest.col.backend', 'Backend')}</th>
+                <th className="text-end">{t('stats:slowest.col.rtime', 'rtime')}</th>
+                <th className="text-end">{t('stats:slowest.col.rtimeMax', 'rtime-max')}</th>
+                <th className="text-end">{t('stats:slowest.col.qtime', 'qtime')}</th>
+                <th className="text-end">{t('stats:slowest.col.scur', 'scur')}</th>
               </tr>
             </thead>
             <tbody>
@@ -664,6 +739,7 @@ const HTTP_CODE_COLORS = Object.freeze({
 });
 
 const HttpCodePieCard = ({ theme }) => {
+  const { t } = useTranslation(['stats']);
   const [totals, setTotals] = useState(null);
   useEffect(() => {
     let active = true;
@@ -692,9 +768,11 @@ const HttpCodePieCard = ({ theme }) => {
         <Card.Body>
           <Card.Title className="mb-2">
             <i className="bi bi-pie-chart me-2" />
-            HTTP status codes
+            {t('stats:httpCodes.title', 'HTTP status codes')}
           </Card.Title>
-          <p className="text-muted small mb-0">No traffic in the sampled window yet.</p>
+          <p className="text-muted small mb-0">
+            {t('stats:httpCodes.noTraffic', 'No traffic in the sampled window yet.')}
+          </p>
         </Card.Body>
       </Card>
     );
@@ -702,7 +780,7 @@ const HttpCodePieCard = ({ theme }) => {
   const data = Object.entries(totals)
     .filter(([, v]) => v > 0)
     .map(([name, y]) => ({ name, y, color: HTTP_CODE_COLORS[name] }));
-  const base = createChartOptions({ title: '', height: '100%', theme, series: [] });
+  const base = createChartOptions({ title: '', theme, series: [] });
   const options = {
     ...base,
     chart: { ...base.chart, type: 'pie' },
@@ -712,7 +790,7 @@ const HttpCodePieCard = ({ theme }) => {
         dataLabels: { enabled: true, format: '{point.name}: {point.y}' },
       },
     },
-    series: [{ name: 'responses', data }],
+    series: [{ name: t('stats:httpCodes.seriesName', 'responses'), data }],
     legend: { enabled: false },
   };
   return (
@@ -720,10 +798,13 @@ const HttpCodePieCard = ({ theme }) => {
       <Card.Body className="d-flex flex-column" style={{ minHeight: 0 }}>
         <Card.Title className="mb-2">
           <i className="bi bi-pie-chart me-2" />
-          HTTP status codes
+          {t('stats:httpCodes.title', 'HTTP status codes')}
         </Card.Title>
         <Card.Text className="text-muted small mb-2 flex-shrink-0">
-          Distribution across all frontends in the last hour (delta-based).
+          {t(
+            'stats:httpCodes.distribution',
+            'Distribution across all frontends in the last hour (delta-based).'
+          )}
         </Card.Text>
         <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
           <Chart options={options} containerProps={{ style: { width: '100%', height: '100%' } }} />
@@ -745,8 +826,10 @@ HttpCodePieCard.propTypes = {
 const PANEL_DEFS = Object.freeze([
   {
     id: 'kpi-routes',
-    title: 'Routes',
-    subtitle: 'Total routes (click for full table).',
+    titleKey: 'stats:panels.kpiRoutes.title',
+    titleFallback: 'Routes',
+    subtitleKey: 'stats:panels.kpiRoutes.subtitle',
+    subtitleFallback: 'Total routes (click for full table).',
     defaultWidth: 3,
     defaultHeight: 1,
     defaultAutoHeight: true,
@@ -758,8 +841,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'kpi-backends',
-    title: 'Backends',
-    subtitle: 'Total backends (click for full table).',
+    titleKey: 'stats:panels.kpiBackends.title',
+    titleFallback: 'Backends',
+    subtitleKey: 'stats:panels.kpiBackends.subtitle',
+    subtitleFallback: 'Total backends (click for full table).',
     defaultWidth: 3,
     defaultHeight: 1,
     defaultAutoHeight: true,
@@ -771,8 +856,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'kpi-certs',
-    title: 'Certificates',
-    subtitle: 'Total certs (click for full table).',
+    titleKey: 'stats:panels.kpiCerts.title',
+    titleFallback: 'Certificates',
+    subtitleKey: 'stats:panels.kpiCerts.subtitle',
+    subtitleFallback: 'Total certs (click for full table).',
     defaultWidth: 3,
     defaultHeight: 1,
     defaultAutoHeight: true,
@@ -784,8 +871,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'kpi-providers',
-    title: 'TLS Providers',
-    subtitle: 'Total providers (click for full table).',
+    titleKey: 'stats:panels.kpiProviders.title',
+    titleFallback: 'TLS Providers',
+    subtitleKey: 'stats:panels.kpiProviders.subtitle',
+    subtitleFallback: 'Total providers (click for full table).',
     defaultWidth: 3,
     defaultHeight: 1,
     defaultAutoHeight: true,
@@ -797,8 +886,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'live-totals',
-    title: 'Live totals',
-    subtitle: 'Request rate · Bandwidth · Sessions · CPU idle (always-live).',
+    titleKey: 'stats:panels.liveTotals.title',
+    titleFallback: 'Live totals',
+    subtitleKey: 'stats:panels.liveTotals.subtitle',
+    subtitleFallback: 'Request rate · Bandwidth · Sessions · CPU idle (always-live).',
     defaultWidth: 12,
     defaultHeight: 1,
     defaultAutoHeight: true,
@@ -810,8 +901,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'alerts',
-    title: 'Active alerts',
-    subtitle: 'Backends down, certs expiring, uncovered routes.',
+    titleKey: 'stats:panels.alerts.title',
+    titleFallback: 'Active alerts',
+    subtitleKey: 'stats:panels.alerts.subtitle',
+    subtitleFallback: 'Backends down, certs expiring, uncovered routes.',
     defaultWidth: 6,
     defaultHeight: 2,
     defaultAutoHeight: true,
@@ -823,8 +916,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'live-rate',
-    title: 'Live request rate',
-    subtitle: 'req/s aggregated across all frontends + sparkline.',
+    titleKey: 'stats:panels.liveRate.title',
+    titleFallback: 'Live request rate',
+    subtitleKey: 'stats:panels.liveRate.subtitle',
+    subtitleFallback: 'req/s aggregated across all frontends + sparkline.',
     defaultWidth: 3,
     defaultHeight: 2,
     defaultAutoHeight: true,
@@ -836,8 +931,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'error-rate',
-    title: 'Error rate',
-    subtitle: '4xx + 5xx % over the sampled hour.',
+    titleKey: 'stats:panels.errorRate.title',
+    titleFallback: 'Error rate',
+    subtitleKey: 'stats:panels.errorRate.subtitle',
+    subtitleFallback: '4xx + 5xx % over the sampled hour.',
     defaultWidth: 3,
     defaultHeight: 1,
     defaultAutoHeight: true,
@@ -849,8 +946,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'connection-pool',
-    title: 'Connection pool',
-    subtitle: 'Current sessions vs MaxConn ceiling.',
+    titleKey: 'stats:panels.connectionPool.title',
+    titleFallback: 'Connection pool',
+    subtitleKey: 'stats:panels.connectionPool.subtitle',
+    subtitleFallback: 'Current sessions vs MaxConn ceiling.',
     defaultWidth: 4,
     defaultHeight: 1,
     defaultAutoHeight: true,
@@ -862,8 +961,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'runtime',
-    title: 'HAProxy runtime',
-    subtitle: 'Process / Connections / Rates / Cumulative / Health.',
+    titleKey: 'stats:panels.runtime.title',
+    titleFallback: 'HAProxy runtime',
+    subtitleKey: 'stats:panels.runtime.subtitle',
+    subtitleFallback: 'Process / Connections / Rates / Cumulative / Health.',
     defaultWidth: 8,
     defaultHeight: 3,
     defaultAutoHeight: true,
@@ -875,8 +976,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'health',
-    title: 'Backend health',
-    subtitle: 'UP / DOWN / other counts per backend + per server.',
+    titleKey: 'stats:panels.health.title',
+    titleFallback: 'Backend health',
+    subtitleKey: 'stats:panels.health.subtitle',
+    subtitleFallback: 'UP / DOWN / other counts per backend + per server.',
     defaultWidth: 4,
     defaultHeight: 1,
     defaultAutoHeight: true,
@@ -888,8 +991,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'tls-coverage',
-    title: 'TLS coverage',
-    subtitle: 'Routes by cert status — valid / expiring / expired / missing.',
+    titleKey: 'stats:panels.tlsCoverage.title',
+    titleFallback: 'TLS coverage',
+    subtitleKey: 'stats:panels.tlsCoverage.subtitle',
+    subtitleFallback: 'Routes by cert status — valid / expiring / expired / missing.',
     defaultWidth: 4,
     defaultHeight: 2,
     defaultAutoHeight: true,
@@ -901,8 +1006,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'top-hosts',
-    title: 'Top hosts',
-    subtitle: 'Busiest 10 routes by request rate.',
+    titleKey: 'stats:panels.topHosts.title',
+    titleFallback: 'Top hosts',
+    subtitleKey: 'stats:panels.topHosts.subtitle',
+    subtitleFallback: 'Busiest 10 routes by request rate.',
     defaultWidth: 6,
     defaultHeight: 3,
     defaultAutoHeight: true,
@@ -914,8 +1021,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'geo-origins',
-    title: 'Top countries',
-    subtitle: 'Client request origins by country (requires GeoIP).',
+    titleKey: 'stats:panels.geoOrigins.title',
+    titleFallback: 'Top countries',
+    subtitleKey: 'stats:panels.geoOrigins.subtitle',
+    subtitleFallback: 'Client request origins by country (requires GeoIP).',
     defaultWidth: 6,
     defaultHeight: 3,
     defaultAutoHeight: true,
@@ -927,8 +1036,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'origin-map',
-    title: 'Origin map',
-    subtitle: 'World choropleth shaded by client session count (requires GeoIP).',
+    titleKey: 'stats:panels.originMap.title',
+    titleFallback: 'Origin map',
+    subtitleKey: 'stats:panels.originMap.subtitle',
+    subtitleFallback: 'World choropleth shaded by client session count (requires GeoIP).',
     defaultWidth: 6,
     defaultHeight: 4,
     defaultAutoHeight: true,
@@ -940,8 +1051,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'top-clients',
-    title: 'Top clients',
-    subtitle: 'Per-IP breakdown with country / location (requires GeoIP for enrichment).',
+    titleKey: 'stats:panels.topClients.title',
+    titleFallback: 'Top clients',
+    subtitleKey: 'stats:panels.topClients.subtitle',
+    subtitleFallback: 'Per-IP breakdown with country / location (requires GeoIP for enrichment).',
     defaultWidth: 6,
     defaultHeight: 3,
     defaultAutoHeight: true,
@@ -953,8 +1066,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'snapshot-timeline',
-    title: 'Snapshot timeline',
-    subtitle: 'Last 8 state snapshots with relative timestamps.',
+    titleKey: 'stats:panels.snapshotTimeline.title',
+    titleFallback: 'Snapshot timeline',
+    subtitleKey: 'stats:panels.snapshotTimeline.subtitle',
+    subtitleFallback: 'Last 8 state snapshots with relative timestamps.',
     defaultWidth: 6,
     defaultHeight: 3,
     defaultAutoHeight: true,
@@ -966,8 +1081,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'slowest',
-    title: 'Slowest backends',
-    subtitle: 'Top 5 by rtime average.',
+    titleKey: 'stats:panels.slowest.title',
+    titleFallback: 'Slowest backends',
+    subtitleKey: 'stats:panels.slowest.subtitle',
+    subtitleFallback: 'Top 5 by rtime average.',
     defaultWidth: 6,
     defaultHeight: 2,
     defaultAutoHeight: true,
@@ -979,8 +1096,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'httpcodes',
-    title: 'HTTP status codes',
-    subtitle: 'Donut chart of the sampled hour.',
+    titleKey: 'stats:panels.httpcodes.title',
+    titleFallback: 'HTTP status codes',
+    subtitleKey: 'stats:panels.httpcodes.subtitle',
+    subtitleFallback: 'Donut chart of the sampled hour.',
     defaultWidth: 4,
     defaultHeight: 3,
     defaultAutoHeight: true,
@@ -992,8 +1111,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'actions',
-    title: 'Quick actions',
-    subtitle: 'Reload HAProxy + Renew all certs.',
+    titleKey: 'stats:panels.actions.title',
+    titleFallback: 'Quick actions',
+    subtitleKey: 'stats:panels.actions.subtitle',
+    subtitleFallback: 'Reload HAProxy + Renew all certs.',
     defaultWidth: 4,
     defaultHeight: 1,
     defaultAutoHeight: true,
@@ -1005,8 +1126,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'certs',
-    title: 'Certificate status',
-    subtitle: 'Per-cert remaining lifetime badges.',
+    titleKey: 'stats:panels.certs.title',
+    titleFallback: 'Certificate status',
+    subtitleKey: 'stats:panels.certs.subtitle',
+    subtitleFallback: 'Per-cert remaining lifetime badges.',
     defaultWidth: 6,
     defaultHeight: 2,
     defaultAutoHeight: true,
@@ -1018,8 +1141,10 @@ const PANEL_DEFS = Object.freeze([
   },
   {
     id: 'activity',
-    title: 'Recent activity',
-    subtitle: 'Last 10 audit entries.',
+    titleKey: 'stats:panels.activity.title',
+    titleFallback: 'Recent activity',
+    subtitleKey: 'stats:panels.activity.subtitle',
+    subtitleFallback: 'Last 10 audit entries.',
     defaultWidth: 12,
     defaultHeight: 3,
     defaultAutoHeight: true,
@@ -1031,7 +1156,10 @@ const PANEL_DEFS = Object.freeze([
   },
 ]);
 
-const computeRoutesBadge = (doc, rows) => {
+const resolvePanelTitle = (panel, t) =>
+  panel.titleKey ? t(panel.titleKey, panel.titleFallback) : (panel.title ?? panel.id);
+
+const computeRoutesBadge = (doc, rows, t) => {
   if (!rows || rows.length === 0) {
     return null;
   }
@@ -1039,12 +1167,19 @@ const computeRoutesBadge = (doc, rows) => {
     row => row.enabled && findCoveringCertsForRoute(doc.tls.certs ?? [], row).length === 0
   );
   if (uncovered.length > 0) {
-    return { label: `${uncovered.length} no cert`, variant: 'warning', text: 'dark' };
+    return {
+      label: t('stats:kpi.noCert', '{{count}} no cert', { count: uncovered.length }),
+      variant: 'warning',
+      text: 'dark',
+    };
   }
-  return { label: 'all covered', variant: 'success' };
+  return {
+    label: t('stats:kpi.allCovered', 'all covered'),
+    variant: 'success',
+  };
 };
 
-const computeBackendsBadge = rows => {
+const computeBackendsBadge = (rows, t) => {
   if (!rows || rows.length === 0) {
     return null;
   }
@@ -1052,10 +1187,16 @@ const computeBackendsBadge = rows => {
   const up = backends.filter(r => r.status?.startsWith('UP')).length;
   const down = backends.filter(r => r.status?.startsWith('DOWN')).length;
   if (down > 0) {
-    return { label: `${down} DOWN`, variant: 'danger' };
+    return {
+      label: t('stats:kpi.downCount', '{{count}} DOWN', { count: down }),
+      variant: 'danger',
+    };
   }
   if (up > 0) {
-    return { label: `${up} UP`, variant: 'success' };
+    return {
+      label: t('stats:kpi.upCount', '{{count}} UP', { count: up }),
+      variant: 'success',
+    };
   }
   return null;
 };
@@ -1082,7 +1223,7 @@ const useCertSummary = () => {
   return data;
 };
 
-const computeCertsBadge = liveCerts => {
+const computeCertsBadge = (liveCerts, t) => {
   if (!liveCerts?.certs) {
     return null;
   }
@@ -1103,71 +1244,81 @@ const computeCertsBadge = liveCerts => {
     }
   }
   if (expired > 0) {
-    return { label: `${expired} expired`, variant: 'danger' };
+    return {
+      label: t('stats:kpi.expiredCount', '{{count}} expired', { count: expired }),
+      variant: 'danger',
+    };
   }
   if (expiring > 0) {
-    return { label: `${expiring} expiring`, variant: 'warning', text: 'dark' };
+    return {
+      label: t('stats:kpi.expiringCount', '{{count}} expiring', { count: expiring }),
+      variant: 'warning',
+      text: 'dark',
+    };
   }
   if (liveCerts.certs.length > 0) {
-    return { label: 'all valid', variant: 'success' };
+    return { label: t('stats:kpi.allValid', 'all valid'), variant: 'success' };
   }
   return null;
 };
 
-const computeProvidersBadge = doc => {
+const computeProvidersBadge = (doc, t) => {
   if (!doc?.tls?.providers?.length) {
     return null;
   }
   const usedIds = new Set(doc.tls.certs.map(c => c.providerId));
   const unused = doc.tls.providers.filter(p => !usedIds.has(p.id)).length;
   if (unused > 0) {
-    return { label: `${unused} unused`, variant: 'secondary' };
+    return {
+      label: t('stats:kpi.unusedCount', '{{count}} unused', { count: unused }),
+      variant: 'secondary',
+    };
   }
   return null;
 };
 
-const renderKpiPanel = (id, ctx, doc) => {
+const renderKpiPanel = (id, ctx, doc, t) => {
   switch (id) {
     case 'kpi-routes': {
       const routeRows = ctx.routeRows ?? [];
       return (
         <Tile
-          title="Routes"
+          title={t('stats:kpi.routes', 'Routes')}
           value={routeRows.length}
           icon="signpost-2"
           variant="info"
-          statusBadge={computeRoutesBadge(doc, routeRows)}
+          statusBadge={computeRoutesBadge(doc, routeRows, t)}
         />
       );
     }
     case 'kpi-backends':
       return (
         <Tile
-          title="Backends"
+          title={t('stats:kpi.backends', 'Backends')}
           value={doc.backends.length}
           icon="hdd-network"
           variant="info"
-          statusBadge={ctx.statsReady ? computeBackendsBadge(ctx.rows) : null}
+          statusBadge={ctx.statsReady ? computeBackendsBadge(ctx.rows, t) : null}
         />
       );
     case 'kpi-certs':
       return (
         <Tile
-          title="Certificates"
+          title={t('stats:kpi.certificates', 'Certificates')}
           value={doc.tls.certs.length}
           icon="shield-lock"
           variant="info"
-          statusBadge={computeCertsBadge(ctx.liveCerts)}
+          statusBadge={computeCertsBadge(ctx.liveCerts, t)}
         />
       );
     case 'kpi-providers':
       return (
         <Tile
-          title="TLS Providers"
+          title={t('stats:kpi.tlsProviders', 'TLS Providers')}
           value={doc.tls.providers.length}
           icon="plug"
           variant="info"
-          statusBadge={computeProvidersBadge(doc)}
+          statusBadge={computeProvidersBadge(doc, t)}
         />
       );
     default:
@@ -1196,9 +1347,9 @@ const PANEL_RENDERERS = Object.freeze({
   activity: () => <RecentActivity />,
 });
 
-const renderPanel = (id, ctx, doc) => {
+const renderPanel = (id, ctx, doc, t) => {
   if (id.startsWith('kpi-')) {
-    return renderKpiPanel(id, ctx, doc);
+    return renderKpiPanel(id, ctx, doc, t);
   }
   if (id.startsWith('traffic:')) {
     return <PerFrontendTrafficCard name={id.slice('traffic:'.length)} theme={ctx.theme} />;
@@ -1207,10 +1358,16 @@ const renderPanel = (id, ctx, doc) => {
   return renderer ? renderer({ ctx, doc }) : null;
 };
 
-const buildTrafficPanelDef = name => ({
+const buildTrafficPanelDef = (name, t) => ({
   id: `traffic:${name}`,
-  title: `Frontend traffic — ${name}`,
-  subtitle: `Live in/out bandwidth for frontend ${name}.`,
+  title: t
+    ? t('stats:panels.frontendTraffic.title', 'Frontend traffic — {{name}}', { name })
+    : `Frontend traffic — ${name}`,
+  subtitle: t
+    ? t('stats:panels.frontendTraffic.subtitle', 'Live in/out bandwidth for frontend {{name}}.', {
+        name,
+      })
+    : `Live in/out bandwidth for frontend ${name}.`,
   defaultWidth: 6,
   defaultHeight: 3,
   defaultAutoHeight: true,
@@ -1256,6 +1413,7 @@ const PanelChrome = ({
   onHide,
   children,
 }) => {
+  const { t } = useTranslation(['stats']);
   const [showLayout, setShowLayout] = useState(false);
   const isDragOver = dragState.overId === panelId && dragState.sourceId !== panelId;
   const isSource = dragState.sourceId === panelId;
@@ -1296,7 +1454,7 @@ const PanelChrome = ({
             to={panelLink}
             variant="outline-secondary"
             size="sm"
-            title={`Open ${panelTitle} page`}
+            title={t('stats:panel.openPage', 'Open {{title}} page', { title: panelTitle })}
             style={{ padding: '0.1rem 0.35rem', fontSize: '0.7rem', lineHeight: 1 }}
           >
             <i className="bi bi-box-arrow-up-right" />
@@ -1305,7 +1463,7 @@ const PanelChrome = ({
         <Button
           variant="outline-secondary"
           size="sm"
-          title="Configure layout"
+          title={t('stats:panel.configureLayout', 'Configure layout')}
           onClick={() => setShowLayout(true)}
           style={{ padding: '0.1rem 0.35rem', fontSize: '0.7rem', lineHeight: 1 }}
         >
@@ -1315,7 +1473,7 @@ const PanelChrome = ({
           variant="outline-secondary"
           size="sm"
           onClick={() => onExpand(panelId)}
-          title="Expand to full-screen"
+          title={t('stats:panel.expandFullscreen', 'Expand to full-screen')}
           style={{ padding: '0.1rem 0.35rem', fontSize: '0.7rem', lineHeight: 1 }}
         >
           <i className="bi bi-arrows-fullscreen" />
@@ -1326,7 +1484,7 @@ const PanelChrome = ({
           draggable
           onDragStart={e => onDragStart(e, panelId)}
           onDragEnd={onDragEnd}
-          title="Drag to reorder"
+          title={t('stats:panel.dragReorder', 'Drag to reorder')}
           style={{
             padding: '0.1rem 0.35rem',
             fontSize: '0.7rem',
@@ -1432,6 +1590,7 @@ const useDashboardDrag = onMoveTo => {
 };
 
 export const DashboardPage = ({ doc = null, theme = 'light' }) => {
+  const { t } = useTranslation(['stats', 'common']);
   const { info, rows, error } = useHaproxyLive();
   const stats = useStatsHistory();
   const liveCerts = useCertSummary();
@@ -1452,8 +1611,8 @@ export const DashboardPage = ({ doc = null, theme = 'light' }) => {
   );
 
   const allPanelDefs = useMemo(
-    () => [...PANEL_DEFS, ...knownFrontendNames.map(buildTrafficPanelDef)],
-    [knownFrontendNames]
+    () => [...PANEL_DEFS, ...knownFrontendNames.map(name => buildTrafficPanelDef(name, t))],
+    [knownFrontendNames, t]
   );
   const allPanelIds = useMemo(() => allPanelDefs.map(p => p.id), [allPanelDefs]);
 
@@ -1461,7 +1620,7 @@ export const DashboardPage = ({ doc = null, theme = 'light' }) => {
   const drag = useDashboardDrag(layout.moveTo);
 
   if (!doc) {
-    return <p className="text-muted">No state document loaded.</p>;
+    return <p className="text-muted">{t('stats:noStateDoc', 'No state document loaded.')}</p>;
   }
   const statsReady = !error && info !== null;
   const routeRows = deriveRouteRows(doc);
@@ -1502,7 +1661,7 @@ export const DashboardPage = ({ doc = null, theme = 'light' }) => {
             <PanelChrome
               key={panel.id}
               panelId={panel.id}
-              panelTitle={panel.title}
+              panelTitle={resolvePanelTitle(panel, t)}
               panelLink={panel.link ?? null}
               category={panel.category}
               width={width}
@@ -1521,7 +1680,7 @@ export const DashboardPage = ({ doc = null, theme = 'light' }) => {
               onExpand={setExpandedPanel}
               onHide={layout.hide}
             >
-              <ErrorBoundary>{renderPanel(panel.id, ctx, doc)}</ErrorBoundary>
+              <ErrorBoundary>{renderPanel(panel.id, ctx, doc, t)}</ErrorBoundary>
             </PanelChrome>
           );
         })}
@@ -1531,21 +1690,24 @@ export const DashboardPage = ({ doc = null, theme = 'light' }) => {
         <div className="mt-4">
           <div className="text-muted small mb-2">
             <i className="bi bi-eye-slash me-1" />
-            Hidden panels
+            {t('stats:hiddenPanels', 'Hidden panels')}
           </div>
           <div className="d-flex flex-wrap gap-2">
-            {hiddenPanels.map(panel => (
-              <Button
-                key={panel.id}
-                variant="outline-secondary"
-                size="sm"
-                onClick={() => layout.show(panel.id)}
-                title={`Show ${panel.title}`}
-              >
-                <i className="bi bi-plus-lg me-1" />
-                {panel.title}
-              </Button>
-            ))}
+            {hiddenPanels.map(panel => {
+              const panelTitle = resolvePanelTitle(panel, t);
+              return (
+                <Button
+                  key={panel.id}
+                  variant="outline-secondary"
+                  size="sm"
+                  onClick={() => layout.show(panel.id)}
+                  title={t('stats:showPanel', 'Show {{title}}', { title: panelTitle })}
+                >
+                  <i className="bi bi-plus-lg me-1" />
+                  {panelTitle}
+                </Button>
+              );
+            })}
           </div>
         </div>
       ) : null}
@@ -1553,10 +1715,13 @@ export const DashboardPage = ({ doc = null, theme = 'light' }) => {
       {expandedPanel ? (
         <ExpandedChartModal
           show
-          title={allPanelDefs.find(p => p.id === expandedPanel)?.title ?? 'Panel'}
+          title={(() => {
+            const found = allPanelDefs.find(p => p.id === expandedPanel);
+            return found ? resolvePanelTitle(found, t) : t('stats:fallbackPanelTitle', 'Panel');
+          })()}
           onClose={() => setExpandedPanel(null)}
         >
-          <ErrorBoundary>{renderPanel(expandedPanel, ctx, doc)}</ErrorBoundary>
+          <ErrorBoundary>{renderPanel(expandedPanel, ctx, doc, t)}</ErrorBoundary>
         </ExpandedChartModal>
       ) : null}
     </>

@@ -1,0 +1,71 @@
+{
+  "page": {
+    "saveUnavailable": "State save unavailable."
+  },
+  "card": {
+    "title": "GeoIP",
+    "description": "When enabled, patchpanel enriches live-session data with city / country / region lookups from a local MMDB. Default source is <0>DB-IP city-lite</0> (free, CC-BY 4.0, no signup, monthly updates). MaxMind GeoLite2-City is also supported if you already have a license key. Client IPs never leave the addon. The Top countries panel on the dashboard and the Top client IPs card on Stats both use this."
+  },
+  "saved": "Saved.",
+  "fallback": {
+    "none": "None — local DB only",
+    "ipApi": "ip-api.com (free, no token)",
+    "ipinfo": "ipinfo.io (token recommended)"
+  },
+  "localDb": {
+    "dbip": "DB-IP city-lite (free, no signup — recommended)",
+    "maxmind": "MaxMind GeoLite2-City (requires free license key)",
+    "none": "No local DB — online fallback only"
+  },
+  "badge": {
+    "disabled": "disabled",
+    "present": "present",
+    "notDownloaded": "not downloaded"
+  },
+  "download": {
+    "maxmind": "Download GeoLite2-City",
+    "dbip": "Download DB-IP city-lite",
+    "now": "Download now",
+    "titleDisabled": "Local DB disabled — pick DB-IP or MaxMind first",
+    "titleNeedKey": "Set a MaxMind license key first",
+    "titleMaxmind": "Trigger an immediate GeoLite2-City download",
+    "titleDbip": "Trigger an immediate DB-IP city-lite download (free, no signup)",
+    "success": "Downloaded {{size}} to {{path}}",
+    "downloading": "Downloading…"
+  },
+  "status": {
+    "statusLabel": "Status:",
+    "enabled": "enabled",
+    "disabled": "disabled",
+    "sourceLabel": "Source:",
+    "licenseKeyLabel": "License key:",
+    "licenseSet": "set",
+    "licenseMissing": "missing",
+    "localDbLabel": "Local DB:",
+    "sizeLabel": "Size:",
+    "lastUpdatedLabel": "Last updated:",
+    "unavailable": "GeoIP status unavailable: {{message}}"
+  },
+  "form": {
+    "enrichmentEnabled": "GeoIP enrichment enabled",
+    "localDbSource": "Local DB source",
+    "localDbHint": "DB-IP city-lite works out of the box (no signup). Pick MaxMind if you already have a GeoLite2 license key; pick None to disable local lookups and use only the online fallback.",
+    "maxmindLicense": "MaxMind license key",
+    "maxmindPlaceholder": "get one free at maxmind.com/en/geolite2/signup",
+    "maxmindHint": "Required to download GeoLite2-City. Stored in <0>state.json</0>; protect that file accordingly.",
+    "fallbackProvider": "Online fallback provider",
+    "fallbackHint": "Used for one-off IP lookups when the local DB is missing or doesn't cover an address. Bulk session enrichment always uses the local DB.",
+    "fallbackToken": "Fallback provider token (optional)",
+    "fallbackTokenPlaceholder": "ipinfo token",
+    "cron": "Auto-update cron schedule",
+    "cronHint": "Weekly Monday 04:17 by default. DB-IP publishes on the 1st of each month; MaxMind publishes GeoLite2 twice a week.",
+    "homeLocationHint": "<0>Home location for LAN traffic (optional).</0> When all four are set, private / RFC1918 source IPs are resolved to these coordinates instead of being ignored — useful for attributing LAN sessions to your physical location on the dashboard's Top countries panel.",
+    "homeLat": "Home latitude",
+    "homeLon": "Home longitude",
+    "homeCountry": "Country (ISO-2)",
+    "homeLabel": "Home label",
+    "homeLabelPlaceholder": "Home",
+    "homeLabelHint": "Shown as the \"city\" on Top client IPs for LAN traffic.",
+    "saveSettings": "Save GeoIP settings"
+  }
+}

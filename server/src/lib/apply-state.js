@@ -3,7 +3,7 @@ import { join as joinPath } from 'node:path';
 
 import * as audit from './audit.js';
 import { buildCertsList } from './cert-lineage.js';
-import { ReloadError } from './errors.js';
+import { ReloadError, StateError } from './errors.js';
 import { parseValidationOutput } from './haproxy-error-parser.js';
 import { ensureDir, fileExists, readText, writeAtomic } from './files.js';
 import { assertValidRenderedCfg } from './haproxy-validate.js';
@@ -220,7 +220,10 @@ const renderAndValidateKeepalivedConfig = async (config, candidateParsed) => {
     const nodeConfig = await loadNodeConfig(config.paths.nodeConfig);
     rendered = withWatermark(renderKeepalivedConfig(candidateParsed, nodeConfig));
   } catch (err) {
-    throw new Error(`keepalived render failed: ${err.message}`);
+    throw new StateError('state.apply.keepalivedRenderFailed', {
+      replacements: { detail: err.message },
+      cause: err,
+    });
   }
   // Validate via a temp file — keepalived -t needs an actual path.
   const tmpKeepalived = `${config.paths.keepalivedConfig}.candidate`;
@@ -234,12 +237,79 @@ const renderAndValidateKeepalivedConfig = async (config, candidateParsed) => {
       tmpKeepalived
     );
     if (!validation.ok) {
-      throw new Error(`keepalived -t rejected the rendered config: ${validation.output}`);
+      throw new StateError('state.apply.keepalivedValidateFailed', {
+        replacements: { output: validation.output },
+      });
     }
   } finally {
     await fs.rm(tmpKeepalived, { force: true }).catch(() => undefined);
   }
   return rendered;
+};
+
+const validateHaproxyCfg = async (haproxyBin, rendered, candidateParsed) => {
+  try {
+    await assertValidRenderedCfg(haproxyBin, rendered);
+  } catch (err) {
+    if (err.name === 'HaproxyError') {
+      err.hints = parseValidationOutput(err.output, candidateParsed);
+    }
+    throw err;
+  }
+};
+
+const reloadHaproxyWithRollback = async (
+  config,
+  backupPath,
+  keepalivedBackupPath,
+  editor,
+  loadableCertCount
+) => {
+  try {
+    await haproxyMaster.reload(config.paths.haproxyMasterSocket);
+  } catch (err) {
+    await restoreCfgFromBackup(config.paths.haproxyConfig, backupPath);
+    if (keepalivedBackupPath) {
+      await fs.copyFile(keepalivedBackupPath, config.paths.keepalivedConfig).catch(() => undefined);
+    }
+    await haproxyMaster.reload(config.paths.haproxyMasterSocket).catch(rollbackErr => {
+      log.app.error('reload after rollback also failed; HAProxy may be in inconsistent state', {
+        error: rollbackErr.message,
+      });
+    });
+    await cleanupBackup(backupPath);
+    await cleanupBackup(keepalivedBackupPath);
+    audit.record({
+      actor: editor,
+      category: 'state',
+      action: 'apply',
+      outcome: 'error',
+      details: { loadableCertCount, error: err.message },
+    });
+    throw new ReloadError('state.apply.reloadFailed', {
+      replacements: { detail: err.message },
+      cause: err,
+    });
+  }
+};
+
+const triggerPeerSyncIfEnabled = async (config, next, editor) => {
+  const editorIsPeer = typeof editor === 'string' && editor.startsWith('peer');
+  if (editorIsPeer) {
+    return;
+  }
+  let nodeSyncCfg = null;
+  try {
+    const nc = await loadNodeConfig(config.paths.nodeConfig);
+    nodeSyncCfg = nc.sync ?? null;
+  } catch (err) {
+    log.app.warn('node config load for sync gating failed (non-fatal)', { error: err.message });
+  }
+  if (nodeSyncCfg?.autoPushOnSave === true) {
+    pushStateToAllPeers(config, next, {}).catch(err =>
+      log.app.warn('peer sync push failed (non-fatal)', { error: err.message })
+    );
+  }
 };
 
 export const applyState = (config, candidate, options = {}) =>
@@ -265,14 +335,7 @@ export const applyState = (config, candidate, options = {}) =>
       })
     );
 
-    try {
-      await assertValidRenderedCfg(config.paths.haproxyBin, rendered);
-    } catch (err) {
-      if (err.name === 'HaproxyError') {
-        err.hints = parseValidationOutput(err.output, candidateParsed);
-      }
-      throw err;
-    }
+    await validateHaproxyCfg(config.paths.haproxyBin, rendered, candidateParsed);
 
     const renderedKeepalived = await renderAndValidateKeepalivedConfig(config, candidateParsed);
     let keepalivedBackupPath = null;
@@ -301,31 +364,13 @@ export const applyState = (config, candidate, options = {}) =>
       log.app.info('keepalived.conf written', { path: config.paths.keepalivedConfig });
     }
 
-    try {
-      await haproxyMaster.reload(config.paths.haproxyMasterSocket);
-    } catch (err) {
-      await restoreCfgFromBackup(config.paths.haproxyConfig, backupPath);
-      if (keepalivedBackupPath) {
-        await fs
-          .copyFile(keepalivedBackupPath, config.paths.keepalivedConfig)
-          .catch(() => undefined);
-      }
-      await haproxyMaster.reload(config.paths.haproxyMasterSocket).catch(rollbackErr => {
-        log.app.error('reload after rollback also failed; HAProxy may be in inconsistent state', {
-          error: rollbackErr.message,
-        });
-      });
-      await cleanupBackup(backupPath);
-      await cleanupBackup(keepalivedBackupPath);
-      audit.record({
-        actor: editor,
-        category: 'state',
-        action: 'apply',
-        outcome: 'error',
-        details: { loadableCertCount, error: err.message },
-      });
-      throw new ReloadError(`reload failed after applying state: ${err.message}`, { cause: err });
-    }
+    await reloadHaproxyWithRollback(
+      config,
+      backupPath,
+      keepalivedBackupPath,
+      editor,
+      loadableCertCount
+    );
 
     if (renderedKeepalived !== null) {
       try {
@@ -367,14 +412,7 @@ export const applyState = (config, candidate, options = {}) =>
       details: { loadableCertCount, reason: options.reason ?? null },
     });
 
-    // Fire-and-forget peer sync. We only push when the editor is NOT a peer
-    // (avoid sync loops on inbound peer-pushed applies). Errors are logged
-    // + audited inside pushStateToAllPeers; this never throws.
-    if (typeof editor !== 'string' || !editor.startsWith('peer:')) {
-      pushStateToAllPeers(config, next, {}).catch(err =>
-        log.app.warn('peer sync push failed (non-fatal)', { error: err.message })
-      );
-    }
+    await triggerPeerSyncIfEnabled(config, next, editor);
 
     return next;
   });

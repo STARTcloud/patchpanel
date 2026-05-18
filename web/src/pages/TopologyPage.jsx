@@ -28,19 +28,21 @@ import {
   useState,
 } from 'react';
 import { Badge, Button, Card, Col, Form, InputGroup, Row } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import { usePeerSnapshots } from '../hooks/usePeerSnapshots.jsx';
 import { useStatsHistory } from '../hooks/useStatsHistory.jsx';
 import { stateDocShape } from '../prop-shapes.js';
 
 const RULE_PHASE_HTTP_REQUEST = 'httpRequest';
 const LOCAL_STORAGE_KEY_BASE = 'patchpanel-topology-positions-v1';
 
-const LAYOUT_DIRECTIONS = Object.freeze([
-  { value: 'LR', label: 'Left → Right' },
-  { value: 'RL', label: 'Right → Left' },
-  { value: 'TB', label: 'Top → Bottom' },
-  { value: 'BT', label: 'Bottom → Top' },
+const LAYOUT_DIRECTION_KEYS = Object.freeze([
+  { value: 'LR', i18nKey: 'stats:topology.layout.lr', fallback: 'Left → Right' },
+  { value: 'RL', i18nKey: 'stats:topology.layout.rl', fallback: 'Right → Left' },
+  { value: 'TB', i18nKey: 'stats:topology.layout.tb', fallback: 'Top → Bottom' },
+  { value: 'BT', i18nKey: 'stats:topology.layout.bt', fallback: 'Bottom → Top' },
 ]);
 
 const HANDLE_POSITIONS = Object.freeze({
@@ -176,17 +178,29 @@ const NODE_STYLES = Object.freeze({
     border: '1px solid #343a40',
     icon: 'bi-shield-lock',
   },
+  // Cluster-mate satellite nodes. Rendered off to the side of the
+  // routing flow — they're observability tiles, not participants in the
+  // request path. Teal matches the patchpanel brand primary and is
+  // distinct from every other node kind's color.
+  clusterPeer: {
+    background: '#0d9488',
+    color: '#fff',
+    border: '1px solid #0f766e',
+    icon: 'bi-broadcast-pin',
+  },
 });
 
-const KIND_LEGEND_LABEL = Object.freeze({
-  frontend: 'frontend',
-  route: 'route',
-  backend: 'backend',
-  server: 'server',
-  authProvider: 'auth provider',
+const KIND_LEGEND_LABEL_KEYS = Object.freeze({
+  frontend: { key: 'stats:topology.kind.frontend', fallback: 'frontend' },
+  route: { key: 'stats:topology.kind.route', fallback: 'route' },
+  backend: { key: 'stats:topology.kind.backend', fallback: 'backend' },
+  server: { key: 'stats:topology.kind.server', fallback: 'server' },
+  authProvider: { key: 'stats:topology.kind.authProvider', fallback: 'auth provider' },
+  clusterPeer: { key: 'stats:topology.kind.clusterPeer', fallback: 'cluster peer' },
 });
 
 const NodeShell = ({ data, selected }) => {
+  const { t } = useTranslation(['stats']);
   const style = NODE_STYLES[data.kind] ?? NODE_STYLES.frontend;
   const dim = data.dim === true;
   const targetPosition = data.targetPosition ?? Position.Left;
@@ -222,7 +236,14 @@ const NodeShell = ({ data, selected }) => {
         {data.auth ? (
           <i
             className="bi bi-shield-lock-fill ms-auto"
-            title={`Auth-gated by ${data.auth.providerId} (${data.auth.providerType})`}
+            title={t(
+              'stats:topology.authGatedBy',
+              'Auth-gated by {{providerId}} ({{providerType}})',
+              {
+                providerId: data.auth.providerId,
+                providerType: data.auth.providerType,
+              }
+            )}
             style={{ fontSize: '0.85rem' }}
           />
         ) : null}
@@ -310,7 +331,7 @@ const buildFrontendNodes = frontends =>
     };
   });
 
-const buildRouteSection = ({ doc, frontends, aclByName, backendById, aclToProvider }) => {
+const buildRouteSection = ({ doc, frontends, aclByName, backendById, aclToProvider, t }) => {
   const nodes = [];
   const edges = [];
   for (const fe of frontends) {
@@ -319,7 +340,7 @@ const buildRouteSection = ({ doc, frontends, aclByName, backendById, aclToProvid
       if (rule.action?.type !== 'use-backend' || rule.enabled === false) {
         return;
       }
-      const refs = (rule.condition ?? []).filter(t => t.kind === 'aclRef');
+      const refs = (rule.condition ?? []).filter(term => term.kind === 'aclRef');
       const hostnames = [];
       for (const ref of refs) {
         const acl = aclByName.get(ref.aclName);
@@ -380,7 +401,7 @@ const buildRouteSection = ({ doc, frontends, aclByName, backendById, aclToProvid
           target: `auth:${authProvider.id}`,
           style: { stroke: '#dc3545', strokeDasharray: '4 4' },
           markerEnd: { type: MarkerType.ArrowClosed, color: '#dc3545' },
-          label: 'gated by',
+          label: t ? t('stats:topology.gatedBy', 'gated by') : 'gated by',
           statsKey: null,
         });
       }
@@ -389,14 +410,17 @@ const buildRouteSection = ({ doc, frontends, aclByName, backendById, aclToProvid
   return { nodes, edges };
 };
 
-const buildBackendSection = doc => {
+const buildBackendSection = (doc, t) => {
   const nodes = [];
   const edges = [];
   for (const backend of doc.backends ?? []) {
     const backendNodeId = `be:${backend.id}`;
     const serverCount = (backend.servers ?? []).length;
     const balanceLabel = backend.balance ?? 'roundrobin';
-    const sub = `${backend.mode} · ${balanceLabel} · ${serverCount} server${serverCount === 1 ? '' : 's'}`;
+    const serverWord = t('stats:topology.serverCount', '{{count}} server(s)', {
+      count: serverCount,
+    });
+    const sub = `${backend.mode} · ${balanceLabel} · ${serverWord}`;
     nodes.push({
       id: backendNodeId,
       type: 'shell',
@@ -436,7 +460,7 @@ const buildBackendSection = doc => {
   return { nodes, edges };
 };
 
-const buildAuthProviderSection = (doc, backendById) => {
+const buildAuthProviderSection = (doc, backendById, t) => {
   const nodes = [];
   const edges = [];
   for (const provider of doc.authProviders ?? []) {
@@ -462,7 +486,7 @@ const buildAuthProviderSection = (doc, backendById) => {
         target: `be:${authBackendId}`,
         style: { stroke: '#adb5bd' },
         markerEnd: { type: MarkerType.ArrowClosed, color: '#adb5bd' },
-        label: 'lookup',
+        label: t ? t('stats:topology.lookup', 'lookup') : 'lookup',
         statsKey: backend ? `${backend.name}/BACKEND` : null,
       });
     }
@@ -470,7 +494,84 @@ const buildAuthProviderSection = (doc, backendById) => {
   return { nodes, edges };
 };
 
-const buildGraph = (doc, direction) => {
+const extractPeerMetrics = info => {
+  if (!info) {
+    return { connRate: null, sessRate: null, idlePct: null, curr: null, cap: null };
+  }
+  return {
+    connRate: Math.round(info.ConnRate ?? 0),
+    sessRate: Math.round(info.SessRate ?? 0),
+    idlePct: Number(info.Idle_pct ?? 0),
+    curr: Number(info.CurrConns ?? 0),
+    cap: Number(info.Maxconn ?? 0),
+  };
+};
+
+const buildPeerSubText = (entry, haproxyAlive, info) => {
+  if (!entry.ok) {
+    return entry.error ? `unreachable: ${entry.error.slice(0, 60)}` : 'unreachable';
+  }
+  if (!haproxyAlive) {
+    return 'HAProxy down';
+  }
+  if (!info) {
+    return 'snapshot pending';
+  }
+  const metrics = extractPeerMetrics(info);
+  const parts = [];
+  if (metrics.connRate !== null) {
+    parts.push(`${metrics.connRate} conn/s`);
+  }
+  if (metrics.sessRate !== null) {
+    parts.push(`${metrics.sessRate} sess/s`);
+  }
+  if (metrics.idlePct !== null) {
+    parts.push(`idle ${metrics.idlePct}%`);
+  }
+  if (metrics.curr !== null && metrics.cap > 0) {
+    parts.push(`${metrics.curr}/${metrics.cap}`);
+  }
+  return parts.join(' · ');
+};
+
+// Renders each paired peer as a satellite "cluster-peer" node. The peer
+// satellites sit OUTSIDE the routing graph (no edges to/from the
+// frontend → route → backend → server flow) so dagre lays them out in
+// their own subgraph rank, off to the side. Each tile shows traffic
+// flow + alive state pulled from /api/peer/snapshot via the local-side
+// aggregator. Per design: traffic-flow only — no cert posture here.
+const buildClusterSection = peerEntries => {
+  const nodes = [];
+  for (const entry of peerEntries ?? []) {
+    const snap = entry.snapshot ?? null;
+    const haproxyAlive = snap?.haproxy?.alive === true;
+    const kaAlive = snap?.keepalived?.alive === true;
+    const info = snap?.haproxy?.info ?? null;
+    // Sub-line: when reachable, "N conn/s · M sess/s · idle K%". When
+    // unreachable, the error message in muted tone. Keeps the tile body
+    // a single visual rhythm regardless of peer status.
+    const sub = buildPeerSubText(entry, haproxyAlive, info);
+    nodes.push({
+      id: `peer:${entry.peerId}`,
+      type: 'shell',
+      data: {
+        kind: 'clusterPeer',
+        label: snap?.node?.nodeId ?? entry.name,
+        sub,
+        peerId: entry.peerId,
+        peerUrl: entry.url,
+        ok: entry.ok,
+        haproxyAlive,
+        keepalivedAlive: kaAlive,
+        snapshot: snap,
+      },
+      position: { x: 0, y: 0 },
+    });
+  }
+  return { nodes, edges: [] };
+};
+
+const buildGraph = (doc, direction, t, peerEntries) => {
   if (!doc) {
     return { nodes: [], edges: [] };
   }
@@ -486,17 +587,25 @@ const buildGraph = (doc, direction) => {
     aclByName,
     backendById,
     aclToProvider,
+    t,
   });
-  const authSection = buildAuthProviderSection(doc, backendById);
-  const backendSection = buildBackendSection(doc);
+  const authSection = buildAuthProviderSection(doc, backendById, t);
+  const backendSection = buildBackendSection(doc, t);
+  const clusterSection = buildClusterSection(peerEntries);
 
   const nodes = [
     ...frontendNodes,
     ...routeSection.nodes,
     ...authSection.nodes,
     ...backendSection.nodes,
+    ...clusterSection.nodes,
   ];
-  const edges = [...routeSection.edges, ...authSection.edges, ...backendSection.edges];
+  const edges = [
+    ...routeSection.edges,
+    ...authSection.edges,
+    ...backendSection.edges,
+    ...clusterSection.edges,
+  ];
   return { nodes: layoutNodes(nodes, edges, direction), edges };
 };
 
@@ -592,14 +701,17 @@ const Dot = ({ color }) => (
 Dot.propTypes = { color: PropTypes.string.isRequired };
 
 const Legend = ({ weathermap, presentKinds }) => {
+  const { t } = useTranslation(['stats']);
   if (weathermap) {
     return (
       <div style={LEGEND_BOX_STYLE}>
-        <div style={{ opacity: 0.8, marginBottom: '2px' }}>Throughput</div>
-        {TRAFFIC_TIERS.map(t => (
-          <div key={t.label} style={{ whiteSpace: 'nowrap' }}>
-            <Dot color={t.color} />
-            {t.label}
+        <div style={{ opacity: 0.8, marginBottom: '2px' }}>
+          {t('stats:topology.throughput', 'Throughput')}
+        </div>
+        {TRAFFIC_TIERS.map(tier => (
+          <div key={tier.label} style={{ whiteSpace: 'nowrap' }}>
+            <Dot color={tier.color} />
+            {tier.label}
           </div>
         ))}
       </div>
@@ -615,7 +727,7 @@ const Legend = ({ weathermap, presentKinds }) => {
       {visible.map(k => (
         <div key={k} style={{ whiteSpace: 'nowrap' }}>
           <Dot color={NODE_STYLES[k].background} />
-          {KIND_LEGEND_LABEL[k]}
+          {t(KIND_LEGEND_LABEL_KEYS[k].key, KIND_LEGEND_LABEL_KEYS[k].fallback)}
         </div>
       ))}
     </div>
@@ -967,7 +1079,129 @@ const navigationTargetForNode = node => {
 
 const MINIMAP_NODE_COLOR = node => NODE_STYLES[node.data?.kind]?.background ?? '#6c757d';
 
+const TopologyControls = ({
+  searchQuery,
+  setSearchQuery,
+  authFilter,
+  setAuthFilter,
+  layoutDir,
+  setLayoutDir,
+  weathermap,
+  setWeathermap,
+  handleResetLayout,
+  authProviders,
+}) => {
+  const { t } = useTranslation(['stats', 'common']);
+  return (
+    <Row className="g-2 mb-2 align-items-center">
+      <Col xs={12} md={4}>
+        <InputGroup size="sm">
+          <InputGroup.Text>
+            <i className="bi bi-search" />
+          </InputGroup.Text>
+          <Form.Control
+            placeholder={t(
+              'stats:topology.searchPlaceholder',
+              'Search hostname / route / backend…'
+            )}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery ? (
+            <InputGroup.Text
+              as="button"
+              type="button"
+              onClick={() => setSearchQuery('')}
+              style={{ cursor: 'pointer' }}
+              title={t('stats:topology.clearSearch', 'Clear search')}
+            >
+              <i className="bi bi-x" />
+            </InputGroup.Text>
+          ) : null}
+        </InputGroup>
+      </Col>
+      <Col xs={12} md={3}>
+        <Form.Select
+          size="sm"
+          value={authFilter}
+          onChange={e => setAuthFilter(e.target.value)}
+          title={t('stats:topology.authFilterTitle', 'Filter routes by auth gating')}
+        >
+          <option value="all">{t('stats:topology.authFilter.all', 'All routes')}</option>
+          <option value="auth-gated">
+            {t('stats:topology.authFilter.authGated', 'Auth-gated only')}
+          </option>
+          <option value="open">{t('stats:topology.authFilter.open', 'Open only')}</option>
+          {authProviders.length > 0 ? <option disabled>──────</option> : null}
+          {authProviders.map(p => (
+            <option key={p.id} value={`provider:${p.id}`}>
+              {t('stats:topology.authFilter.gatedBy', 'Gated by: {{id}} ({{type}})', {
+                id: p.id,
+                type: p.type,
+              })}
+            </option>
+          ))}
+        </Form.Select>
+      </Col>
+      <Col xs={12} md={2}>
+        <Form.Select
+          size="sm"
+          value={layoutDir}
+          onChange={e => setLayoutDir(e.target.value)}
+          title={t(
+            'stats:topology.layoutDirectionTitle',
+            'Graph layout direction (positions are saved per-direction)'
+          )}
+        >
+          {LAYOUT_DIRECTION_KEYS.map(opt => (
+            <option key={opt.value} value={opt.value}>
+              {t(opt.i18nKey, opt.fallback)}
+            </option>
+          ))}
+        </Form.Select>
+      </Col>
+      <Col xs={12} md={2}>
+        <Form.Check
+          type="switch"
+          id="topology-weathermap-toggle"
+          label={t('stats:topology.weathermap', 'Weathermap')}
+          checked={weathermap}
+          onChange={e => setWeathermap(e.target.checked)}
+        />
+      </Col>
+      <Col xs={12} md={1} className="text-md-end">
+        <Button
+          variant="outline-secondary"
+          size="sm"
+          onClick={handleResetLayout}
+          title={t(
+            'stats:topology.resetLayoutTitle',
+            'Clear saved node positions for current direction and re-run auto layout'
+          )}
+          aria-label={t('stats:topology.resetLayout', 'Reset layout')}
+        >
+          <i className="bi bi-arrow-counterclockwise" />
+        </Button>
+      </Col>
+    </Row>
+  );
+};
+
+TopologyControls.propTypes = {
+  searchQuery: PropTypes.string.isRequired,
+  setSearchQuery: PropTypes.func.isRequired,
+  authFilter: PropTypes.string.isRequired,
+  setAuthFilter: PropTypes.func.isRequired,
+  layoutDir: PropTypes.string.isRequired,
+  setLayoutDir: PropTypes.func.isRequired,
+  weathermap: PropTypes.bool.isRequired,
+  setWeathermap: PropTypes.func.isRequired,
+  handleResetLayout: PropTypes.func.isRequired,
+  authProviders: PropTypes.array.isRequired,
+};
+
 export const TopologyPage = ({ doc = null }) => {
+  const { t } = useTranslation(['stats', 'common']);
   const [searchQuery, setSearchQuery] = useState('');
   const [authFilter, setAuthFilter] = useState('all');
   const [weathermap, setWeathermap] = useState(false);
@@ -977,7 +1211,11 @@ export const TopologyPage = ({ doc = null }) => {
   const stats = useStatsHistory();
   const navigate = useNavigate();
 
-  const fullGraph = useMemo(() => buildGraph(doc, layoutDir), [doc, layoutDir]);
+  const peerSnapshots = usePeerSnapshots();
+  const fullGraph = useMemo(
+    () => buildGraph(doc, layoutDir, t, peerSnapshots.peers),
+    [doc, layoutDir, t, peerSnapshots.peers]
+  );
 
   const adjacency = useMemo(() => buildAdjacency(fullGraph.edges), [fullGraph.edges]);
 
@@ -1188,106 +1426,44 @@ export const TopologyPage = ({ doc = null }) => {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
           <div>
-            <Card.Title className="mb-0">Topology</Card.Title>
+            <Card.Title className="mb-0">{t('stats:topology.title', 'Topology')}</Card.Title>
             <Card.Text className="text-muted small mb-0">
-              Click any node to isolate its subgraph · double-click to open its edit page · hover to
-              highlight the connected chain · drag to reposition (saved per-browser).
+              {t(
+                'stats:topology.description',
+                'Click any node to isolate its subgraph · double-click to open its edit page · hover to highlight the connected chain · drag to reposition (saved per-browser).'
+              )}
             </Card.Text>
           </div>
           <div className="small text-muted">
             <Badge bg="secondary" className="me-1">
               {visibleNodes.length}
             </Badge>
-            nodes ·{' '}
+            {t('stats:topology.nodesLabel', 'nodes')} ·{' '}
             <Badge bg="secondary" className="ms-1">
               {visibleEdges.length}
             </Badge>{' '}
-            edges
+            {t('stats:topology.edgesLabel', 'edges')}
           </div>
         </div>
-        <Row className="g-2 mb-2 align-items-center">
-          <Col xs={12} md={4}>
-            <InputGroup size="sm">
-              <InputGroup.Text>
-                <i className="bi bi-search" />
-              </InputGroup.Text>
-              <Form.Control
-                placeholder="Search hostname / route / backend…"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-              />
-              {searchQuery ? (
-                <InputGroup.Text
-                  as="button"
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  style={{ cursor: 'pointer' }}
-                  title="Clear search"
-                >
-                  <i className="bi bi-x" />
-                </InputGroup.Text>
-              ) : null}
-            </InputGroup>
-          </Col>
-          <Col xs={12} md={3}>
-            <Form.Select
-              size="sm"
-              value={authFilter}
-              onChange={e => setAuthFilter(e.target.value)}
-              title="Filter routes by auth gating"
-            >
-              <option value="all">All routes</option>
-              <option value="auth-gated">Auth-gated only</option>
-              <option value="open">Open only</option>
-              {authProviders.length > 0 ? <option disabled>──────</option> : null}
-              {authProviders.map(p => (
-                <option key={p.id} value={`provider:${p.id}`}>
-                  Gated by: {p.id} ({p.type})
-                </option>
-              ))}
-            </Form.Select>
-          </Col>
-          <Col xs={12} md={2}>
-            <Form.Select
-              size="sm"
-              value={layoutDir}
-              onChange={e => setLayoutDir(e.target.value)}
-              title="Graph layout direction (positions are saved per-direction)"
-            >
-              {LAYOUT_DIRECTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </Form.Select>
-          </Col>
-          <Col xs={12} md={2}>
-            <Form.Check
-              type="switch"
-              id="topology-weathermap-toggle"
-              label="Weathermap"
-              checked={weathermap}
-              onChange={e => setWeathermap(e.target.checked)}
-            />
-          </Col>
-          <Col xs={12} md={1} className="text-md-end">
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={handleResetLayout}
-              title="Clear saved node positions for current direction and re-run auto layout"
-              aria-label="Reset layout"
-            >
-              <i className="bi bi-arrow-counterclockwise" />
-            </Button>
-          </Col>
-        </Row>
+        <TopologyControls
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          authFilter={authFilter}
+          setAuthFilter={setAuthFilter}
+          layoutDir={layoutDir}
+          setLayoutDir={setLayoutDir}
+          weathermap={weathermap}
+          setWeathermap={setWeathermap}
+          handleResetLayout={handleResetLayout}
+          authProviders={authProviders}
+        />
         {isolatedNode ? (
           <div className="mb-2 small d-flex align-items-center gap-2">
-            <Badge bg="info">isolated</Badge>
+            <Badge bg="info">{t('stats:topology.isolated', 'isolated')}</Badge>
             <span className="text-muted">
-              Subgraph of <strong>{isolatedNode.data.label}</strong> ({isolatedNode.data.kind}).
-              Click empty canvas to clear.
+              {t('stats:topology.subgraphPrefix', 'Subgraph of')}{' '}
+              <strong>{isolatedNode.data.label}</strong> ({isolatedNode.data.kind}).{' '}
+              {t('stats:topology.clearHint', 'Click empty canvas to clear.')}
             </span>
             <Button
               variant="link"
@@ -1295,7 +1471,7 @@ export const TopologyPage = ({ doc = null }) => {
               className="p-0"
               onClick={() => setIsolatedNodeId(null)}
             >
-              clear
+              {t('stats:topology.clear', 'clear')}
             </Button>
           </div>
         ) : null}
@@ -1347,8 +1523,10 @@ export const TopologyPage = ({ doc = null }) => {
         </div>
         {visibleNodes.length === 0 ? (
           <p className="text-muted small mt-2 mb-0">
-            No nodes visible. Either no routes are defined yet, or your filters exclude everything —
-            clear the auth filter or search to see the full graph.
+            {t(
+              'stats:topology.noNodes',
+              'No nodes visible. Either no routes are defined yet, or your filters exclude everything — clear the auth filter or search to see the full graph.'
+            )}
           </p>
         ) : null}
       </Card.Body>

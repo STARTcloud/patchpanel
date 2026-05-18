@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 
+import { ValidationError } from './errors.js';
 import { ensureDir, fileExists, removeIfExists, safePathUnder, writeAtomic } from './files.js';
 
 // User-uploaded Lua plugin source files. The set of dirs that may receive
@@ -11,19 +12,24 @@ import { ensureDir, fileExists, removeIfExists, safePathUnder, writeAtomic } fro
 const LUA_PLUGIN_ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
 const MAX_LUA_SOURCE_BYTES = 524_288; // 512 KB
 
+// Validators return a {code, replacements} object on failure (or null on
+// success). Routes turn the object into a localized errorResponse() body.
 export const validateLuaPluginId = id => {
   if (typeof id !== 'string' || !LUA_PLUGIN_ID_REGEX.test(id)) {
-    return 'name must match a-z, 0-9, _, - (1-63 chars, letter-start)';
+    return { code: 'lua.plugin.idInvalid' };
   }
   return null;
 };
 
 export const validateLuaPluginSource = source => {
   if (typeof source !== 'string' || source.trim().length === 0) {
-    return 'source is required';
+    return { code: 'lua.plugin.sourceRequired' };
   }
   if (source.length > MAX_LUA_SOURCE_BYTES) {
-    return `source exceeds ${MAX_LUA_SOURCE_BYTES} bytes`;
+    return {
+      code: 'lua.plugin.sourceTooLarge',
+      replacements: { maxBytes: MAX_LUA_SOURCE_BYTES },
+    };
   }
   return null;
 };
@@ -36,11 +42,11 @@ export const isAllowedLuaPluginDir = (allowedDirs, candidate) =>
 
 const sanitizeLuaPluginPath = (allowedDirs, dir, id) => {
   if (!isAllowedLuaPluginDir(allowedDirs, dir)) {
-    throw new Error('dir is not in the configured luaPluginsDirs whitelist');
+    throw new ValidationError('lua.plugin.dirNotWhitelisted');
   }
   const idError = validateLuaPluginId(id);
   if (idError) {
-    throw new Error(idError);
+    throw new ValidationError(idError.code, { replacements: idError.replacements });
   }
   return safePathUnder(dir, `${id}.lua`);
 };

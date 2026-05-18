@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Container, Form, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 
 import { apiGet, apiPost } from '../api/client.js';
@@ -21,6 +22,7 @@ import { useAuth } from '../hooks/useAuth.jsx';
 //   5. We refresh useAuth and navigate to /.
 
 export const SetupAdminPage = () => {
+  const { t } = useTranslation(['auth', 'common']);
   const auth = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -67,14 +69,22 @@ export const SetupAdminPage = () => {
       >
         <Card style={{ maxWidth: 500 }}>
           <Card.Body>
-            <Card.Title>Setup already complete</Card.Title>
+            <Card.Title>
+              {t('auth:setupAdmin.alreadyCompleteTitle', 'Setup already complete')}
+            </Card.Title>
             <p className="text-muted small mb-3">
               {status.hasToken
-                ? 'A setup token exists but at least one user is already registered.'
-                : 'The setup token has been consumed. If you need to recover access, use the `patchpanel user-add` or `patchpanel user-reset` CLI on the host.'}
+                ? t(
+                    'auth:setupAdmin.tokenExistsUserRegistered',
+                    'A setup token exists but at least one user is already registered.'
+                  )
+                : t(
+                    'auth:setupAdmin.tokenConsumed',
+                    'The setup token has been consumed. If you need to recover access, use the `patchpanel user-add` or `patchpanel user-reset` CLI on the host.'
+                  )}
             </p>
             <Button variant="primary" onClick={() => navigate('/login', { replace: true })}>
-              Go to login
+              {t('auth:setupAdmin.goToLogin', 'Go to login')}
             </Button>
           </Card.Body>
         </Card>
@@ -86,7 +96,7 @@ export const SetupAdminPage = () => {
     event.preventDefault();
     setError(null);
     if (password !== confirm) {
-      setError('passwords do not match');
+      setError(t('auth:setupAdmin.passwordMismatch', 'passwords do not match'));
       return;
     }
     setSubmitting(true);
@@ -95,7 +105,9 @@ export const SetupAdminPage = () => {
       await auth.refresh();
       navigate('/', { replace: true });
     } catch (err) {
-      setError(err.payload?.message ?? err.message ?? 'setup failed');
+      setError(
+        err.payload?.message ?? err.message ?? t('auth:setupAdmin.setupFailed', 'setup failed')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -110,13 +122,21 @@ export const SetupAdminPage = () => {
         <Card.Body>
           <div className="d-flex flex-column align-items-center gap-2 mb-3">
             <LogoMark size={48} title="patchpanel" />
-            <h4 className="mb-0">Welcome to patchpanel</h4>
-            <small className="text-muted">Create the first admin account</small>
+            <h4 className="mb-0">{t('auth:setupAdmin.welcomeTitle', 'Welcome to patchpanel')}</h4>
+            <small className="text-muted">
+              {t('auth:setupAdmin.welcomeSubtitle', 'Create the first admin account')}
+            </small>
           </div>
           <Alert variant="info" className="py-2 small mb-3">
-            Paste the one-time setup token from the install banner, or read it off the host with{' '}
-            <code>cat /etc/patchpanel/setup.token</code>. The token is consumed on success and the
-            file is deleted.
+            {t(
+              'auth:setupAdmin.tokenInstructionsPrefix',
+              'Paste the one-time setup token from the install banner, or read it off the host with'
+            )}{' '}
+            <code>cat /etc/patchpanel/setup.token</code>.{' '}
+            {t(
+              'auth:setupAdmin.tokenInstructionsSuffix',
+              'The token is consumed on success and the file is deleted.'
+            )}
           </Alert>
           {error ? (
             <Alert variant="danger" className="py-2 small mb-3">
@@ -125,22 +145,24 @@ export const SetupAdminPage = () => {
           ) : null}
           <Form onSubmit={submit}>
             <Form.Group className="mb-3">
-              <Form.Label>Setup token</Form.Label>
+              <Form.Label>{t('auth:setup.tokenLabel')}</Form.Label>
               <Form.Control
                 type="text"
                 value={token}
                 onChange={e => setToken(e.target.value)}
-                placeholder="64 hex characters"
+                placeholder={t('auth:setupAdmin.tokenPlaceholder', '64 hex characters')}
                 required
                 style={{ fontFamily: 'monospace' }}
               />
               <Form.Text className="text-muted">
-                Prefilled when you opened this page from the banner URL; paste it manually
-                otherwise.
+                {t(
+                  'auth:setupAdmin.tokenHelp',
+                  'Prefilled when you opened this page from the banner URL; paste it manually otherwise.'
+                )}
               </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Username</Form.Label>
+              <Form.Label>{t('auth:login.username')}</Form.Label>
               <Form.Control
                 type="text"
                 value={username}
@@ -150,11 +172,14 @@ export const SetupAdminPage = () => {
                 required
               />
               <Form.Text className="text-muted">
-                Lowercase letters/digits/dot/underscore/hyphen, starting with a letter (2-32 chars).
+                {t(
+                  'auth:setupAdmin.usernameHelp',
+                  'Lowercase letters/digits/dot/underscore/hyphen, starting with a letter (2-32 chars).'
+                )}
               </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Password</Form.Label>
+              <Form.Label>{t('auth:login.password')}</Form.Label>
               <Form.Control
                 type="password"
                 value={password}
@@ -163,10 +188,12 @@ export const SetupAdminPage = () => {
                 minLength={8}
                 required
               />
-              <Form.Text className="text-muted">At least 8 characters.</Form.Text>
+              <Form.Text className="text-muted">
+                {t('auth:setupAdmin.passwordHelp', 'At least 8 characters.')}
+              </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Confirm password</Form.Label>
+              <Form.Label>{t('auth:setupAdmin.confirmPassword', 'Confirm password')}</Form.Label>
               <Form.Control
                 type="password"
                 value={confirm}
@@ -180,10 +207,10 @@ export const SetupAdminPage = () => {
               {submitting ? (
                 <>
                   <Spinner as="span" animation="border" size="sm" className="me-2" />
-                  Creating admin…
+                  {t('auth:setupAdmin.creatingAdmin', 'Creating admin…')}
                 </>
               ) : (
-                'Create admin and sign in'
+                t('auth:setupAdmin.createAdminSubmit', 'Create admin and sign in')
               )}
             </Button>
           </Form>

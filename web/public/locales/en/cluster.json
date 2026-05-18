@@ -1,0 +1,144 @@
+{
+  "ha": {
+    "page": {
+      "title": "HA / Failover (keepalived)",
+      "description": "VRRP floating-IP failover between patchpanel nodes. Each VRRP instance is a VIP that roams to whichever node has the highest priority (and is healthy). Define VIPs + sync_groups + track_scripts here — these definitions are SHARED across the cluster. Per-node priority/state lives in node.yaml and is edited in the \"This node's identity\" card below."
+    },
+    "toggle": {
+      "label": "Keepalived enabled",
+      "hint": "— master switch. When off, the renderer emits a near-empty keepalived.conf regardless of how many instances are configured below.",
+      "disabledWarning": "Keepalived is disabled. Configure instances below first, then flip this on to render + reload."
+    },
+    "saveUnavailable": "State save unavailable."
+  },
+  "keepalived": {
+    "power": {
+      "statusChecking": "Checking keepalived status…",
+      "statusRunning": "keepalived is running",
+      "statusStopped": "keepalived is stopped",
+      "ariaChecking": "keepalived status checking",
+      "ariaRunning": "keepalived running",
+      "ariaStopped": "keepalived stopped",
+      "aliveChecking": "checking…",
+      "aliveRunning": "running",
+      "aliveStopped": "stopped",
+      "strategyLabel": " · strategy: {{strategy}}",
+      "toggleTitle": "keepalived {{state}}{{strategy}}",
+      "managedExternally": "Strategy `none` — keepalived is managed outside patchpanel.",
+      "reloading": "Reloading…",
+      "reloadTitle": "Re-read keepalived.conf via SIGHUP. Existing VRRP state is preserved.",
+      "stopping": "Stopping…",
+      "stopTitle": "Stop keepalived. VIPs held by this node will fail over (or vanish). Requires confirmation.",
+      "starting": "Starting…",
+      "startDirectTitle": "Direct strategy cannot start keepalived — no supervisor configured.",
+      "startTitle": "Start keepalived via the configured supervisor.",
+      "checking": "Checking…",
+      "stopConfirm": {
+        "title": "Stop keepalived?",
+        "body1": "This will stop keepalived. Any VIPs currently held by this node will fail over to a peer (if one exists with a higher priority). If this is the only node, the VIPs will become unreachable.",
+        "body2": "Bring keepalived back up via Start (or your supervisor) once you're ready.",
+        "confirmLabel": "Stop keepalived"
+      }
+    }
+  },
+  "node": {
+    "identity": {
+      "title": "This node's identity",
+      "description": "Edits /etc/patchpanel/node.yaml. These values are local to this node and never sync to peers. Saving triggers a keepalived reload.",
+      "loadFailed": "Failed to load node config:",
+      "nodeIdLabel": "Node ID",
+      "nodeIdHint": "Human label for this node — surfaces in the peers list on other nodes and in audit entries.",
+      "overridesHeading": "Per-VIP overrides",
+      "noInstances": "No VRRP instances defined yet. Add one in the table above.",
+      "col": {
+        "vipId": "VIP id",
+        "priority": "priority",
+        "state": "state",
+        "interface": "interface"
+      },
+      "interfaceUnset": "(unset)",
+      "removeVipTitle": "This node won't participate in this VIP",
+      "missingHint": "This node won't participate in this VIP until you add a per-node priority/state.",
+      "addVip": "Add this VIP",
+      "saveFailed": "Save failed:",
+      "savedReloaded": "Saved. keepalived has been reloaded.",
+      "saveButton": "Save node config"
+    }
+  },
+  "peer": {
+    "pair": {
+      "title": "Add peer",
+      "intro": "On the peer node, open this same page and click <1>Mint inbound token</1>. Paste the resulting token here alongside the peer's URL and a friendly display name.<3/>This sets up the <5>outbound</5> direction only (this node → peer). To receive sync pushes from the peer, repeat the flow on the peer's HA page using a token <7>this</7> node minted.",
+      "urlLabel": "Peer URL",
+      "urlHint": "Base URL of the peer's patchpanel (same hostname/port you'd use to reach its UI). The peer must be reachable from this host.",
+      "nameLabel": "Display name",
+      "nameHint": "Human label shown in this node's peer list. Free-form; doesn't need to match the peer's actual node id.",
+      "tokenLabel": "Inbound token from peer",
+      "tokenHint": "Paste the raw token from the peer's \"My inbound tokens\" card. It's never re-displayable on the peer side after first reveal.",
+      "adding": "Adding…",
+      "submit": "Add peer"
+    },
+    "list": {
+      "title": "Cluster peers",
+      "description": "Outbound peers — patchpanel nodes THIS one pushes state to. State, certs, users, and API tokens sync over a bearer-token API. To add a peer, get an inbound token from the other node's \"My inbound tokens\" card, then paste it here alongside that node's URL.",
+      "addButton": "Add peer…",
+      "empty": "No peers configured. This node is standalone — VRRP failover requires at least two nodes paired in both directions.",
+      "errorFallback": "Peer list unavailable.",
+      "col": {
+        "peer": "Peer",
+        "health": "Health",
+        "clockSkew": "Clock skew",
+        "added": "Added",
+        "lastSync": "Last sync"
+      },
+      "healthy": "healthy",
+      "unreachable": "unreachable",
+      "skewCritTitle": "VRRP may flap — synchronize clocks via chronyd / systemd-timesyncd",
+      "skewWarnTitle": "Approaching VRRP advert_int — check time sync",
+      "syncTitle": "Force a state + cert blob sync now",
+      "syncButton": "Sync",
+      "unpairTitle": "Remove this peer relationship. State on the peer is not touched.",
+      "unpairButton": "Unpair",
+      "unpairConfirm": {
+        "title": "Unpair this peer?",
+        "bodyPrefix": "Remove",
+        "bodySuffix": "from this node's peer list. The peer itself is not modified — you'll also need to unpair from the other side. This node will stop receiving sync pushes from this peer."
+      }
+    }
+  },
+  "inbound": {
+    "title": "My inbound tokens",
+    "description": "Bearer tokens THIS node will accept from peers. Mint here, copy once, paste on the other node's <1>Add peer</1> modal. Each token is independently revocable; the raw value is never shown again after mint.",
+    "mintButton": "Mint inbound token",
+    "minting": "Minting…",
+    "errorFallback": "Inbound tokens list unavailable.",
+    "list": {
+      "empty": "No inbound tokens minted yet. Click <1>Mint inbound token</1> to create one."
+    },
+    "col": {
+      "label": "Label",
+      "preview": "Preview",
+      "minted": "Minted",
+      "lastUsed": "Last used",
+      "lastUsedBy": "Last used by"
+    },
+    "banner": {
+      "title": "Inbound token minted",
+      "done": "Done",
+      "body": "Copy this token now — it will <1>not</1> be shown again. Paste it into the OTHER node's <3>Add peer</3> modal so that node can call this one.",
+      "autoLabelPrefix": "Auto-label:",
+      "autoLabelSuffix": "— rename it inline in the list below."
+    },
+    "label": {
+      "editTitle": "Click to rename",
+      "empty": "(no label)"
+    },
+    "revokeTitle": "Revoke this inbound token. Any peer using it will start getting 401s.",
+    "revokeConfirm": {
+      "title": "Revoke this inbound token?",
+      "bodyPrefix": "Revoke",
+      "bodySuffix": "? Any peer currently using it will immediately start getting 401 responses. This cannot be undone.",
+      "confirmLabel": "Revoke"
+    }
+  }
+}

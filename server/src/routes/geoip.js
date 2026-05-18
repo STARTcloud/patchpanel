@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import * as audit from '../lib/audit.js';
+import { errorResponse } from '../lib/api-response.js';
 import { downloadDatabase, getStatus, lookupIp, lookupMany } from '../lib/geoip.js';
 import { log } from '../lib/logger.js';
 import { loadState } from '../lib/state.js';
@@ -59,18 +60,18 @@ export const geoipRouter = config => {
   router.get('/geoip/lookup/:ip', async (req, res, next) => {
     const target = req.params.ip;
     if (!IP_PATTERN.test(target)) {
-      res.status(400).json({ error: 'invalid ip' });
+      res.status(400).json(errorResponse(req, 'geoip.invalidIp'));
       return;
     }
     try {
       const state = await loadState(config.paths.state);
       if (!state?.geoip?.enabled) {
-        res.status(409).json({ error: 'geoip not enabled' });
+        res.status(409).json(errorResponse(req, 'geoip.notEnabled'));
         return;
       }
       const result = await lookupIp(config, state, target);
       if (!result) {
-        res.status(404).json({ error: 'no geoip data for ip' });
+        res.status(404).json(errorResponse(req, 'geoip.noData'));
         return;
       }
       res.set('cache-control', 'public, max-age=1800').json(result);
@@ -116,17 +117,17 @@ export const geoipRouter = config => {
   router.post('/geoip/lookup', async (req, res, next) => {
     const ips = Array.isArray(req.body?.ips) ? req.body.ips : null;
     if (!ips || ips.length === 0) {
-      res.status(400).json({ error: 'body.ips must be a non-empty array' });
+      res.status(400).json(errorResponse(req, 'geoip.bulk.empty'));
       return;
     }
     if (ips.some(ip => typeof ip !== 'string' || !IP_PATTERN.test(ip))) {
-      res.status(400).json({ error: 'every ip must be a valid v4/v6 string' });
+      res.status(400).json(errorResponse(req, 'geoip.bulk.invalidEntry'));
       return;
     }
     try {
       const state = await loadState(config.paths.state);
       if (!state?.geoip?.enabled) {
-        res.status(409).json({ error: 'geoip not enabled' });
+        res.status(409).json(errorResponse(req, 'geoip.notEnabled'));
         return;
       }
       const results = await lookupMany(config, state, ips);
@@ -167,13 +168,11 @@ export const geoipRouter = config => {
       const state = await loadState(config.paths.state);
       const source = state?.geoip?.localDbSource ?? 'dbip';
       if (source === 'none') {
-        res.status(409).json({ error: 'Local DB source is set to "none"; nothing to download.' });
+        res.status(409).json(errorResponse(req, 'geoip.download.sourceNone'));
         return;
       }
       if (source === 'maxmind' && !state?.geoip?.maxmindLicenseKey) {
-        res
-          .status(409)
-          .json({ error: 'MaxMind license key required when localDbSource is "maxmind".' });
+        res.status(409).json(errorResponse(req, 'geoip.download.maxmindKeyRequired'));
         return;
       }
       const result = await downloadDatabase(config, state);

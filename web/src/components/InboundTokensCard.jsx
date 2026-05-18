@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Card, Form, Spinner, Table } from 'react-bootstrap';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { apiDelete, apiGet, apiPatch, apiPost } from '../api/client.js';
 import { useConfirmation } from '../hooks/useConfirmation.jsx';
@@ -22,36 +23,46 @@ import { useConfirmation } from '../hooks/useConfirmation.jsx';
 
 const formatDate = iso => (iso ? new Date(iso).toLocaleString() : '—');
 
-const FreshTokenBanner = ({ minted, onDismiss }) => (
-  <Alert variant="success" className="small mb-3">
-    <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
-      <strong>Inbound token minted</strong>
-      <Button variant="outline-secondary" size="sm" onClick={onDismiss}>
-        Done
-      </Button>
-    </div>
-    <p className="mb-2">
-      Copy this token now — it will <strong>not</strong> be shown again. Paste it into the OTHER
-      node&apos;s <em>Add peer</em> modal so that node can call this one.
-    </p>
-    <div className="d-flex gap-2 align-items-center">
-      <code className="flex-grow-1 p-2 bg-body-tertiary rounded" style={{ wordBreak: 'break-all' }}>
-        {minted.token}
-      </code>
-      <Button
-        variant="outline-primary"
-        size="sm"
-        onClick={() => navigator.clipboard.writeText(minted.token)}
-        title="Copy to clipboard"
-      >
-        <i className="bi bi-clipboard" />
-      </Button>
-    </div>
-    <div className="small text-muted mt-2">
-      Auto-label: <code>{minted.label}</code> — rename it inline in the list below.
-    </div>
-  </Alert>
-);
+const FreshTokenBanner = ({ minted, onDismiss }) => {
+  const { t } = useTranslation(['cluster', 'common']);
+  return (
+    <Alert variant="success" className="small mb-3">
+      <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+        <strong>{t('cluster:inbound.banner.title', 'Inbound token minted')}</strong>
+        <Button variant="outline-secondary" size="sm" onClick={onDismiss}>
+          {t('cluster:inbound.banner.done', 'Done')}
+        </Button>
+      </div>
+      <p className="mb-2">
+        <Trans
+          i18nKey="cluster:inbound.banner.body"
+          defaults="Copy this token now — it will <1>not</1> be shown again. Paste it into the OTHER node's <3>Add peer</3> modal so that node can call this one."
+          components={{ 1: <strong />, 3: <em /> }}
+        />
+      </p>
+      <div className="d-flex gap-2 align-items-center">
+        <code
+          className="flex-grow-1 p-2 bg-body-tertiary rounded"
+          style={{ wordBreak: 'break-all' }}
+        >
+          {minted.token}
+        </code>
+        <Button
+          variant="outline-primary"
+          size="sm"
+          onClick={() => navigator.clipboard.writeText(minted.token)}
+          title={t('common:messages.copiedToClipboard', 'Copied to clipboard')}
+        >
+          <i className="bi bi-clipboard" />
+        </Button>
+      </div>
+      <div className="small text-muted mt-2">
+        {t('cluster:inbound.banner.autoLabelPrefix', 'Auto-label:')} <code>{minted.label}</code>{' '}
+        {t('cluster:inbound.banner.autoLabelSuffix', '— rename it inline in the list below.')}
+      </div>
+    </Alert>
+  );
+};
 
 FreshTokenBanner.propTypes = {
   minted: PropTypes.shape({
@@ -64,6 +75,7 @@ FreshTokenBanner.propTypes = {
 };
 
 const InlineLabelEditor = ({ token, onSaved }) => {
+  const { t } = useTranslation(['cluster']);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(token.label ?? '');
   const [submitting, setSubmitting] = useState(false);
@@ -110,9 +122,13 @@ const InlineLabelEditor = ({ token, onSaved }) => {
           setDraft(token.label ?? '');
           setEditing(true);
         }}
-        title="Click to rename"
+        title={t('cluster:inbound.label.editTitle', 'Click to rename')}
       >
-        <span>{token.label ?? <em className="text-muted">(no label)</em>}</span>
+        <span>
+          {token.label ?? (
+            <em className="text-muted">{t('cluster:inbound.label.empty', '(no label)')}</em>
+          )}
+        </span>
         <i className="bi bi-pencil-square text-muted small" />
       </Button>
     );
@@ -169,31 +185,37 @@ InlineLabelEditor.propTypes = {
   onSaved: PropTypes.func.isRequired,
 };
 
-const TokenRow = ({ token, onRevoke, onPatched }) => (
-  <tr>
-    <td>
-      <InlineLabelEditor token={token} onSaved={onPatched} />
-    </td>
-    <td>
-      <code className="small">{token.tokenPreview ?? '—'}</code>
-    </td>
-    <td className="small text-muted">{formatDate(token.mintedAt)}</td>
-    <td className="small text-muted">{formatDate(token.lastUsedAt)}</td>
-    <td className="small">
-      {token.lastUsedBy ? <code>{token.lastUsedBy}</code> : <span className="text-muted">—</span>}
-    </td>
-    <td className="text-end">
-      <Button
-        variant="outline-danger"
-        size="sm"
-        onClick={() => onRevoke(token)}
-        title="Revoke this inbound token. Any peer using it will start getting 401s."
-      >
-        <i className="bi bi-trash" />
-      </Button>
-    </td>
-  </tr>
-);
+const TokenRow = ({ token, onRevoke, onPatched }) => {
+  const { t } = useTranslation(['cluster']);
+  return (
+    <tr>
+      <td>
+        <InlineLabelEditor token={token} onSaved={onPatched} />
+      </td>
+      <td>
+        <code className="small">{token.tokenPreview ?? '—'}</code>
+      </td>
+      <td className="small text-muted">{formatDate(token.mintedAt)}</td>
+      <td className="small text-muted">{formatDate(token.lastUsedAt)}</td>
+      <td className="small">
+        {token.lastUsedBy ? <code>{token.lastUsedBy}</code> : <span className="text-muted">—</span>}
+      </td>
+      <td className="text-end">
+        <Button
+          variant="outline-danger"
+          size="sm"
+          onClick={() => onRevoke(token)}
+          title={t(
+            'cluster:inbound.revokeTitle',
+            'Revoke this inbound token. Any peer using it will start getting 401s.'
+          )}
+        >
+          <i className="bi bi-trash" />
+        </Button>
+      </td>
+    </tr>
+  );
+};
 
 TokenRow.propTypes = {
   token: PropTypes.shape({
@@ -209,6 +231,7 @@ TokenRow.propTypes = {
 };
 
 export const InboundTokensCard = () => {
+  const { t } = useTranslation(['cluster', 'common']);
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -267,14 +290,18 @@ export const InboundTokensCard = () => {
 
   const revoke = async token => {
     const ok = await confirm({
-      title: 'Revoke this inbound token?',
+      title: t('cluster:inbound.revokeConfirm.title', 'Revoke this inbound token?'),
       body: (
         <p className="mb-0">
-          Revoke <code>{token.label ?? token.id}</code>? Any peer currently using it will
-          immediately start getting 401 responses. This cannot be undone.
+          {t('cluster:inbound.revokeConfirm.bodyPrefix', 'Revoke')}{' '}
+          <code>{token.label ?? token.id}</code>
+          {t(
+            'cluster:inbound.revokeConfirm.bodySuffix',
+            '? Any peer currently using it will immediately start getting 401 responses. This cannot be undone.'
+          )}
         </p>
       ),
-      confirmLabel: 'Revoke',
+      confirmLabel: t('cluster:inbound.revokeConfirm.confirmLabel', 'Revoke'),
       confirmVariant: 'danger',
     });
     if (!ok) {
@@ -289,7 +316,7 @@ export const InboundTokensCard = () => {
   };
 
   const patchOne = updated => {
-    setTokens(prev => prev.map(t => (t.id === updated.id ? { ...t, ...updated } : t)));
+    setTokens(prev => prev.map(tok => (tok.id === updated.id ? { ...tok, ...updated } : tok)));
   };
 
   const renderTokensBody = () => {
@@ -303,7 +330,11 @@ export const InboundTokensCard = () => {
     if (tokens.length === 0) {
       return (
         <Alert variant="light" className="border small mb-0">
-          No inbound tokens minted yet. Click <strong>Mint inbound token</strong> to create one.
+          <Trans
+            i18nKey="cluster:inbound.list.empty"
+            defaults="No inbound tokens minted yet. Click <1>Mint inbound token</1> to create one."
+            components={{ 1: <strong /> }}
+          />
         </Alert>
       );
     }
@@ -311,11 +342,11 @@ export const InboundTokensCard = () => {
       <Table size="sm" hover className="mb-0">
         <thead>
           <tr>
-            <th>Label</th>
-            <th>Preview</th>
-            <th>Minted</th>
-            <th>Last used</th>
-            <th>Last used by</th>
+            <th>{t('cluster:inbound.col.label', 'Label')}</th>
+            <th>{t('cluster:inbound.col.preview', 'Preview')}</th>
+            <th>{t('cluster:inbound.col.minted', 'Minted')}</th>
+            <th>{t('cluster:inbound.col.lastUsed', 'Last used')}</th>
+            <th>{t('cluster:inbound.col.lastUsedBy', 'Last used by')}</th>
             <th />
           </tr>
         </thead>
@@ -333,23 +364,27 @@ export const InboundTokensCard = () => {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
           <div>
-            <Card.Title className="mb-1">My inbound tokens</Card.Title>
+            <Card.Title className="mb-1">
+              {t('cluster:inbound.title', 'My inbound tokens')}
+            </Card.Title>
             <Card.Text className="text-muted small mb-0">
-              Bearer tokens THIS node will accept from peers. Mint here, copy once, paste on the
-              other node&apos;s <em>Add peer</em> modal. Each token is independently revocable; the
-              raw value is never shown again after mint.
+              <Trans
+                i18nKey="cluster:inbound.description"
+                defaults="Bearer tokens THIS node will accept from peers. Mint here, copy once, paste on the other node's <1>Add peer</1> modal. Each token is independently revocable; the raw value is never shown again after mint."
+                components={{ 1: <em /> }}
+              />
             </Card.Text>
           </div>
           <Button variant="primary" size="sm" onClick={mint} disabled={minting}>
             {minting ? (
               <>
                 <Spinner as="span" animation="border" size="sm" className="me-2" />
-                Minting…
+                {t('cluster:inbound.minting', 'Minting…')}
               </>
             ) : (
               <>
                 <i className="bi bi-key me-1" />
-                Mint inbound token
+                {t('cluster:inbound.mintButton', 'Mint inbound token')}
               </>
             )}
           </Button>
@@ -359,7 +394,9 @@ export const InboundTokensCard = () => {
 
         {error ? (
           <Alert variant="danger" className="py-2 small">
-            {error.payload?.message ?? error.message ?? 'Inbound tokens list unavailable.'}
+            {error.payload?.message ??
+              error.message ??
+              t('cluster:inbound.errorFallback', 'Inbound tokens list unavailable.')}
           </Alert>
         ) : null}
 

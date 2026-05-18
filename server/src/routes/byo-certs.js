@@ -3,11 +3,16 @@ import { join as joinPath } from 'node:path';
 
 import { Router } from 'express';
 
+import { errorResponse, localizeMessage } from '../lib/api-response.js';
 import * as audit from '../lib/audit.js';
 import { validateByoBundle, validateLineageName } from '../lib/byo-cert-validator.js';
+import { ValidationError } from '../lib/errors.js';
 import { fileExists, safePathUnder, writeAtomic } from '../lib/files.js';
 import { log } from '../lib/logger.js';
 import { findCertificatePemBlocks } from '../lib/pem.js';
+
+const localizeIssues = (req, issues) =>
+  (issues ?? []).map(issue => localizeMessage(req, issue.code, issue.replacements));
 
 // v0.2.38 — BYO (bring-your-own) cert upload endpoints. The API accepts a
 // `name` field (v0.2.39 renamed from `lineageName` — the word "lineage" is
@@ -25,7 +30,9 @@ import { findCertificatePemBlocks } from '../lib/pem.js';
 const sanitizeCertPath = (byoCertsDir, name) => {
   const validationError = validateLineageName(name);
   if (validationError) {
-    throw new Error(validationError);
+    throw new ValidationError(validationError.code, {
+      replacements: validationError.replacements,
+    });
   }
   return safePathUnder(byoCertsDir, name);
 };
@@ -165,7 +172,7 @@ export const byoCertsRouter = config => {
   router.post('/byo-certs/validate', (req, res) => {
     const { fullchainPem, privkeyPem } = req.body ?? {};
     const result = validateByoBundle({ fullchainPem, privkeyPem });
-    res.json(result);
+    res.json({ ...result, errors: localizeIssues(req, result.errors) });
   });
 
   /**
@@ -223,12 +230,20 @@ export const byoCertsRouter = config => {
     try {
       certDir = sanitizeCertPath(dir(), name);
     } catch (err) {
-      res.status(400).json({ ok: false, error: err.message });
+      if (err instanceof ValidationError) {
+        res.status(400).json({ ok: false, ...errorResponse(req, err.code, err.replacements) });
+        return;
+      }
+      next(err);
       return;
     }
     const validation = validateByoBundle({ fullchainPem, privkeyPem });
     if (!validation.ok) {
-      res.status(400).json({ ok: false, errors: validation.errors, info: validation.info });
+      res.status(400).json({
+        ok: false,
+        errors: localizeIssues(req, validation.errors),
+        info: validation.info,
+      });
       return;
     }
     try {
@@ -268,7 +283,11 @@ export const byoCertsRouter = config => {
     try {
       certDir = sanitizeCertPath(dir(), name);
     } catch (err) {
-      res.status(400).json({ ok: false, error: err.message });
+      if (err instanceof ValidationError) {
+        res.status(400).json({ ok: false, ...errorResponse(req, err.code, err.replacements) });
+        return;
+      }
+      next(err);
       return;
     }
     // safePathUnder rather than joinPath — basename is a constant function
@@ -277,7 +296,9 @@ export const byoCertsRouter = config => {
     // on the composite path.
     const filePath = safePathUnder(certDir, basename);
     if (!(await fileExists(filePath))) {
-      res.status(404).json({ ok: false, error: `${basename} not found for ${name}` });
+      res
+        .status(404)
+        .json({ ok: false, ...errorResponse(req, 'cert.byo.fileNotFound', { basename, name }) });
       return;
     }
     try {
@@ -383,7 +404,11 @@ export const byoCertsRouter = config => {
     try {
       certDir = sanitizeCertPath(dir(), name);
     } catch (err) {
-      res.status(400).json({ ok: false, error: err.message });
+      if (err instanceof ValidationError) {
+        res.status(400).json({ ok: false, ...errorResponse(req, err.code, err.replacements) });
+        return;
+      }
+      next(err);
       return;
     }
     try {

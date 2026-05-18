@@ -4,6 +4,7 @@ import { hostname } from 'node:os';
 import yaml from 'js-yaml';
 import { z } from 'zod';
 
+import { ConfigError } from './errors.js';
 import { ensureDir, fileExists, writeAtomic } from './files.js';
 import { log } from './logger.js';
 
@@ -28,19 +29,35 @@ const NodeVrrpEntrySchema = z.object({
   interface: z.string().min(1),
 });
 
+const SyncSchema = z.object({
+  autoPushOnSave: z.boolean().default(false),
+  pullEnabled: z.boolean().default(false),
+  pullFromPeerId: z.string().nullable().default(null),
+  pullIntervalSeconds: z.number().int().min(10).max(3600).default(60),
+});
+
 export const NodeConfigSchema = z.object({
   nodeId: z.string().min(1).max(128),
+  renewalLeader: z.boolean().default(true),
+  sync: SyncSchema.default({}),
   vrrp: z.record(z.string(), NodeVrrpEntrySchema).default({}),
 });
 
 const defaultNodeConfig = () => ({
   nodeId: hostname() || 'patchpanel-node',
+  renewalLeader: true,
+  sync: {
+    autoPushOnSave: false,
+    pullEnabled: false,
+    pullFromPeerId: null,
+    pullIntervalSeconds: 60,
+  },
   vrrp: {},
 });
 
 export const loadNodeConfig = async path => {
   if (!path) {
-    throw new Error('paths.nodeConfig is not configured');
+    throw new ConfigError('cluster.node.config.pathMissing');
   }
   if (!(await fileExists(path))) {
     return defaultNodeConfig();
@@ -63,7 +80,7 @@ export const loadNodeConfig = async path => {
 
 export const saveNodeConfig = async (path, candidate) => {
   if (!path) {
-    throw new Error('paths.nodeConfig is not configured');
+    throw new ConfigError('cluster.node.config.pathMissing');
   }
   const parsed = NodeConfigSchema.parse(candidate);
   const body = yaml.dump(parsed, { lineWidth: 120, noRefs: true, sortKeys: false });

@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Alert, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiGet, apiPost } from '../api/client.js';
 
@@ -110,6 +111,69 @@ const INJECTED_CSS = `
 .swagger-ui .custom-server-input button {
   white-space: nowrap;
 }
+
+/* Dark-mode overrides. swagger-ui-react v5 has no built-in dark theme — its
+ * stylesheet hard-codes near-black text colors for the title, description,
+ * tag headers, endpoint summary lines, and ships unstyled native form
+ * controls for the servers dropdown + filter box. When the app is in dark
+ * mode (data-bs-theme='dark' on <html>), the rest of the swagger surface
+ * already inherits the Bootstrap dark palette through our wrapper, but
+ * those specific selectors need explicit color/background swaps. */
+[data-bs-theme='dark'] .swagger-ui .info .title,
+[data-bs-theme='dark'] .swagger-ui .info .title small,
+[data-bs-theme='dark'] .swagger-ui .info .title small pre,
+[data-bs-theme='dark'] .swagger-ui .info p,
+[data-bs-theme='dark'] .swagger-ui .info li,
+[data-bs-theme='dark'] .swagger-ui .info table,
+[data-bs-theme='dark'] .swagger-ui .info .description,
+[data-bs-theme='dark'] .swagger-ui .info .description div,
+[data-bs-theme='dark'] .swagger-ui .info .base-url,
+[data-bs-theme='dark'] .swagger-ui .markdown p,
+[data-bs-theme='dark'] .swagger-ui .markdown li,
+[data-bs-theme='dark'] .swagger-ui .markdown h1,
+[data-bs-theme='dark'] .swagger-ui .markdown h2,
+[data-bs-theme='dark'] .swagger-ui .markdown h3,
+[data-bs-theme='dark'] .swagger-ui .markdown h4,
+[data-bs-theme='dark'] .swagger-ui .renderedMarkdown p,
+[data-bs-theme='dark'] .swagger-ui .renderedMarkdown li {
+  color: var(--bs-body-color);
+}
+[data-bs-theme='dark'] .swagger-ui .opblock-tag,
+[data-bs-theme='dark'] .swagger-ui .opblock-tag a {
+  color: var(--bs-body-color);
+}
+[data-bs-theme='dark'] .swagger-ui .opblock-tag small,
+[data-bs-theme='dark'] .swagger-ui .opblock-tag small p {
+  color: var(--bs-secondary-color);
+}
+[data-bs-theme='dark'] .swagger-ui .opblock .opblock-summary-path,
+[data-bs-theme='dark'] .swagger-ui .opblock .opblock-summary-path__deprecated,
+[data-bs-theme='dark'] .swagger-ui .opblock .opblock-summary-path a,
+[data-bs-theme='dark'] .swagger-ui .opblock .opblock-summary-description,
+[data-bs-theme='dark'] .swagger-ui .opblock .opblock-summary-operation-id {
+  color: var(--bs-body-color);
+}
+[data-bs-theme='dark'] .swagger-ui select,
+[data-bs-theme='dark'] .swagger-ui .servers select,
+[data-bs-theme='dark'] .swagger-ui .servers > label select {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border-color: var(--bs-border-color);
+}
+[data-bs-theme='dark'] .swagger-ui .servers > label {
+  color: var(--bs-body-color);
+}
+[data-bs-theme='dark'] .swagger-ui input.operation-filter-input,
+[data-bs-theme='dark'] .swagger-ui .filter .operation-filter-input,
+[data-bs-theme='dark'] .swagger-ui .filter-container input {
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border-color: var(--bs-border-color);
+}
+[data-bs-theme='dark'] .swagger-ui input.operation-filter-input::placeholder,
+[data-bs-theme='dark'] .swagger-ui .filter .operation-filter-input::placeholder {
+  color: var(--bs-secondary-color);
+}
 `;
 
 // swagger-ui-react renders the bearer field as a standard React-controlled
@@ -134,19 +198,21 @@ const fillBearerInput = value => {
 // Build a temp-token banner DOM node. Returns the root element so the caller
 // can insert/remove it. Kept out of React because the swagger-ui modal is
 // rendered imperatively by swagger-ui-react and React can't reach inside.
-const buildApiKeysSection = ({ tokens, swaggerConfig, onTempMint, onError }) => {
+const buildApiKeysSection = ({ tokens, swaggerConfig, onTempMint, onError, t }) => {
   const root = document.createElement('div');
   root.className = 'modal-api-keys';
 
   const title = document.createElement('h4');
-  title.textContent = 'patchpanel API tokens';
+  title.textContent = t('common:apiDocs.tokensTitle', 'patchpanel API tokens');
   root.appendChild(title);
 
   if (tokens.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'no-keys-msg';
-    empty.textContent =
-      'No API tokens minted yet. Use the Generate Temp Token button below for testing, or mint a long-lived token from Profile → API tokens.';
+    empty.textContent = t(
+      'common:apiDocs.noTokens',
+      'No API tokens minted yet. Use the Generate Temp Token button below for testing, or mint a long-lived token from Profile → API tokens.'
+    );
     root.appendChild(empty);
   } else {
     tokens.forEach(token => {
@@ -159,12 +225,20 @@ const buildApiKeysSection = ({ tokens, swaggerConfig, onTempMint, onError }) => 
       info.className = 'api-key-info';
       const created = new Date(token.createdAt).toLocaleDateString();
       const expires = token.expiresAt
-        ? `expires ${new Date(token.expiresAt).toLocaleDateString()}`
-        : 'no expiry';
+        ? t('common:apiDocs.expires', 'expires {{date}}', {
+            date: new Date(token.expiresAt).toLocaleDateString(),
+          })
+        : t('common:apiDocs.noExpiry', 'no expiry');
       const lastUsed = token.lastUsedAt
-        ? `last used ${new Date(token.lastUsedAt).toLocaleDateString()}`
-        : 'never used';
-      info.textContent = `${token.keyId} • created ${created} • ${expires} • ${lastUsed}`;
+        ? t('common:apiDocs.lastUsed', 'last used {{date}}', {
+            date: new Date(token.lastUsedAt).toLocaleDateString(),
+          })
+        : t('common:apiDocs.neverUsed', 'never used');
+      info.textContent = t(
+        'common:apiDocs.tokenInfo',
+        '{{keyId}} • created {{created}} • {{expires}} • {{lastUsed}}',
+        { keyId: token.keyId, created, expires, lastUsed }
+      );
       item.appendChild(name);
       item.appendChild(info);
       root.appendChild(item);
@@ -173,8 +247,10 @@ const buildApiKeysSection = ({ tokens, swaggerConfig, onTempMint, onError }) => 
     const hint = document.createElement('div');
     hint.className = 'no-keys-msg';
     hint.style.marginTop = '0.5rem';
-    hint.textContent =
-      'patchpanel stores token secrets bcrypt-hashed — existing token plaintexts cannot be retrieved. Use Generate Temp Token below to test.';
+    hint.textContent = t(
+      'common:apiDocs.hint',
+      'patchpanel stores token secrets bcrypt-hashed — existing token plaintexts cannot be retrieved. Use Generate Temp Token below to test.'
+    );
     root.appendChild(hint);
   }
 
@@ -191,40 +267,48 @@ const buildApiKeysSection = ({ tokens, swaggerConfig, onTempMint, onError }) => 
   const tempLabel = document.createElement('div');
   tempLabel.className = 'temp-key-label';
   const hours = swaggerConfig.tempKeyExpirationHours ?? 1;
-  tempLabel.textContent = `Generate a temporary token (expires after ${hours}h) and fill the Bearer field automatically.`;
+  tempLabel.textContent = t(
+    'common:apiDocs.tempLabel',
+    'Generate a temporary token (expires after {{hours}}h) and fill the Bearer field automatically.',
+    { hours }
+  );
   tempSection.appendChild(tempLabel);
 
   const tempBtn = document.createElement('button');
   tempBtn.type = 'button';
   tempBtn.className = 'temp-key-btn';
-  tempBtn.textContent = 'Generate Temp Token';
+  const tempBtnLabel = t('common:apiDocs.tempBtn', 'Generate Temp Token');
+  tempBtn.textContent = tempBtnLabel;
   tempSection.appendChild(tempBtn);
 
   tempBtn.addEventListener('click', async () => {
     tempBtn.disabled = true;
-    tempBtn.textContent = 'Generating…';
+    tempBtn.textContent = t('common:apiDocs.generating', 'Generating…');
     try {
       const result = await onTempMint();
       const filled = fillBearerInput(result.wire);
       if (filled) {
-        tempBtn.textContent = 'Filled with Temp Token!';
+        tempBtn.textContent = t('common:apiDocs.filled', 'Filled with Temp Token!');
         tempBtn.classList.add('success');
         setTimeout(() => {
-          tempBtn.textContent = 'Generate Temp Token';
+          tempBtn.textContent = tempBtnLabel;
           tempBtn.classList.remove('success');
           tempBtn.disabled = false;
         }, 3000);
       } else {
         throw new Error(
-          'Could not find the bearer auth input — open the Authorize modal again and retry.'
+          t(
+            'common:apiDocs.bearerNotFound',
+            'Could not find the bearer auth input — open the Authorize modal again and retry.'
+          )
         );
       }
     } catch (err) {
       onError(err);
-      tempBtn.textContent = 'Error';
+      tempBtn.textContent = t('common:apiDocs.errorBtn', 'Error');
       tempBtn.classList.add('error');
       setTimeout(() => {
-        tempBtn.textContent = 'Generate Temp Token';
+        tempBtn.textContent = tempBtnLabel;
         tempBtn.classList.remove('error');
         tempBtn.disabled = false;
       }, 2500);
@@ -245,7 +329,7 @@ const CHECK_ICON_SVG =
 // without editing the spec. Mirrors armor's reclassing of `.scheme-container`
 // → `.wrapper.swagger-servers-section` + `.schemes` → `.block.schemes-flex-container`
 // so the JTD-wider color scheme styles apply the same way on GH Pages.
-const installCustomServerInput = () => {
+const installCustomServerInput = t => {
   const schemeContainer =
     document.querySelector('.swagger-ui .scheme-container') ||
     document.querySelector('.swagger-ui .swagger-servers-section');
@@ -272,7 +356,10 @@ const installCustomServerInput = () => {
 
   const input = document.createElement('input');
   input.type = 'text';
-  input.placeholder = 'Custom server URL — e.g. https://patchpanel.example.com:8099';
+  input.placeholder = t(
+    'common:apiDocs.customServerPlaceholder',
+    'Custom server URL — e.g. https://patchpanel.example.com:8099'
+  );
 
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -286,7 +373,7 @@ const installCustomServerInput = () => {
     }
     const opt = document.createElement('option');
     opt.value = url;
-    opt.textContent = `${url} - Custom`;
+    opt.textContent = t('common:apiDocs.customLabel', '{{url}} - Custom', { url });
     serverSelect.appendChild(opt);
     serverSelect.value = url;
     serverSelect.dispatchEvent(new Event('change', { bubbles: true }));
@@ -316,6 +403,7 @@ const installCustomServerInput = () => {
 };
 
 export const ApiDocsPage = () => {
+  const { t } = useTranslation(['common']);
   const [spec, setSpec] = useState(null);
   const [tokens, setTokens] = useState([]);
   const [swaggerConfig, setSwaggerConfig] = useState(null);
@@ -349,7 +437,10 @@ export const ApiDocsPage = () => {
         const origin = `${window.location.protocol}//${window.location.host}`;
         const next = {
           ...fetched,
-          servers: [{ url: origin, description: 'Current server' }, ...(fetched.servers ?? [])],
+          servers: [
+            { url: origin, description: t('common:apiDocs.currentServer', 'Current server') },
+            ...(fetched.servers ?? []),
+          ],
         };
         setSpec(next);
         if (configResult.status === 'fulfilled') {
@@ -365,7 +456,7 @@ export const ApiDocsPage = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   // DOM-mutation effects run after SwaggerUI has rendered. swagger-ui-react
   // is uncontrolled below this point — we attach observers to inject the
@@ -416,6 +507,7 @@ export const ApiDocsPage = () => {
           swaggerConfig: swaggerConfigSnapshot,
           onTempMint: handleTempMint,
           onError: handleInjectError,
+          t,
         });
         content.insertBefore(section, content.firstChild);
       }, 100);
@@ -430,7 +522,7 @@ export const ApiDocsPage = () => {
         clearInterval(installInterval);
         return;
       }
-      installCustomServerInput();
+      installCustomServerInput(t);
       attempts += 1;
     }, 250);
 
@@ -463,19 +555,21 @@ export const ApiDocsPage = () => {
       clearInterval(installInterval);
       observer.disconnect();
     };
-  }, [spec]);
+  }, [spec, t]);
 
   if (error) {
     return (
       <Alert variant="danger">
-        <Alert.Heading>Failed to load API documentation</Alert.Heading>
+        <Alert.Heading>
+          {t('common:apiDocs.loadFailed', 'Failed to load API documentation')}
+        </Alert.Heading>
         <p className="mb-0">{error.message}</p>
       </Alert>
     );
   }
 
   if (!spec) {
-    return <LoadingSpinner label="Loading API documentation…" />;
+    return <LoadingSpinner label={t('common:apiDocs.loading', 'Loading API documentation…')} />;
   }
 
   return (
@@ -488,10 +582,14 @@ export const ApiDocsPage = () => {
           onClose={() => setInjectionError(null)}
           className="small mb-2"
         >
-          Swagger UI helper failed: {injectionError.message}
+          {t('common:apiDocs.helperFailed', 'Swagger UI helper failed: {{message}}', {
+            message: injectionError.message,
+          })}
         </Alert>
       ) : null}
-      <Suspense fallback={<LoadingSpinner label="Loading Swagger UI…" />}>
+      <Suspense
+        fallback={<LoadingSpinner label={t('common:apiDocs.loadingUi', 'Loading Swagger UI…')} />}
+      >
         <SwaggerUI
           spec={spec}
           deepLinking

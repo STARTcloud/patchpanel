@@ -13,6 +13,7 @@ import {
   Spinner,
   Table,
 } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 
 import { apiDelete, apiGet } from '../api/client.js';
@@ -33,6 +34,7 @@ import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 // table itself, this panel just exists for disk cleanup of orphans
 // (PEM files that no longer have a matching Certificate entry in state).
 const UploadedFilesPanel = ({ doc, refreshSignal, disabled }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const [certFiles, setCertFiles] = useState([]);
   const [deleting, setDeleting] = useState(null);
   const [error, setError] = useState(null);
@@ -76,13 +78,13 @@ const UploadedFilesPanel = ({ doc, refreshSignal, disabled }) => {
       <Card.Body>
         <Card.Title className="d-flex align-items-center gap-2 mb-1">
           <i className="bi bi-hdd" />
-          Uploaded certificate files (advanced)
+          {t('cert:uploadedFiles.title', 'Uploaded certificate files (advanced)')}
         </Card.Title>
         <Card.Text className="text-muted small mb-2">
-          Files currently stored under the BYO cert directory. Each row corresponds to one folder on
-          disk. Orphans (rows without a matching Certificate entry above) accumulate when you delete
-          a Certificate entry without removing its PEM, or when files are dropped in by hand.
-          Cleanup here removes the on-disk PEM only — Certificate entries in state are unaffected.
+          {t(
+            'cert:uploadedFiles.description',
+            'Files currently stored under the BYO cert directory. Each row corresponds to one folder on disk. Orphans (rows without a matching Certificate entry above) accumulate when you delete a Certificate entry without removing its PEM, or when files are dropped in by hand. Cleanup here removes the on-disk PEM only — Certificate entries in state are unaffected.'
+          )}
         </Card.Text>
         {error ? (
           <Alert variant="danger" onClose={() => setError(null)} dismissible>
@@ -92,10 +94,10 @@ const UploadedFilesPanel = ({ doc, refreshSignal, disabled }) => {
         <Table size="sm" bordered hover responsive>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Status</th>
-              <th>Uploaded</th>
-              <th className="text-end">Actions</th>
+              <th>{t('cert:uploadedFiles.columns.name', 'Name')}</th>
+              <th>{t('cert:uploadedFiles.columns.status', 'Status')}</th>
+              <th>{t('cert:uploadedFiles.columns.uploaded', 'Uploaded')}</th>
+              <th className="text-end">{t('cert:uploadedFiles.columns.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -108,15 +110,15 @@ const UploadedFilesPanel = ({ doc, refreshSignal, disabled }) => {
                   </td>
                   <td>
                     {wired ? (
-                      <Badge bg="success">in use</Badge>
+                      <Badge bg="success">{t('cert:uploadedFiles.badge.inUse', 'in use')}</Badge>
                     ) : (
                       <Badge bg="warning" text="dark">
-                        orphan
+                        {t('cert:uploadedFiles.badge.orphan', 'orphan')}
                       </Badge>
                     )}
                     {!file.complete ? (
                       <Badge bg="danger" className="ms-1">
-                        incomplete
+                        {t('cert:uploadedFiles.badge.incomplete', 'incomplete')}
                       </Badge>
                     ) : null}
                   </td>
@@ -130,7 +132,7 @@ const UploadedFilesPanel = ({ doc, refreshSignal, disabled }) => {
                       onClick={() => setDeleting(file)}
                       disabled={disabled}
                     >
-                      Delete files
+                      {t('cert:uploadedFiles.actions.deleteFiles', 'Delete files')}
                     </Button>
                   </td>
                 </tr>
@@ -142,14 +144,18 @@ const UploadedFilesPanel = ({ doc, refreshSignal, disabled }) => {
       {deleting ? (
         <ConfirmDialog
           show
-          title="Delete uploaded files?"
+          title={t('cert:uploadedFiles.confirmDelete.title', 'Delete uploaded files?')}
           body={
             <>
-              Delete the PEM files for <code>{deleting.name}</code> from disk? Any Certificate entry
-              pointing at this name will become un-loadable until you replace the files.
+              {t('cert:uploadedFiles.confirmDelete.bodyPrefix', 'Delete the PEM files for')}{' '}
+              <code>{deleting.name}</code>{' '}
+              {t(
+                'cert:uploadedFiles.confirmDelete.bodySuffix',
+                'from disk? Any Certificate entry pointing at this name will become un-loadable until you replace the files.'
+              )}
             </>
           }
-          confirmLabel="Delete"
+          confirmLabel={t('common:buttons.delete', 'Delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />
@@ -164,19 +170,19 @@ UploadedFilesPanel.propTypes = {
   disabled: PropTypes.bool,
 };
 
-const statusBadge = newest => {
+const statusBadge = (newest, t) => {
   if (!newest || !newest.notAfter) {
-    return <Badge bg="danger">missing</Badge>;
+    return <Badge bg="danger">{t('cert:status.missing', 'missing')}</Badge>;
   }
   const expires = new Date(newest.notAfter);
   const days = Math.round((expires.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
   if (days < 0) {
-    return <Badge bg="danger">expired</Badge>;
+    return <Badge bg="danger">{t('cert:status.expired', 'expired')}</Badge>;
   }
   if (days < 14) {
-    return <Badge bg="warning">{days}d</Badge>;
+    return <Badge bg="warning">{t('cert:status.daysShort', '{{days}}d', { days })}</Badge>;
   }
-  return <Badge bg="success">{days}d</Badge>;
+  return <Badge bg="success">{t('cert:status.daysShort', '{{days}}d', { days })}</Badge>;
 };
 
 // SAN list modal — for certs with many domains (40+ is common when one
@@ -184,6 +190,7 @@ const statusBadge = newest => {
 // height up. The "+N more" badge in the table cell opens this modal with
 // the full filterable list.
 const SansListModal = ({ show, certName, domains, onClose }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const [filter, setFilter] = useState('');
   const trimmed = filter.trim().toLowerCase();
   const visible = trimmed ? domains.filter(d => d.toLowerCase().includes(trimmed)) : domains;
@@ -191,7 +198,10 @@ const SansListModal = ({ show, certName, domains, onClose }) => {
     <Modal show={show} onHide={onClose} size="lg" scrollable>
       <Modal.Header closeButton>
         <Modal.Title className="h5">
-          {domains.length} SAN{domains.length === 1 ? '' : 's'} on <code>{certName}</code>
+          {t('cert:sansList.title', '{{count}} SAN on {{certName}}', {
+            count: domains.length,
+            certName,
+          })}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
@@ -200,7 +210,7 @@ const SansListModal = ({ show, certName, domains, onClose }) => {
             <i className="bi bi-search" />
           </InputGroup.Text>
           <Form.Control
-            placeholder="Filter SANs…"
+            placeholder={t('cert:sansList.filterPlaceholder', 'Filter SANs…')}
             value={filter}
             onChange={e => setFilter(e.target.value)}
           />
@@ -212,11 +222,16 @@ const SansListModal = ({ show, certName, domains, onClose }) => {
         </InputGroup>
         <div className="text-muted small mb-2">
           {visible.length === domains.length
-            ? `${domains.length} total`
-            : `${visible.length} of ${domains.length} match`}
+            ? t('cert:sansList.count.total', '{{count}} total', { count: domains.length })
+            : t('cert:sansList.count.match', '{{visible}} of {{total}} match', {
+                visible: visible.length,
+                total: domains.length,
+              })}
         </div>
         {visible.length === 0 ? (
-          <p className="text-muted mb-0">No SANs match the filter.</p>
+          <p className="text-muted mb-0">
+            {t('cert:sansList.noMatch', 'No SANs match the filter.')}
+          </p>
         ) : (
           <ul className="list-unstyled mb-0 font-monospace small">
             {visible.map(d => (
@@ -229,7 +244,7 @@ const SansListModal = ({ show, certName, domains, onClose }) => {
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onClose}>
-          Close
+          {t('common:buttons.close', 'Close')}
         </Button>
       </Modal.Footer>
     </Modal>
@@ -244,6 +259,7 @@ SansListModal.propTypes = {
 };
 
 const SansCell = ({ cert }) => {
+  const { t } = useTranslation(['cert']);
   const [showModal, setShowModal] = useState(false);
   const domains = cert.domains ?? [];
   if (domains.length === 0) {
@@ -274,9 +290,13 @@ const SansCell = ({ cert }) => {
           className="border-0 align-self-start"
           style={{ cursor: 'pointer' }}
           onClick={() => setShowModal(true)}
-          title={`Show all ${domains.length} SANs on ${cert.certName}`}
+          title={t('cert:sansCell.showAllTitle', 'Show all {{count}} SANs on {{certName}}', {
+            count: domains.length,
+            certName: cert.certName,
+          })}
         >
-          <i className="bi bi-list-ul me-1" />+{remaining} more
+          <i className="bi bi-list-ul me-1" />
+          {t('cert:sansCell.moreBadge', '+{{count}} more', { count: remaining })}
         </Badge>
       </div>
       {showModal ? (
@@ -311,12 +331,13 @@ const PROVIDER_TYPE_VARIANTS = Object.freeze({
 });
 
 const ProviderCell = ({ providerId, provider }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const variant = PROVIDER_TYPE_VARIANTS[provider?.type] ?? 'secondary';
   return (
     <div className="d-flex flex-column gap-1">
       <Link
         to={`/providers?focus=${encodeURIComponent(providerId)}`}
-        title="Jump to this TLS provider on the Providers tab"
+        title={t('cert:providerCell.linkTitle', 'Jump to this TLS provider on the Providers tab')}
       >
         <code>{providerId}</code>
       </Link>
@@ -330,7 +351,7 @@ const ProviderCell = ({ providerId, provider }) => {
         </Badge>
       ) : (
         <Badge bg="danger" className="align-self-start">
-          unknown
+          {t('common:status.unknown', 'Unknown')}
         </Badge>
       )}
     </div>
@@ -358,6 +379,7 @@ const cloneCertInList = (cert, existingCerts) => {
 };
 
 const CertSettingsAccordion = ({ doc, onSave }) => {
+  const { t } = useTranslation(['cert']);
   const accounts = doc.acmeAccounts ?? [];
   const trustedCas = doc.trustedCas ?? [];
   const trustedCrls = doc.trustedCrls ?? [];
@@ -367,7 +389,7 @@ const CertSettingsAccordion = ({ doc, onSave }) => {
       <Accordion.Item eventKey="0">
         <Accordion.Header>
           <i className="bi bi-person-badge me-2" />
-          ACME accounts ({accounts.length})
+          {t('cert:settings.acmeAccounts', 'ACME accounts ({{count}})', { count: accounts.length })}
         </Accordion.Header>
         <Accordion.Body>
           <AcmeAccountsCard doc={doc} onSave={onSave} />
@@ -376,7 +398,7 @@ const CertSettingsAccordion = ({ doc, onSave }) => {
       <Accordion.Item eventKey="1">
         <Accordion.Header>
           <i className="bi bi-shield-plus me-2" />
-          Trusted CAs ({trustedCas.length})
+          {t('cert:settings.trustedCas', 'Trusted CAs ({{count}})', { count: trustedCas.length })}
         </Accordion.Header>
         <Accordion.Body>
           <TrustedCAsCard doc={doc} onSave={onSave} />
@@ -385,7 +407,9 @@ const CertSettingsAccordion = ({ doc, onSave }) => {
       <Accordion.Item eventKey="2">
         <Accordion.Header>
           <i className="bi bi-shield-x me-2" />
-          Trusted CRLs ({trustedCrls.length})
+          {t('cert:settings.trustedCrls', 'Trusted CRLs ({{count}})', {
+            count: trustedCrls.length,
+          })}
         </Accordion.Header>
         <Accordion.Body>
           <TrustedCRLsCard doc={doc} onSave={onSave} />
@@ -394,7 +418,7 @@ const CertSettingsAccordion = ({ doc, onSave }) => {
       <Accordion.Item eventKey="3">
         <Accordion.Header>
           <i className="bi bi-shield-lock me-2" />
-          Renewal settings
+          {t('cert:settings.renewal', 'Renewal settings')}
         </Accordion.Header>
         <Accordion.Body>
           <LetsencryptCard doc={doc} onSave={onSave} />
@@ -409,7 +433,7 @@ CertSettingsAccordion.propTypes = {
   onSave: onSavePropType.isRequired,
 };
 
-const renewalAlert = lastResult => {
+const renewalAlert = (lastResult, t) => {
   if (!lastResult) {
     return null;
   }
@@ -420,18 +444,28 @@ const renewalAlert = lastResult => {
   }
   const allOk = lastResult.results.every(r => r.ok);
   const variant = allOk && lastResult.reload?.ok ? 'success' : 'warning';
-  const label = isSingle ? 'Single-cert renewal' : 'Renewal';
+  const label = isSingle
+    ? t('cert:renewalAlert.singleLabel', 'Single-cert renewal')
+    : t('cert:renewalAlert.allLabel', 'Renewal');
   return (
     <Alert variant={variant}>
       <div>
-        {label} completed. Loadable certificates: {lastResult.loadableCertCount}.{' '}
-        {lastResult.reload?.ok ? 'HAProxy reloaded.' : 'HAProxy reload skipped or failed.'}
+        {t('cert:renewalAlert.summary', '{{label}} completed. Loadable certificates: {{count}}.', {
+          label,
+          count: lastResult.loadableCertCount,
+        })}{' '}
+        {lastResult.reload?.ok
+          ? t('cert:renewalAlert.reloadOk', 'HAProxy reloaded.')
+          : t('cert:renewalAlert.reloadFail', 'HAProxy reload skipped or failed.')}
       </div>
       {lastResult.results.length > 0 ? (
         <ul className="mb-0 mt-2">
           {lastResult.results.map(r => (
             <li key={r.certName}>
-              <code>{r.certName}</code>: {r.ok ? 'success' : `failed — ${r.error}`}
+              <code>{r.certName}</code>:{' '}
+              {r.ok
+                ? t('cert:renewalAlert.itemOk', 'success')
+                : t('cert:renewalAlert.itemFail', 'failed — {{error}}', { error: r.error })}
             </li>
           ))}
         </ul>
@@ -441,6 +475,7 @@ const renewalAlert = lastResult => {
 };
 
 export const CertificatesPage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const [live, setLive] = useState(null);
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(null);
@@ -545,7 +580,7 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
       <Card className="mb-3">
         <Card.Body>
           <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-            <Card.Title className="mb-0">Certificates</Card.Title>
+            <Card.Title className="mb-0">{t('cert:page.title', 'Certificates')}</Card.Title>
             <ButtonGroup size="sm">
               <Button
                 variant="outline-primary"
@@ -553,7 +588,7 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                 disabled={saving || !onSave}
               >
                 <i className="bi bi-plus-lg me-1" />
-                Add certificate
+                {t('cert:page.addCertificate', 'Add certificate')}
               </Button>
               <Button
                 variant="primary"
@@ -562,33 +597,54 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
               >
                 {actions.busy === 'renew' ? (
                   <>
-                    <Spinner as="span" animation="border" size="sm" /> Renewing all…
+                    <Spinner as="span" animation="border" size="sm" />{' '}
+                    {t('cert:page.renewingAll', 'Renewing all…')}
                   </>
                 ) : (
-                  'Renew all'
+                  t('cert:page.renewAll', 'Renew all')
                 )}
               </Button>
               <Button
                 variant="warning"
                 onClick={() => actions.renewCerts({ force: true }).catch(() => undefined)}
                 disabled={isBusy || noCerts}
-                title="Renew all even if existing certs aren't near expiry (--force-renewal)"
+                title={t(
+                  'cert:page.forceRenewAllTitle',
+                  "Renew all even if existing certs aren't near expiry (--force-renewal)"
+                )}
               >
-                Force renew all
+                {t('cert:page.forceRenewAll', 'Force renew all')}
               </Button>
             </ButtonGroup>
           </div>
           <Card.Text className="text-muted small">
-            Adding/editing/deleting certificates changes state but does not by itself issue or
-            revoke anything. Use Renew (per cert or all) to invoke certbot. Renewal can take several
-            minutes per certificate due to DNS propagation.
+            {t(
+              'cert:page.description',
+              'Adding/editing/deleting certificates changes state but does not by itself issue or revoke anything. Use Renew (per cert or all) to invoke certbot. Renewal can take several minutes per certificate due to DNS propagation.'
+            )}
           </Card.Text>
-          {error ? <p className="text-danger">Live status unavailable: {error.message}</p> : null}
-          {saveError ? <p className="text-danger">Save failed: {saveError.message}</p> : null}
-          {actions.error ? (
-            <Alert variant="danger">Renewal request failed: {actions.error.message}</Alert>
+          {error ? (
+            <p className="text-danger">
+              {t('cert:page.liveStatusUnavailable', 'Live status unavailable: {{message}}', {
+                message: error.message,
+              })}
+            </p>
           ) : null}
-          {renewalAlert(actions.lastResult)}
+          {saveError ? (
+            <p className="text-danger">
+              {t('cert:page.saveFailed', 'Save failed: {{message}}', {
+                message: saveError.message,
+              })}
+            </p>
+          ) : null}
+          {actions.error ? (
+            <Alert variant="danger">
+              {t('cert:page.renewalRequestFailed', 'Renewal request failed: {{message}}', {
+                message: actions.error.message,
+              })}
+            </Alert>
+          ) : null}
+          {renewalAlert(actions.lastResult, t)}
           <Table striped bordered hover responsive size="sm" style={{ tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: '22%' }} />
@@ -599,11 +655,11 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
             </colgroup>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>SANs</th>
-                <th>Provider</th>
-                <th>Status</th>
-                <th className="text-end">Actions</th>
+                <th>{t('cert:page.columns.name', 'Name')}</th>
+                <th>{t('cert:page.columns.sans', 'SANs')}</th>
+                <th>{t('cert:page.columns.provider', 'Provider')}</th>
+                <th>{t('cert:page.columns.status', 'Status')}</th>
+                <th className="text-end">{t('cert:page.columns.actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -614,10 +670,20 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                 const isFocused = focusId === cert.id;
                 const isByo = isByoCert(cert);
                 const unissued = !liveCert?.newest;
-                const actionLabel = unissued ? 'Issue' : 'Renew';
+                const actionLabel = unissued
+                  ? t('cert:page.action.issue', 'Issue')
+                  : t('cert:page.action.renew', 'Renew');
                 const forceTooltip = unissued
-                  ? `Force issue ${cert.certName}, ignoring certbot's renewal interval`
-                  : `Force renew ${cert.certName}, ignoring certbot's renewal interval`;
+                  ? t(
+                      'cert:page.forceIssueTitle',
+                      "Force issue {{name}}, ignoring certbot's renewal interval",
+                      { name: cert.certName }
+                    )
+                  : t(
+                      'cert:page.forceRenewTitle',
+                      "Force renew {{name}}, ignoring certbot's renewal interval",
+                      { name: cert.certName }
+                    );
                 return (
                   <tr
                     key={cert.id}
@@ -628,14 +694,22 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                       <div className="d-flex flex-wrap align-items-center gap-1">
                         <code className="text-break">{cert.certName}</code>
                         {isByoCert(cert) ? (
-                          <Badge bg="info" title="Uploaded — not managed by certbot">
-                            uploaded
+                          <Badge
+                            bg="info"
+                            title={t(
+                              'cert:page.uploadedTitle',
+                              'Uploaded — not managed by certbot'
+                            )}
+                          >
+                            {t('cert:page.uploadedBadge', 'uploaded')}
                           </Badge>
                         ) : null}
                       </div>
                       <div className="text-muted small">
-                        id <code>{cert.id}</code> · {(cert.domains ?? []).length} SAN
-                        {(cert.domains ?? []).length === 1 ? '' : 's'}
+                        {t('cert:page.idLabel', 'id')} <code>{cert.id}</code> ·{' '}
+                        {t('cert:page.sanCount', '{{count}} SAN', {
+                          count: (cert.domains ?? []).length,
+                        })}
                       </div>
                     </td>
                     <td>
@@ -647,7 +721,7 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                         provider={providersById.get(cert.providerId)}
                       />
                     </td>
-                    <td>{statusBadge(liveCert?.newest)}</td>
+                    <td>{statusBadge(liveCert?.newest, t)}</td>
                     <td className="text-end text-nowrap">
                       {!isByo ? (
                         <>
@@ -661,7 +735,10 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                                 .catch(() => undefined)
                             }
                             disabled={isBusy}
-                            title={`${actionLabel} ${cert.certName}`}
+                            title={t('cert:page.actionTitle', '{{action}} {{name}}', {
+                              action: actionLabel,
+                              name: cert.certName,
+                            })}
                           >
                             {renewing ? (
                               <Spinner as="span" animation="border" size="sm" />
@@ -681,7 +758,7 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                             disabled={isBusy}
                             title={forceTooltip}
                           >
-                            Force
+                            {t('cert:page.action.force', 'Force')}
                           </Button>
                         </>
                       ) : null}
@@ -692,7 +769,7 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                         onClick={() => setEditing(cert)}
                         disabled={saving || !onSave}
                       >
-                        Edit
+                        {t('common:buttons.edit', 'Edit')}
                       </Button>
                       {!isByo ? (
                         <Button
@@ -701,9 +778,12 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                           className="me-1"
                           onClick={() => handleClone(cert)}
                           disabled={saving || !onSave}
-                          title="Duplicate this certificate entry with a new id/certName. Useful for splitting one cert into per-host certs, or for staging a renewal against a fresh certName. Edit the SAN list before issuing."
+                          title={t(
+                            'cert:page.cloneTitle',
+                            'Duplicate this certificate entry with a new id/certName. Useful for splitting one cert into per-host certs, or for staging a renewal against a fresh certName. Edit the SAN list before issuing.'
+                          )}
                         >
-                          Clone
+                          {t('cert:page.action.clone', 'Clone')}
                         </Button>
                       ) : null}
                       <Button
@@ -712,7 +792,7 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                         onClick={() => setDeleting(cert)}
                         disabled={saving || !onSave}
                       >
-                        Delete
+                        {t('common:buttons.delete', 'Delete')}
                       </Button>
                     </td>
                   </tr>
@@ -742,15 +822,17 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
         {deleting ? (
           <ConfirmDialog
             show
-            title="Delete certificate?"
+            title={t('cert:page.confirmDelete.title', 'Delete certificate?')}
             body={
               <>
-                Delete <strong>{deleting.certName}</strong> from state? The PEM files on disk remain
-                until pruned by the next render pass (or removed manually from the Uploaded files
-                panel below).
+                {t('cert:page.confirmDelete.prefix', 'Delete')} <strong>{deleting.certName}</strong>{' '}
+                {t(
+                  'cert:page.confirmDelete.suffix',
+                  'from state? The PEM files on disk remain until pruned by the next render pass (or removed manually from the Uploaded files panel below).'
+                )}
               </>
             }
-            confirmLabel="Delete"
+            confirmLabel={t('common:buttons.delete', 'Delete')}
             onConfirm={handleDelete}
             onCancel={() => setDeleting(null)}
           />

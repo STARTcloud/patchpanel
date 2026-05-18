@@ -22,9 +22,15 @@ export const themeColors = theme => (theme === 'dark' ? DARK_THEME : LIGHT_THEME
 
 export const seriesColor = (index, total) => `hsl(${(index * 360) / Math.max(1, total)}, 65%, 55%)`;
 
+// Note on `height`: leave undefined to let Highcharts size to the renderTo
+// container's offsetHeight (the right answer when the chart lives in a flex
+// chain with a definite height — e.g. dashboard panels). Pass a pixel number
+// for fixed sizing. Avoid percent strings: Highcharts interprets `'100%'` as
+// "height = 100% of the chart WIDTH" (forcing a square aspect), NOT "fill
+// the container vertically" — see https://api.highcharts.com/highcharts/chart.height
 export const createChartOptions = ({
   title,
-  height = 260,
+  height,
   series = [],
   yAxisTitle = '',
   yAxisMin = 0,
@@ -38,7 +44,7 @@ export const createChartOptions = ({
   return {
     chart: {
       type: 'spline',
-      height,
+      ...(height === undefined ? {} : { height }),
       backgroundColor: colors.background,
       animation: animation ? { duration: 500 } : false,
       style: { fontFamily: 'inherit' },

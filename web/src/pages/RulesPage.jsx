@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card, Form, Tab, Tabs } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { ReorderableTable } from '../components/ReorderableTable.jsx';
@@ -83,27 +84,30 @@ const summarizeAction = action => {
   }
 };
 
-const RowActions = ({ row, ctx }) => (
-  <>
-    <Button
-      variant="outline-secondary"
-      size="sm"
-      className="me-1"
-      onClick={() => ctx.setEditing(row)}
-      disabled={ctx.saving || !ctx.onSave}
-    >
-      Edit
-    </Button>
-    <Button
-      variant="outline-danger"
-      size="sm"
-      onClick={() => ctx.setDeleting(row)}
-      disabled={ctx.saving || !ctx.onSave}
-    >
-      Delete
-    </Button>
-  </>
-);
+const RowActions = ({ row, ctx }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      <Button
+        variant="outline-secondary"
+        size="sm"
+        className="me-1"
+        onClick={() => ctx.setEditing(row)}
+        disabled={ctx.saving || !ctx.onSave}
+      >
+        {t('common:buttons.edit', 'Edit')}
+      </Button>
+      <Button
+        variant="outline-danger"
+        size="sm"
+        onClick={() => ctx.setDeleting(row)}
+        disabled={ctx.saving || !ctx.onSave}
+      >
+        {t('common:buttons.delete', 'Delete')}
+      </Button>
+    </>
+  );
+};
 
 RowActions.propTypes = {
   row: PropTypes.object.isRequired,
@@ -111,6 +115,7 @@ RowActions.propTypes = {
 };
 
 const PhaseTabPanel = ({ phase, doc, frontend, onSaveFrontend, saving }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [editing, setEditing] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -146,13 +151,13 @@ const PhaseTabPanel = ({ phase, doc, frontend, onSaveFrontend, saving }) => {
   const columns = [
     {
       key: 'name',
-      label: 'Name',
+      label: t('haproxy:rule.columns.name', 'Name'),
       render: r => (
         <div>
           <code className="small">{r.name ?? r.id}</code>
           {r.enabled === false ? (
             <Badge bg="secondary" className="ms-1">
-              disabled
+              {t('haproxy:rule.disabled', 'disabled')}
             </Badge>
           ) : null}
         </div>
@@ -160,18 +165,18 @@ const PhaseTabPanel = ({ phase, doc, frontend, onSaveFrontend, saving }) => {
     },
     {
       key: 'action',
-      label: 'Action',
+      label: t('haproxy:rule.columns.action', 'Action'),
       render: r => <code className="small">{summarizeAction(r.action)}</code>,
     },
     {
       key: 'condition',
-      label: 'Condition',
+      label: t('haproxy:rule.columns.condition', 'Condition'),
       render: r => {
         const preview = renderConditionPreview(r.condition);
         return preview ? (
           <code className="small">if {preview}</code>
         ) : (
-          <span className="text-muted small">(always)</span>
+          <span className="text-muted small">({t('haproxy:rule.always', 'always')})</span>
         );
       },
     },
@@ -181,13 +186,14 @@ const PhaseTabPanel = ({ phase, doc, frontend, onSaveFrontend, saving }) => {
     <div className="pt-3">
       <div className="d-flex justify-content-between align-items-start mb-3">
         <div className="text-muted small">
-          Rules evaluate top-to-bottom. First terminating match wins for actions like{' '}
-          <code>deny</code>, <code>redirect</code>, <code>use-backend</code>. Non-terminating
-          actions (<code>set-header</code>, <code>set-var</code>) all run in order.
+          {t(
+            'haproxy:rule.evaluationNote',
+            'Rules evaluate top-to-bottom. First terminating match wins for actions like deny, redirect, use-backend. Non-terminating actions (set-header, set-var) all run in order.'
+          )}
         </div>
         <Button variant="primary" size="sm" onClick={() => setShowNew(true)} disabled={saving}>
           <i className="bi bi-plus-lg me-1" />
-          Add rule
+          {t('haproxy:rule.add', 'Add rule')}
         </Button>
       </div>
       <ReorderableTable
@@ -195,18 +201,17 @@ const PhaseTabPanel = ({ phase, doc, frontend, onSaveFrontend, saving }) => {
         rowKey={r => r.id}
         columns={columns}
         searchFields={['id', 'name', row => row.action?.type, row => summarizeAction(row.action)]}
-        filterPlaceholder="Filter rules…"
-        positionLabel="Order"
+        filterPlaceholder={t('haproxy:rule.filterPlaceholder', 'Filter rules…')}
+        positionLabel={t('haproxy:common.order', 'Order')}
         reorderable
         onReorder={handleReorder}
         RowActions={RowActions}
         rowActionsContext={{ saving, onSave: onSaveFrontend, setEditing, setDeleting }}
-        emptyState={
-          <>
-            No rules in this phase. Click <strong>Add rule</strong> to create one.
-          </>
-        }
-        emptyFilteredState="No rules match the current filter."
+        emptyState={t(
+          'haproxy:rule.empty',
+          'No rules in this phase. Click Add rule to create one.'
+        )}
+        emptyFilteredState={t('haproxy:rule.emptyFiltered', 'No rules match the current filter.')}
       />
       {showNew ? (
         <RuleEditModal
@@ -230,13 +235,14 @@ const PhaseTabPanel = ({ phase, doc, frontend, onSaveFrontend, saving }) => {
       {deleting ? (
         <ConfirmDialog
           show
-          title="Delete rule?"
+          title={t('haproxy:rule.deleteConfirm.title', 'Delete rule?')}
           body={
             <>
-              Delete rule <code>{deleting.name ?? deleting.id}</code>?
+              {t('haproxy:rule.deleteConfirm.body', 'Delete rule')}{' '}
+              <code>{deleting.name ?? deleting.id}</code>?
             </>
           }
-          confirmLabel="Delete"
+          confirmLabel={t('common:buttons.delete', 'Delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />
@@ -256,6 +262,7 @@ PhaseTabPanel.propTypes = {
 const phaseRuleCount = (frontend, phase) => (frontend.rulePhases?.[phase] ?? []).length;
 
 export const RulesPage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [selectedFrontendId, setSelectedFrontendId] = useState(null);
   const [activePhase, setActivePhase] = useState('httpRequest');
   const [saving, setSaving] = useState(false);
@@ -291,20 +298,26 @@ export const RulesPage = ({ doc = null, onSave = null }) => {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
           <div>
-            <Card.Title className="mb-1">Rules</Card.Title>
+            <Card.Title className="mb-1">{t('haproxy:rule.page.title', 'Rules')}</Card.Title>
             <Card.Text className="text-muted small mb-0">
-              Per-frontend rule chains, one tab per HAProxy phase. Drag rows to reorder. Phase order
-              left-to-right matches HAProxy&apos;s evaluation order.
+              {t(
+                'haproxy:rule.page.description',
+                "Per-frontend rule chains, one tab per HAProxy phase. Drag rows to reorder. Phase order left-to-right matches HAProxy's evaluation order."
+              )}
             </Card.Text>
           </div>
           <div style={{ minWidth: '20rem' }}>
-            <Form.Label className="small text-muted mb-1">Frontend</Form.Label>
+            <Form.Label className="small text-muted mb-1">
+              {t('haproxy:rule.frontendLabel', 'Frontend')}
+            </Form.Label>
             <Form.Select
               value={frontend?.id ?? ''}
               onChange={e => setSelectedFrontendId(e.target.value)}
               disabled={frontends.length === 0}
             >
-              {frontends.length === 0 ? <option value="">— no frontends —</option> : null}
+              {frontends.length === 0 ? (
+                <option value="">— {t('haproxy:rule.noFrontends', 'no frontends')} —</option>
+              ) : null}
               {frontends.map(f => (
                 <option key={f.id} value={f.id}>
                   {f.name} ({f.mode})
@@ -315,12 +328,15 @@ export const RulesPage = ({ doc = null, onSave = null }) => {
         </div>
         {saveError ? (
           <Alert variant="danger" onClose={() => setSaveError(null)} dismissible>
-            Save failed: {saveError.message}
+            {t('haproxy:common.saveFailed', 'Save failed')}: {saveError.message}
           </Alert>
         ) : null}
         {!frontend ? (
           <Alert variant="info">
-            No frontends defined yet. Create a frontend before adding rules.
+            {t(
+              'haproxy:rule.noFrontendsNotice',
+              'No frontends defined yet. Create a frontend before adding rules.'
+            )}
           </Alert>
         ) : (
           <Tabs

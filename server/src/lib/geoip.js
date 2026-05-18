@@ -4,6 +4,7 @@ import { dirname, join as joinPath } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
+import { StateError } from './errors.js';
 import { ensureDir, fileExists } from './files.js';
 import { log } from './logger.js';
 
@@ -338,7 +339,9 @@ const extractMmdbFromTar = buffer => {
 // tarball, extract only the .mmdb, atomic-rename into place.
 const downloadMaxmindDatabase = async (config, licenseKey) => {
   if (!licenseKey) {
-    throw new Error('MaxMind license key required when localDbSource is "maxmind"');
+    throw new StateError('geoip.download.maxmindKeyRequired', {
+      message: 'MaxMind license key required when localDbSource is "maxmind"',
+    });
   }
   const dir = config.paths.geoipDir ?? '/data/geoip';
   await ensureDir(dir);
@@ -351,10 +354,15 @@ const downloadMaxmindDatabase = async (config, licenseKey) => {
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`MaxMind download failed: HTTP ${response.status}`);
+    throw new StateError('geoip.download.maxmindFailed', {
+      message: `MaxMind download failed: HTTP ${response.status}`,
+      replacements: { status: response.status },
+    });
   }
   if (!response.body) {
-    throw new Error('MaxMind download returned empty body');
+    throw new StateError('geoip.download.maxmindEmpty', {
+      message: 'MaxMind download returned empty body',
+    });
   }
 
   const tmpTarballPath = `${tmpPath}.tar`;
@@ -368,7 +376,9 @@ const downloadMaxmindDatabase = async (config, licenseKey) => {
   const mmdb = extractMmdbFromTar(buffer);
   if (!mmdb) {
     await fs.rm(tmpTarballPath, { force: true });
-    throw new Error('MaxMind tarball did not contain an .mmdb file');
+    throw new StateError('geoip.download.maxmindMissingMmdb', {
+      message: 'MaxMind tarball did not contain an .mmdb file',
+    });
   }
   await fs.writeFile(tmpPath, mmdb, { mode: 0o644 });
   await fs.rename(tmpPath, finalPath);
@@ -413,10 +423,15 @@ const downloadDbipDatabase = async config => {
   }
 
   if (!response.ok) {
-    throw new Error(`DB-IP download failed: HTTP ${response.status} from ${url}`);
+    throw new StateError('geoip.download.dbipFailed', {
+      message: `DB-IP download failed: HTTP ${response.status} from ${url}`,
+      replacements: { status: response.status, url },
+    });
   }
   if (!response.body) {
-    throw new Error('DB-IP download returned empty body');
+    throw new StateError('geoip.download.dbipEmpty', {
+      message: 'DB-IP download returned empty body',
+    });
   }
 
   await pipeline(Readable.fromWeb(response.body), createGunzip(), createWriteStream(tmpPath));
@@ -436,7 +451,10 @@ export const downloadDatabase = (config, state) => {
   if (source === 'dbip') {
     return downloadDbipDatabase(config);
   }
-  throw new Error(`Local DB source is "${source}"; no download available.`);
+  throw new StateError('geoip.download.sourceUnavailable', {
+    message: `Local DB source is "${source}"; no download available.`,
+    replacements: { source },
+  });
 };
 
 export const getStatus = async (config, state) => {

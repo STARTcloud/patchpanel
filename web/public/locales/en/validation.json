@@ -1,0 +1,13 @@
+{
+  "fieldRequired": "{{field}} is required",
+  "invalidValue": "Invalid value for {{field}}",
+  "invalidFormat": "{{field}} has an invalid format",
+  "tooShort": "{{field}} must be at least {{minLength}} characters",
+  "tooLong": "{{field}} must be at most {{maxLength}} characters",
+  "outOfRange": "{{field}} must be between {{min}} and {{max}}",
+  "invalidIp": "Invalid IP address",
+  "invalidCidr": "Invalid CIDR",
+  "invalidUrl": "Invalid URL",
+  "invalidPort": "Port must be between 1 and 65535",
+  "invalidEmail": "Invalid email address"
+}

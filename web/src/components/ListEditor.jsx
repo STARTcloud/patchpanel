@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Badge, Button, Form, InputGroup } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 const dedupePreservingOrder = arr => {
   const seen = new Set();
@@ -15,6 +16,7 @@ const dedupePreservingOrder = arr => {
 };
 
 export const ListEditor = ({ items, onChange, placeholder = '', validate = null }) => {
+  const { t } = useTranslation(['common']);
   const [pending, setPending] = useState('');
   const [error, setError] = useState(null);
 
@@ -28,12 +30,14 @@ export const ListEditor = ({ items, onChange, placeholder = '', validate = null 
     if (validate) {
       const result = validate(value);
       if (result !== true) {
-        setError(typeof result === 'string' ? result : 'invalid value');
+        setError(
+          typeof result === 'string' ? result : t('common:listEditor.invalidValue', 'invalid value')
+        );
         return;
       }
     }
     if (uniqueItems.includes(value)) {
-      setError('duplicate entry');
+      setError(t('common:listEditor.duplicateEntry', 'duplicate entry'));
       return;
     }
     onChange([...uniqueItems, value]);
@@ -65,13 +69,15 @@ export const ListEditor = ({ items, onChange, placeholder = '', validate = null 
           isInvalid={Boolean(error)}
         />
         <Button variant="outline-secondary" onClick={add} type="button">
-          Add
+          {t('common:buttons.add', 'Add')}
         </Button>
         {error ? <Form.Control.Feedback type="invalid">{error}</Form.Control.Feedback> : null}
       </InputGroup>
       <div className="d-flex flex-wrap gap-1">
         {uniqueItems.length === 0 ? (
-          <span className="text-muted small">No entries.</span>
+          <span className="text-muted small">
+            {t('common:listEditor.noEntries', 'No entries.')}
+          </span>
         ) : (
           uniqueItems.map(item => (
             <Badge
@@ -93,7 +99,7 @@ export const ListEditor = ({ items, onChange, placeholder = '', validate = null 
                 size="sm"
                 variant="link"
                 className="text-white p-0 lh-1"
-                aria-label="Remove"
+                aria-label={t('common:buttons.remove', 'Remove')}
                 style={{ flex: '0 0 auto' }}
                 onClick={() => remove(item)}
               >

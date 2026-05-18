@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Col, Form, Row } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiPut } from '../api/client.js';
 import { stateDocShape } from '../prop-shapes.js';
@@ -13,27 +14,32 @@ const HOSTNAME_REGEX = /^[a-zA-Z0-9*][a-zA-Z0-9.*-]{0,252}$/u;
 const ADDR_PORT_REGEX = /^(?:\[[0-9a-fA-F:]+\]|[A-Za-z0-9.-]+):\d{1,5}$/u;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
-const STEP_LABELS = Object.freeze([
-  'Welcome',
-  'Account & ACME',
-  'Backend',
-  'Frontend',
-  'First route',
-  'Review',
+const STEP_LABEL_KEYS = Object.freeze([
+  { key: 'auth:onboardingWizard.steps.welcome', fallback: 'Welcome' },
+  { key: 'auth:onboardingWizard.steps.account', fallback: 'Account & ACME' },
+  { key: 'auth:onboardingWizard.steps.backend', fallback: 'Backend' },
+  { key: 'auth:onboardingWizard.steps.frontend', fallback: 'Frontend' },
+  { key: 'auth:onboardingWizard.steps.firstRoute', fallback: 'First route' },
+  { key: 'auth:onboardingWizard.steps.review', fallback: 'Review' },
 ]);
 
 const PROVIDER_OPTIONS = Object.freeze([
   {
     value: 'cloudflare',
-    label: 'Cloudflare DNS-01',
-    description:
+    labelKey: 'auth:onboardingWizard.provider.cloudflareLabel',
+    labelFallback: 'Cloudflare DNS-01',
+    descriptionKey: 'auth:onboardingWizard.provider.cloudflareDescription',
+    descriptionFallback:
       "Best for wildcards and when port 80 isn't reachable. Requires a Cloudflare API token (collected below).",
     providerType: 'dns-cloudflare',
   },
   {
     value: 'http-01',
-    label: "Let's Encrypt HTTP-01 webroot",
-    description: 'Works with any DNS host. Requires port 80 reachable from the public Internet.',
+    labelKey: 'auth:onboardingWizard.provider.http01Label',
+    labelFallback: "Let's Encrypt HTTP-01 webroot",
+    descriptionKey: 'auth:onboardingWizard.provider.http01Description',
+    descriptionFallback:
+      'Works with any DNS host. Requires port 80 reachable from the public Internet.',
     providerType: 'http-01',
   },
 ]);
@@ -77,32 +83,40 @@ const emptyDraft = () => ({
   extraCertDomains: [],
 });
 
-const WelcomeStep = () => (
-  <Alert variant="info" className="mb-0">
-    <h6 className="mb-2">
-      <i className="bi bi-stars me-2" />
-      Set up your first working route
-    </h6>
-    <p className="small mb-2">
-      This wizard walks through six short steps to produce an end-to-end working state — a defaults
-      block, frontend, backend, ACL + use-backend rule, TLS provider, and covering cert. The output
-      runs through the standard apply pipeline (schema validate → render → <code>haproxy -c</code> →
-      atomic write → master-socket reload).
-    </p>
-    <p className="small mb-0">
-      Re-running this on an already-configured install <strong>adds</strong> new entities with
-      collision-safe ids; existing ones are left alone.
-    </p>
-  </Alert>
-);
+const WelcomeStep = () => {
+  const { t } = useTranslation(['auth', 'common']);
+  return (
+    <Alert variant="info" className="mb-0">
+      <h6 className="mb-2">
+        <i className="bi bi-stars me-2" />
+        {t('auth:onboardingWizard.welcome.title', 'Set up your first working route')}
+      </h6>
+      <p className="small mb-2">
+        {t(
+          'auth:onboardingWizard.welcome.body1',
+          'This wizard walks through six short steps to produce an end-to-end working state — a defaults block, frontend, backend, ACL + use-backend rule, TLS provider, and covering cert. The output runs through the standard apply pipeline (schema validate → render → haproxy -c → atomic write → master-socket reload).'
+        )}
+      </p>
+      <p className="small mb-0">
+        {t(
+          'auth:onboardingWizard.welcome.body2',
+          'Re-running this on an already-configured install adds new entities with collision-safe ids; existing ones are left alone.'
+        )}
+      </p>
+    </Alert>
+  );
+};
 
 const IdentityStep = ({ draft, update }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const emailValid = EMAIL_REGEX.test(draft.email);
   return (
     <Row className="g-3">
       <Col md={8}>
         <Form.Group>
-          <Form.Label>Let&apos;s Encrypt account email</Form.Label>
+          <Form.Label>
+            {t('auth:onboardingWizard.identity.emailLabel', "Let's Encrypt account email")}
+          </Form.Label>
           <Form.Control
             type="email"
             value={draft.email}
@@ -113,7 +127,9 @@ const IdentityStep = ({ draft, update }) => {
         </Form.Group>
       </Col>
       <Col xs={12}>
-        <Form.Label>ACME provider</Form.Label>
+        <Form.Label>
+          {t('auth:onboardingWizard.identity.providerLabel', 'ACME provider')}
+        </Form.Label>
         <div className="d-flex flex-column gap-2">
           {PROVIDER_OPTIONS.map(opt => (
             <Form.Check
@@ -123,8 +139,10 @@ const IdentityStep = ({ draft, update }) => {
               name="onboarding-provider"
               label={
                 <span>
-                  <strong>{opt.label}</strong>
-                  <span className="ms-2 text-muted small">{opt.description}</span>
+                  <strong>{t(opt.labelKey, opt.labelFallback)}</strong>
+                  <span className="ms-2 text-muted small">
+                    {t(opt.descriptionKey, opt.descriptionFallback)}
+                  </span>
                 </span>
               }
               checked={draft.provider === opt.value}
@@ -136,19 +154,29 @@ const IdentityStep = ({ draft, update }) => {
       {draft.provider === 'cloudflare' ? (
         <Col xs={12}>
           <Form.Group>
-            <Form.Label>Cloudflare API token</Form.Label>
+            <Form.Label>
+              {t('auth:onboardingWizard.identity.cloudflareTokenLabel', 'Cloudflare API token')}
+            </Form.Label>
             <Form.Control
               type="password"
               value={draft.cloudflareApiToken}
               onChange={e => update({ cloudflareApiToken: e.target.value })}
-              placeholder="Scoped Zone → DNS → Edit token"
+              placeholder={t(
+                'auth:onboardingWizard.identity.cloudflareTokenPlaceholder',
+                'Scoped Zone → DNS → Edit token'
+              )}
               autoComplete="new-password"
             />
             <Form.Text className="text-muted">
-              Create a scoped API token in the Cloudflare dashboard with{' '}
-              <code>Zone : DNS : Edit</code> on the zone(s) you want to issue certs for. patchpanel
-              writes the token to a mode-600 file in the credentials directory; it never leaves the
-              addon.
+              {t(
+                'auth:onboardingWizard.identity.cloudflareTokenHelpPrefix',
+                'Create a scoped API token in the Cloudflare dashboard with'
+              )}{' '}
+              <code>Zone : DNS : Edit</code>{' '}
+              {t(
+                'auth:onboardingWizard.identity.cloudflareTokenHelpSuffix',
+                'on the zone(s) you want to issue certs for. patchpanel writes the token to a mode-600 file in the credentials directory; it never leaves the addon.'
+              )}
             </Form.Text>
           </Form.Group>
         </Col>
@@ -162,93 +190,121 @@ IdentityStep.propTypes = {
   update: PropTypes.func.isRequired,
 };
 
-const BackendStep = ({ draft, update }) => (
-  <Row className="g-3">
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Backend name</Form.Label>
-        <Form.Control
-          value={draft.backendName}
-          onChange={e => update({ backendName: e.target.value })}
-        />
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Server address</Form.Label>
-        <Form.Control
-          value={draft.backendServerAddress}
-          onChange={e => update({ backendServerAddress: e.target.value })}
-          placeholder="10.0.0.10:8080"
-        />
-      </Form.Group>
-    </Col>
-  </Row>
-);
+const BackendStep = ({ draft, update }) => {
+  const { t } = useTranslation(['auth', 'common']);
+  return (
+    <Row className="g-3">
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('auth:onboardingWizard.backend.nameLabel', 'Backend name')}</Form.Label>
+          <Form.Control
+            value={draft.backendName}
+            onChange={e => update({ backendName: e.target.value })}
+          />
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>
+            {t('auth:onboardingWizard.backend.serverAddressLabel', 'Server address')}
+          </Form.Label>
+          <Form.Control
+            value={draft.backendServerAddress}
+            onChange={e => update({ backendServerAddress: e.target.value })}
+            placeholder="10.0.0.10:8080"
+          />
+        </Form.Group>
+      </Col>
+    </Row>
+  );
+};
 
 BackendStep.propTypes = {
   draft: PropTypes.object.isRequired,
   update: PropTypes.func.isRequired,
 };
 
-const FrontendStep = ({ draft, update }) => (
-  <Row className="g-3">
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Frontend name</Form.Label>
-        <Form.Control
-          value={draft.frontendName}
-          onChange={e => update({ frontendName: e.target.value })}
-        />
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Bind address</Form.Label>
-        <Form.Control
-          value={draft.frontendBindAddress}
-          onChange={e => update({ frontendBindAddress: e.target.value })}
-          placeholder="*:443"
-        />
-        <Form.Text className="text-muted">
-          TLS bind. The wizard wires <code>ssl crt-list /etc/haproxy/certs.list</code> for SNI cert
-          selection.
-        </Form.Text>
-      </Form.Group>
-    </Col>
-  </Row>
-);
+const FrontendStep = ({ draft, update }) => {
+  const { t } = useTranslation(['auth', 'common']);
+  return (
+    <Row className="g-3">
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('auth:onboardingWizard.frontend.nameLabel', 'Frontend name')}</Form.Label>
+          <Form.Control
+            value={draft.frontendName}
+            onChange={e => update({ frontendName: e.target.value })}
+          />
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>
+            {t('auth:onboardingWizard.frontend.bindAddressLabel', 'Bind address')}
+          </Form.Label>
+          <Form.Control
+            value={draft.frontendBindAddress}
+            onChange={e => update({ frontendBindAddress: e.target.value })}
+            placeholder="*:443"
+          />
+          <Form.Text className="text-muted">
+            {t(
+              'auth:onboardingWizard.frontend.bindAddressHelpPrefix',
+              'TLS bind. The wizard wires'
+            )}{' '}
+            <code>ssl crt-list /etc/haproxy/certs.list</code>{' '}
+            {t('auth:onboardingWizard.frontend.bindAddressHelpSuffix', 'for SNI cert selection.')}
+          </Form.Text>
+        </Form.Group>
+      </Col>
+    </Row>
+  );
+};
 
 FrontendStep.propTypes = {
   draft: PropTypes.object.isRequired,
   update: PropTypes.func.isRequired,
 };
 
-const RouteStep = ({ draft, update }) => (
-  <Row className="g-3">
-    <Col md={8}>
-      <Form.Group>
-        <Form.Label>Public hostname</Form.Label>
-        <Form.Control
-          value={draft.routeHostname}
-          onChange={e => update({ routeHostname: e.target.value })}
-          placeholder="home.example.com"
-        />
-      </Form.Group>
-    </Col>
-    <Col xs={12}>
-      <Form.Group>
-        <Form.Label>Extra cert SANs (optional)</Form.Label>
-        <ListEditor
-          items={draft.extraCertDomains}
-          onChange={list => update({ extraCertDomains: list })}
-          placeholder="e.g. www.example.com or *.example.com"
-          validate={value => (HOSTNAME_REGEX.test(value) ? true : 'invalid domain')}
-        />
-      </Form.Group>
-    </Col>
-  </Row>
-);
+const RouteStep = ({ draft, update }) => {
+  const { t } = useTranslation(['auth', 'common']);
+  return (
+    <Row className="g-3">
+      <Col md={8}>
+        <Form.Group>
+          <Form.Label>
+            {t('auth:onboardingWizard.route.hostnameLabel', 'Public hostname')}
+          </Form.Label>
+          <Form.Control
+            value={draft.routeHostname}
+            onChange={e => update({ routeHostname: e.target.value })}
+            placeholder="home.example.com"
+          />
+        </Form.Group>
+      </Col>
+      <Col xs={12}>
+        <Form.Group>
+          <Form.Label>
+            {t('auth:onboardingWizard.route.extraSansLabel', 'Extra cert SANs (optional)')}
+          </Form.Label>
+          <ListEditor
+            items={draft.extraCertDomains}
+            onChange={list => update({ extraCertDomains: list })}
+            placeholder={t(
+              'auth:onboardingWizard.route.extraSansPlaceholder',
+              'e.g. www.example.com or *.example.com'
+            )}
+            validate={value =>
+              HOSTNAME_REGEX.test(value)
+                ? true
+                : t('auth:onboardingWizard.route.invalidDomain', 'invalid domain')
+            }
+          />
+        </Form.Group>
+      </Col>
+    </Row>
+  );
+};
 
 RouteStep.propTypes = {
   draft: PropTypes.object.isRequired,
@@ -256,45 +312,57 @@ RouteStep.propTypes = {
 };
 
 const ReviewStep = ({ draft }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const providerOpt = PROVIDER_OPTIONS.find(p => p.value === draft.provider);
   const domains = [draft.routeHostname, ...draft.extraCertDomains].filter(Boolean);
   const willWriteCloudflareToken =
     draft.provider === 'cloudflare' && draft.cloudflareApiToken.trim().length > 0;
   return (
     <div className="small">
-      <h6 className="mb-3">Will create</h6>
+      <h6 className="mb-3">{t('auth:onboardingWizard.review.willCreate', 'Will create')}</h6>
       <dl className="row mb-0">
-        <dt className="col-sm-4">Let&apos;s Encrypt email</dt>
+        <dt className="col-sm-4">
+          {t('auth:onboardingWizard.review.emailRow', "Let's Encrypt email")}
+        </dt>
         <dd className="col-sm-8">
           <code>{draft.email}</code>
         </dd>
-        <dt className="col-sm-4">ACME provider</dt>
+        <dt className="col-sm-4">
+          {t('auth:onboardingWizard.review.providerRow', 'ACME provider')}
+        </dt>
         <dd className="col-sm-8">
-          {providerOpt?.label ?? '—'}
+          {providerOpt ? t(providerOpt.labelKey, providerOpt.labelFallback) : '—'}
           {willWriteCloudflareToken ? (
             <Badge bg="success" className="ms-2">
-              token will be stored
+              {t('auth:onboardingWizard.review.tokenStoredBadge', 'token will be stored')}
             </Badge>
           ) : null}
         </dd>
-        <dt className="col-sm-4">Defaults block</dt>
+        <dt className="col-sm-4">
+          {t('auth:onboardingWizard.review.defaultsBlockRow', 'Defaults block')}
+        </dt>
         <dd className="col-sm-8">
-          <code>default</code> (mode http, sensible timeouts)
+          <code>default</code>{' '}
+          {t('auth:onboardingWizard.review.defaultsBlockDetail', '(mode http, sensible timeouts)')}
         </dd>
-        <dt className="col-sm-4">Backend</dt>
+        <dt className="col-sm-4">{t('auth:onboardingWizard.review.backendRow', 'Backend')}</dt>
         <dd className="col-sm-8">
           <code>{draft.backendName}</code> → <code>{draft.backendServerAddress}</code>
         </dd>
-        <dt className="col-sm-4">Frontend</dt>
+        <dt className="col-sm-4">{t('auth:onboardingWizard.review.frontendRow', 'Frontend')}</dt>
         <dd className="col-sm-8">
-          <code>{draft.frontendName}</code> on <code>{draft.frontendBindAddress}</code>
+          <code>{draft.frontendName}</code> {t('auth:onboardingWizard.review.frontendOn', 'on')}{' '}
+          <code>{draft.frontendBindAddress}</code>
         </dd>
-        <dt className="col-sm-4">ACL + rule</dt>
+        <dt className="col-sm-4">{t('auth:onboardingWizard.review.aclRow', 'ACL + rule')}</dt>
         <dd className="col-sm-8">
-          host_{slugifyName(draft.routeHostname || 'host')} → use-backend{' '}
+          host_{slugifyName(draft.routeHostname || 'host')} →{' '}
+          {t('auth:onboardingWizard.review.useBackend', 'use-backend')}{' '}
           <code>{draft.backendName}</code>
         </dd>
-        <dt className="col-sm-4">Certificate SANs</dt>
+        <dt className="col-sm-4">
+          {t('auth:onboardingWizard.review.certSansRow', 'Certificate SANs')}
+        </dt>
         <dd className="col-sm-8">
           {domains.map(d => (
             <Badge bg="info" key={d} className="me-1">
@@ -304,10 +372,22 @@ const ReviewStep = ({ draft }) => {
         </dd>
       </dl>
       <Alert variant="light" className="border small mt-3 mb-0">
-        Clicking <strong>Apply setup</strong> writes state
-        {willWriteCloudflareToken ? ' and stores the Cloudflare API token' : ''}. The cert
-        isn&apos;t issued automatically — open the Certificates tab and click <strong>Renew</strong>{' '}
-        after the wizard closes.
+        {t('auth:onboardingWizard.review.applyHintPrefix', 'Clicking')}{' '}
+        <strong>{t('auth:onboardingWizard.applySetup', 'Apply setup')}</strong>{' '}
+        {t('auth:onboardingWizard.review.applyHintWrites', 'writes state')}
+        {willWriteCloudflareToken
+          ? t(
+              'auth:onboardingWizard.review.applyHintStoresToken',
+              ' and stores the Cloudflare API token'
+            )
+          : ''}
+        .{' '}
+        {t(
+          'auth:onboardingWizard.review.applyHintRenewPrefix',
+          "The cert isn't issued automatically — open the Certificates tab and click"
+        )}{' '}
+        <strong>{t('auth:onboardingWizard.review.renewLabel', 'Renew')}</strong>{' '}
+        {t('auth:onboardingWizard.review.applyHintRenewSuffix', 'after the wizard closes.')}
       </Alert>
     </div>
   );
@@ -520,6 +600,7 @@ const buildNextDocAndProviderId = (draft, doc) => {
 };
 
 export const OnboardingWizard = ({ show, doc, onComplete, onCancel }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState(emptyDraft);
   const [saving, setSaving] = useState(false);
@@ -571,19 +652,24 @@ export const OnboardingWizard = ({ show, doc, onComplete, onCancel }) => {
   };
 
   const canAdvance = validateStep(step, draft);
+  const stepLabels = STEP_LABEL_KEYS.map(entry => t(entry.key, entry.fallback));
 
   return (
     <WizardShell
       show={show}
-      title={isFreshInstall ? 'Welcome to patchpanel' : 'Onboarding wizard'}
-      stepLabels={STEP_LABELS}
+      title={
+        isFreshInstall
+          ? t('auth:onboardingWizard.titleFresh', 'Welcome to patchpanel')
+          : t('auth:onboardingWizard.title', 'Onboarding wizard')
+      }
+      stepLabels={stepLabels}
       currentStep={step}
       canAdvance={canAdvance}
       saving={saving}
       error={error}
-      finishLabel="Apply setup"
+      finishLabel={t('auth:onboardingWizard.applySetup', 'Apply setup')}
       onPrev={step > 0 ? () => setStep(s => s - 1) : null}
-      onNext={step < STEP_LABELS.length - 1 ? () => setStep(s => s + 1) : null}
+      onNext={step < STEP_LABEL_KEYS.length - 1 ? () => setStep(s => s + 1) : null}
       onFinish={handleFinish}
       onCancel={onCancel}
     >

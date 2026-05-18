@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiPost } from '../api/client.js';
 
@@ -49,6 +50,7 @@ const uniqueId = (proposed, taken) => {
 };
 
 const PemTextarea = ({ value, onChange, fileInputKey }) => {
+  const { t } = useTranslation(['cert']);
   const onFile = async e => {
     const file = e.target.files?.[0];
     if (!file) {
@@ -64,7 +66,7 @@ const PemTextarea = ({ value, onChange, fileInputKey }) => {
   return (
     <Form.Group className="mb-2">
       <div className="d-flex justify-content-between align-items-center mb-1">
-        <Form.Label className="mb-0">CRL PEM</Form.Label>
+        <Form.Label className="mb-0">{t('cert:trustedCrl.upload.pemLabel', 'CRL PEM')}</Form.Label>
         <Form.Control
           key={fileInputKey}
           type="file"
@@ -84,8 +86,15 @@ const PemTextarea = ({ value, onChange, fileInputKey }) => {
         style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
       />
       <Form.Text className="text-muted">
-        Paste or drop a PEM-encoded X.509 Certificate Revocation List. HAProxy validates the file
-        contents at <code>haproxy -c</code> time; patchpanel only checks the PEM envelope here.
+        {t(
+          'cert:trustedCrl.upload.pemHelpPrefix',
+          'Paste or drop a PEM-encoded X.509 Certificate Revocation List. HAProxy validates the file contents at'
+        )}{' '}
+        <code>haproxy -c</code>{' '}
+        {t(
+          'cert:trustedCrl.upload.pemHelpSuffix',
+          'time; patchpanel only checks the PEM envelope here.'
+        )}
       </Form.Text>
     </Form.Group>
   );
@@ -98,6 +107,7 @@ PemTextarea.propTypes = {
 };
 
 const ValidationPanel = ({ result }) => {
+  const { t } = useTranslation(['cert']);
   if (!result) {
     return null;
   }
@@ -105,11 +115,11 @@ const ValidationPanel = ({ result }) => {
     return (
       <Alert variant="success" className="mb-2 small">
         <div className="d-flex justify-content-between mb-1">
-          <strong>PEM envelope OK.</strong>
-          <Badge bg="success">ready to save</Badge>
+          <strong>{t('cert:trustedCrl.upload.envelopeOk', 'PEM envelope OK.')}</strong>
+          <Badge bg="success">{t('cert:trustedCrl.upload.readyToSave', 'ready to save')}</Badge>
         </div>
         <div>
-          <strong>Fingerprint (SHA-256):</strong>{' '}
+          <strong>{t('cert:trustedCrl.upload.fingerprint', 'Fingerprint (SHA-256):')}</strong>{' '}
           <code className="small">{result.info?.fingerprint}</code>
         </div>
       </Alert>
@@ -117,7 +127,7 @@ const ValidationPanel = ({ result }) => {
   }
   return (
     <Alert variant="danger" className="mb-2 small">
-      <strong>Validation failed.</strong>
+      <strong>{t('cert:trustedCrl.upload.validationFailed', 'Validation failed.')}</strong>
       <ul className="mb-0 ps-3 mt-1">
         {(result.errors ?? []).map(err => (
           <li key={err}>{err}</li>
@@ -147,6 +157,7 @@ const buildAugmentedDoc = ({ doc, id, name, description, info }) => {
 };
 
 export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const [id, setId] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -158,11 +169,11 @@ export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
   const [fileInputBump, setFileInputBump] = useState(0);
 
   const takenIds = useMemo(
-    () => new Set((doc?.trustedCrls ?? []).map(t => t.id)),
+    () => new Set((doc?.trustedCrls ?? []).map(crl => crl.id)),
     [doc?.trustedCrls]
   );
   const takenNames = useMemo(
-    () => new Set((doc?.trustedCrls ?? []).map(t => t.name)),
+    () => new Set((doc?.trustedCrls ?? []).map(crl => crl.name)),
     [doc?.trustedCrls]
   );
 
@@ -183,7 +194,9 @@ export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
         setAutoFilled(true);
       }
     } catch (err) {
-      setNetworkError(err.message ?? 'validation request failed');
+      setNetworkError(
+        err.message ?? t('cert:trustedCrl.upload.validationFailedReq', 'validation request failed')
+      );
     }
   };
 
@@ -199,7 +212,9 @@ export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
       const nextDoc = buildAugmentedDoc({ doc, id, name, description, info: uploadResult.info });
       await onUploaded(nextDoc, { id, name, info: uploadResult.info });
     } catch (err) {
-      setNetworkError(err.message ?? 'upload request failed');
+      setNetworkError(
+        err.message ?? t('cert:trustedCrl.upload.uploadFailedReq', 'upload request failed')
+      );
     } finally {
       setUploading(false);
     }
@@ -216,15 +231,21 @@ export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
       <Modal.Header closeButton>
         <Modal.Title>
           <i className="bi bi-shield-x me-2" />
-          Upload trusted CRL
+          {t('cert:trustedCrl.upload.title', 'Upload trusted CRL')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Alert variant="info" className="small mb-3">
-          A Certificate Revocation List is a signed list of certificates that have been revoked by
-          their issuing CA. HAProxy uses it on a <strong>frontend bind</strong> alongside{' '}
-          <code>verify required</code> + a Trusted CA to reject revoked client certs at the TLS
-          handshake.
+          {t(
+            'cert:trustedCrl.upload.descPrefix',
+            'A Certificate Revocation List is a signed list of certificates that have been revoked by their issuing CA. HAProxy uses it on a'
+          )}{' '}
+          <strong>{t('cert:trustedCrl.upload.frontendBind', 'frontend bind')}</strong>{' '}
+          {t('cert:trustedCrl.upload.descMiddle', 'alongside')} <code>verify required</code>{' '}
+          {t(
+            'cert:trustedCrl.upload.descSuffix',
+            '+ a Trusted CA to reject revoked client certs at the TLS handshake.'
+          )}
         </Alert>
         <Row className="g-3">
           <Col xs={12}>
@@ -234,31 +255,37 @@ export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
             <ValidationPanel result={validation} />
             {networkError ? (
               <Alert variant="warning" className="mb-0 small">
-                Request failed: {networkError}
+                {t('cert:trustedCrl.upload.requestFailed', 'Request failed: {{message}}', {
+                  message: networkError,
+                })}
               </Alert>
             ) : null}
           </Col>
           <Col md={6}>
             <Form.Group>
-              <Form.Label>Friendly name</Form.Label>
+              <Form.Label>{t('cert:trustedCrl.upload.friendlyName', 'Friendly name')}</Form.Label>
               <Form.Control
                 type="text"
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="e.g. CorpCA-2026-Q2"
+                placeholder={t('cert:trustedCrl.upload.namePlaceholder', 'e.g. CorpCA-2026-Q2')}
                 isInvalid={name.length > 0 ? !nameValid : null}
               />
               <Form.Text className="text-muted">
-                Display name. Letters/digits/<code>._-</code>, starting with a letter.
+                {t('cert:trustedCrl.upload.nameHelpPrefix', 'Display name. Letters/digits/')}
+                <code>._-</code>
+                {t('cert:trustedCrl.upload.nameHelpSuffix', ', starting with a letter.')}
               </Form.Text>
               {takenNames.has(name) ? (
-                <Form.Text className="text-danger">name already used</Form.Text>
+                <Form.Text className="text-danger">
+                  {t('cert:trustedCrl.upload.nameTaken', 'name already used')}
+                </Form.Text>
               ) : null}
             </Form.Group>
           </Col>
           <Col md={6}>
             <Form.Group>
-              <Form.Label>ID</Form.Label>
+              <Form.Label>{t('cert:trustedCrl.upload.idLabel', 'ID')}</Form.Label>
               <Form.Control
                 type="text"
                 value={id}
@@ -266,25 +293,37 @@ export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
                   setId(e.target.value);
                   setAutoFilled(true);
                 }}
-                placeholder="auto-derived from name"
+                placeholder={t('cert:trustedCrl.upload.idPlaceholder', 'auto-derived from name')}
                 isInvalid={id.length > 0 ? !idValid : null}
               />
               <Form.Text className="text-muted">
-                Stable id; on-disk filename. Lowercase a-z, 0-9, <code>_-</code>, start with letter.
+                {t(
+                  'cert:trustedCrl.upload.idHelpPrefix',
+                  'Stable id; on-disk filename. Lowercase a-z, 0-9,'
+                )}{' '}
+                <code>_-</code>
+                {t('cert:trustedCrl.upload.idHelpSuffix', ', start with letter.')}
               </Form.Text>
               {takenIds.has(id) ? (
-                <Form.Text className="text-danger">id already used</Form.Text>
+                <Form.Text className="text-danger">
+                  {t('cert:trustedCrl.upload.idTaken', 'id already used')}
+                </Form.Text>
               ) : null}
             </Form.Group>
           </Col>
           <Col xs={12}>
             <Form.Group>
-              <Form.Label>Description (optional)</Form.Label>
+              <Form.Label>
+                {t('cert:trustedCrl.upload.description', 'Description (optional)')}
+              </Form.Label>
               <Form.Control
                 type="text"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
-                placeholder="What this CRL covers"
+                placeholder={t(
+                  'cert:trustedCrl.upload.descriptionPlaceholder',
+                  'What this CRL covers'
+                )}
               />
             </Form.Group>
           </Col>
@@ -292,22 +331,23 @@ export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel} disabled={uploading}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <Button
           variant="outline-primary"
           onClick={handleValidate}
           disabled={!canValidate || uploading}
         >
-          Validate
+          {t('cert:trustedCrl.upload.validate', 'Validate')}
         </Button>
         <Button variant="primary" onClick={handleUpload} disabled={!canUpload || uploading}>
           {uploading ? (
             <>
-              <Spinner as="span" animation="border" size="sm" /> Uploading…
+              <Spinner as="span" animation="border" size="sm" />{' '}
+              {t('cert:trustedCrl.upload.uploading', 'Uploading…')}
             </>
           ) : (
-            'Upload'
+            t('common:buttons.upload', 'Upload')
           )}
         </Button>
       </Modal.Footer>

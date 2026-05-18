@@ -1,0 +1,24 @@
+{
+  "title": "HAProxy addon logs",
+  "filterPlaceholder": "Filter lines…",
+  "refreshIntervalLabel": "Refresh interval",
+  "interval": {
+    "live": "live (SSE)",
+    "off": "off",
+    "s2": "2s",
+    "s5": "5s",
+    "s15": "15s",
+    "s60": "60s"
+  },
+  "autoScroll": "auto-scroll",
+  "tailDescription": "Live tail of this addon's logs as captured by the Home Assistant supervisor.",
+  "refreshAutoEvery": "Auto-refreshing every {{seconds}}s.",
+  "refreshDisabled": "Auto-refresh disabled — use Refresh.",
+  "sseConnected": "live (SSE connected)",
+  "sseReconnecting": "live (reconnecting…)",
+  "showingCount": "Showing {{shown}} of {{total}} lines",
+  "filterSuffix": " (filter: \"{{filter}}\")",
+  "loadFailed": "Failed to load logs:",
+  "notInAddon": " — this likely means patchpanel is running outside a Home Assistant addon.",
+  "empty": "(empty)"
+}

@@ -1,18 +1,19 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Badge, Button, Card, Form, Modal, Spinner, Table } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiPost } from '../api/client.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 import { genKey } from '../utils/keys.js';
 
-const TYPE_LABELS = Object.freeze({
-  'ha-notify': 'Home Assistant notify service',
-  webhook: 'Generic webhook',
-  discord: 'Discord webhook',
-  ntfy: 'ntfy.sh',
-  slack: 'Slack webhook',
+const TYPE_LABEL_KEYS = Object.freeze({
+  'ha-notify': { key: 'notify:type.haNotify', fallback: 'Home Assistant notify service' },
+  webhook: { key: 'notify:type.webhook', fallback: 'Generic webhook' },
+  discord: { key: 'notify:type.discord', fallback: 'Discord webhook' },
+  ntfy: { key: 'notify:type.ntfy', fallback: 'ntfy.sh' },
+  slack: { key: 'notify:type.slack', fallback: 'Slack webhook' },
 });
 
 const SEVERITIES = Object.freeze(['info', 'success', 'warning', 'error']);
@@ -41,49 +42,61 @@ const emptyChannel = () => ({
   config: { service: 'persistent_notification.create' },
 });
 
-const validateChannel = draft => {
+const validateChannel = (draft, t) => {
   if (!ID_REGEX.test(draft.id)) {
-    return 'id must be lowercase a-z, digits, _ or - (start with letter)';
+    return t(
+      'notify:validate.idFormat',
+      'id must be lowercase a-z, digits, _ or - (start with letter)'
+    );
   }
   if (!draft.label.trim()) {
-    return 'label is required';
+    return t('notify:validate.labelRequired', 'label is required');
   }
   if (draft.type === 'webhook' && !draft.config?.url) {
-    return 'webhook needs a url';
+    return t('notify:validate.webhookUrl', 'webhook needs a url');
   }
   if (draft.type === 'discord' && !draft.config?.webhookUrl) {
-    return 'discord needs a webhookUrl';
+    return t('notify:validate.discordUrl', 'discord needs a webhookUrl');
   }
   if (draft.type === 'slack' && !draft.config?.webhookUrl) {
-    return 'slack needs a webhookUrl';
+    return t('notify:validate.slackUrl', 'slack needs a webhookUrl');
   }
   if (draft.type === 'ntfy' && !draft.config?.topic) {
-    return 'ntfy needs a topic';
+    return t('notify:validate.ntfyTopic', 'ntfy needs a topic');
   }
   return null;
 };
 
 const TypeConfigForm = ({ type, config, onChange }) => {
+  const { t } = useTranslation(['notify']);
   switch (type) {
     case 'ha-notify':
       return (
         <Form.Group>
-          <Form.Label>HA service (e.g. notify.notify, persistent_notification.create)</Form.Label>
+          <Form.Label>
+            {t(
+              'notify:form.haService',
+              'HA service (e.g. notify.notify, persistent_notification.create)'
+            )}
+          </Form.Label>
           <Form.Control
             type="text"
             value={config.service ?? ''}
             onChange={e => onChange({ ...config, service: e.target.value })}
           />
           <Form.Text className="text-muted">
-            The addon calls <code>POST /core/api/services/&lt;domain&gt;/&lt;name&gt;</code> via the
-            supervisor. Requires <code>homeassistant_api: true</code> in config.yaml (set).
+            {t('notify:form.haServiceHelpPrefix', 'The addon calls')}{' '}
+            <code>POST /core/api/services/&lt;domain&gt;/&lt;name&gt;</code>{' '}
+            {t('notify:form.haServiceHelpSuffix', 'via the supervisor. Requires')}{' '}
+            <code>homeassistant_api: true</code>{' '}
+            {t('notify:form.haServiceHelpEnd', 'in config.yaml (set).')}
           </Form.Text>
         </Form.Group>
       );
     case 'webhook':
       return (
         <Form.Group>
-          <Form.Label>POST URL</Form.Label>
+          <Form.Label>{t('notify:form.postUrl', 'POST URL')}</Form.Label>
           <Form.Control
             type="url"
             value={config.url ?? ''}
@@ -91,7 +104,7 @@ const TypeConfigForm = ({ type, config, onChange }) => {
             onChange={e => onChange({ ...config, url: e.target.value })}
           />
           <Form.Text className="text-muted">
-            JSON body:{' '}
+            {t('notify:form.jsonBody', 'JSON body:')}{' '}
             <code>{`{title, message, severity, ts, source: "patchpanel", details}`}</code>
           </Form.Text>
         </Form.Group>
@@ -99,7 +112,7 @@ const TypeConfigForm = ({ type, config, onChange }) => {
     case 'discord':
       return (
         <Form.Group>
-          <Form.Label>Discord webhook URL</Form.Label>
+          <Form.Label>{t('notify:form.discordUrl', 'Discord webhook URL')}</Form.Label>
           <Form.Control
             type="url"
             value={config.webhookUrl ?? ''}
@@ -111,7 +124,7 @@ const TypeConfigForm = ({ type, config, onChange }) => {
       return (
         <>
           <Form.Group className="mb-2">
-            <Form.Label>ntfy server URL</Form.Label>
+            <Form.Label>{t('notify:form.ntfyUrl', 'ntfy server URL')}</Form.Label>
             <Form.Control
               type="url"
               value={config.url ?? 'https://ntfy.sh'}
@@ -119,16 +132,16 @@ const TypeConfigForm = ({ type, config, onChange }) => {
             />
           </Form.Group>
           <Form.Group className="mb-2">
-            <Form.Label>Topic</Form.Label>
+            <Form.Label>{t('notify:form.ntfyTopic', 'Topic')}</Form.Label>
             <Form.Control
               type="text"
               value={config.topic ?? ''}
-              placeholder="my-private-topic"
+              placeholder={t('notify:form.ntfyTopicPlaceholder', 'my-private-topic')}
               onChange={e => onChange({ ...config, topic: e.target.value })}
             />
           </Form.Group>
           <Form.Group>
-            <Form.Label>Bearer token (optional)</Form.Label>
+            <Form.Label>{t('notify:form.bearerToken', 'Bearer token (optional)')}</Form.Label>
             <Form.Control
               type="password"
               value={config.token ?? ''}
@@ -140,7 +153,7 @@ const TypeConfigForm = ({ type, config, onChange }) => {
     case 'slack':
       return (
         <Form.Group>
-          <Form.Label>Slack incoming-webhook URL</Form.Label>
+          <Form.Label>{t('notify:form.slackUrl', 'Slack incoming-webhook URL')}</Form.Label>
           <Form.Control
             type="url"
             value={config.webhookUrl ?? ''}
@@ -154,13 +167,14 @@ const TypeConfigForm = ({ type, config, onChange }) => {
 };
 
 const ChannelEditModal = ({ show, channel, onSave, onCancel }) => {
+  const { t } = useTranslation(['notify', 'common']);
   const [draft, setDraft] = useState(() => channel ?? emptyChannel());
   const [error, setError] = useState(null);
   const isExisting = Boolean(channel?.id);
   const update = patch => setDraft(prev => ({ ...prev, ...patch }));
 
   const handleSave = () => {
-    const message = validateChannel(draft);
+    const message = validateChannel(draft, t);
     if (message) {
       setError(message);
       return;
@@ -172,13 +186,15 @@ const ChannelEditModal = ({ show, channel, onSave, onCancel }) => {
     <Modal show={show} onHide={onCancel} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
-          {isExisting ? `Edit channel: ${channel.label}` : 'New notification channel'}
+          {isExisting
+            ? t('notify:editModal.editTitle', 'Edit channel: {{label}}', { label: channel.label })
+            : t('notify:editModal.newTitle', 'New notification channel')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {error ? <Alert variant="danger">{error}</Alert> : null}
         <Form.Group className="mb-2">
-          <Form.Label>ID</Form.Label>
+          <Form.Label>{t('notify:field.id', 'ID')}</Form.Label>
           <Form.Control
             type="text"
             value={draft.id}
@@ -187,7 +203,7 @@ const ChannelEditModal = ({ show, channel, onSave, onCancel }) => {
           />
         </Form.Group>
         <Form.Group className="mb-2">
-          <Form.Label>Label</Form.Label>
+          <Form.Label>{t('notify:field.label', 'Label')}</Form.Label>
           <Form.Control
             type="text"
             value={draft.label}
@@ -195,21 +211,21 @@ const ChannelEditModal = ({ show, channel, onSave, onCancel }) => {
           />
         </Form.Group>
         <Form.Group className="mb-2">
-          <Form.Label>Type</Form.Label>
+          <Form.Label>{t('notify:field.type', 'Type')}</Form.Label>
           <Form.Select
             value={draft.type}
             disabled={isExisting}
             onChange={e => update({ type: e.target.value, config: emptyChannel().config })}
           >
-            {Object.entries(TYPE_LABELS).map(([value, label]) => (
+            {Object.entries(TYPE_LABEL_KEYS).map(([value, label]) => (
               <option key={value} value={value}>
-                {label}
+                {t(label.key, label.fallback)}
               </option>
             ))}
           </Form.Select>
         </Form.Group>
         <Form.Group className="mb-2">
-          <Form.Label>Minimum severity</Form.Label>
+          <Form.Label>{t('notify:field.minSeverity', 'Minimum severity')}</Form.Label>
           <Form.Select
             value={draft.minSeverity}
             onChange={e => update({ minSeverity: e.target.value })}
@@ -222,7 +238,7 @@ const ChannelEditModal = ({ show, channel, onSave, onCancel }) => {
           </Form.Select>
         </Form.Group>
         <Form.Group className="mb-2">
-          <Form.Label>Subscribed events (empty = all)</Form.Label>
+          <Form.Label>{t('notify:field.events', 'Subscribed events (empty = all)')}</Form.Label>
           <Form.Select
             multiple
             value={draft.events}
@@ -239,15 +255,17 @@ const ChannelEditModal = ({ show, channel, onSave, onCancel }) => {
             ))}
           </Form.Select>
           <Form.Text className="text-muted">
-            Cmd/Ctrl-click to select multiple. Leave empty to subscribe this channel to every event
-            kind.
+            {t(
+              'notify:field.eventsHelp',
+              'Cmd/Ctrl-click to select multiple. Leave empty to subscribe this channel to every event kind.'
+            )}
           </Form.Text>
         </Form.Group>
         <Form.Group className="mb-2">
           <Form.Check
             type="switch"
             id={`channel-enabled-${draft.id || 'new'}`}
-            label="Enabled"
+            label={t('common:status.enabled', 'Enabled')}
             checked={draft.enabled}
             onChange={e => update({ enabled: e.target.checked })}
           />
@@ -261,10 +279,10 @@ const ChannelEditModal = ({ show, channel, onSave, onCancel }) => {
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <Button variant="primary" onClick={handleSave}>
-          {isExisting ? 'Update' : 'Add'}
+          {isExisting ? t('common:buttons.update', 'Update') : t('common:buttons.add', 'Add')}
         </Button>
       </Modal.Footer>
     </Modal>
@@ -289,6 +307,7 @@ TypeConfigForm.propTypes = {
 };
 
 export const NotificationsPage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['notify', 'common']);
   const [showNew, setShowNew] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -335,7 +354,12 @@ export const NotificationsPage = ({ doc = null, onSave = null }) => {
     setTestStatus(null);
     try {
       await apiPost('api/notifications/test', { channelId });
-      setTestStatus({ kind: 'success', message: `Test notification dispatched via ${channelId}.` });
+      setTestStatus({
+        kind: 'success',
+        message: t('notify:testDispatched', 'Test notification dispatched via {{channelId}}.', {
+          channelId,
+        }),
+      });
     } catch (err) {
       setTestStatus({ kind: 'danger', message: err.message });
     }
@@ -346,18 +370,23 @@ export const NotificationsPage = ({ doc = null, onSave = null }) => {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
           <div>
-            <Card.Title className="mb-1">Notifications</Card.Title>
+            <Card.Title className="mb-1">{t('notify:title', 'Notifications')}</Card.Title>
             <Card.Text className="text-muted small mb-0">
-              Where patchpanel sends event notifications: cert renewals, reload failures, backend
-              health changes. Multiple channels are dispatched in parallel; per-channel failures are
-              isolated.
+              {t(
+                'notify:description',
+                'Where patchpanel sends event notifications: cert renewals, reload failures, backend health changes. Multiple channels are dispatched in parallel; per-channel failures are isolated.'
+              )}
             </Card.Text>
           </div>
           <Button variant="primary" size="sm" onClick={() => setShowNew(true)} disabled={saving}>
-            Add channel
+            {t('notify:addChannel', 'Add channel')}
           </Button>
         </div>
-        {saveError ? <Alert variant="danger">Save failed: {saveError.message}</Alert> : null}
+        {saveError ? (
+          <Alert variant="danger">
+            {t('notify:saveFailed', 'Save failed:')} {saveError.message}
+          </Alert>
+        ) : null}
         {testStatus ? (
           <Alert variant={testStatus.kind} onClose={() => setTestStatus(null)} dismissible>
             {testStatus.message}
@@ -366,19 +395,19 @@ export const NotificationsPage = ({ doc = null, onSave = null }) => {
         <Table striped bordered hover responsive size="sm">
           <thead>
             <tr>
-              <th>Label</th>
-              <th>Type</th>
-              <th>Events</th>
-              <th>Min severity</th>
-              <th>Enabled</th>
-              <th className="text-end">Actions</th>
+              <th>{t('notify:col.label', 'Label')}</th>
+              <th>{t('notify:col.type', 'Type')}</th>
+              <th>{t('notify:col.events', 'Events')}</th>
+              <th>{t('notify:col.minSeverity', 'Min severity')}</th>
+              <th>{t('notify:col.enabled', 'Enabled')}</th>
+              <th className="text-end">{t('notify:col.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
             {channels.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center text-muted small py-3">
-                  No channels configured.
+                  {t('notify:noChannels', 'No channels configured.')}
                 </td>
               </tr>
             ) : null}
@@ -386,10 +415,14 @@ export const NotificationsPage = ({ doc = null, onSave = null }) => {
               <tr key={c.id}>
                 <td>{c.label}</td>
                 <td>
-                  <Badge bg="info">{TYPE_LABELS[c.type] ?? c.type}</Badge>
+                  <Badge bg="info">
+                    {TYPE_LABEL_KEYS[c.type]
+                      ? t(TYPE_LABEL_KEYS[c.type].key, TYPE_LABEL_KEYS[c.type].fallback)
+                      : c.type}
+                  </Badge>
                 </td>
                 <td className="small text-muted">
-                  {c.events?.length ? c.events.join(', ') : 'all'}
+                  {c.events?.length ? c.events.join(', ') : t('notify:eventsAll', 'all')}
                 </td>
                 <td>{c.minSeverity ?? 'info'}</td>
                 <td>{c.enabled ? '✓' : '✗'}</td>
@@ -401,7 +434,7 @@ export const NotificationsPage = ({ doc = null, onSave = null }) => {
                     onClick={() => sendTest(c.id)}
                     disabled={!c.enabled}
                   >
-                    Test
+                    {t('common:buttons.test', 'Test')}
                   </Button>
                   <Button
                     variant="outline-secondary"
@@ -410,7 +443,7 @@ export const NotificationsPage = ({ doc = null, onSave = null }) => {
                     onClick={() => setEditing(c)}
                     disabled={saving}
                   >
-                    Edit
+                    {t('common:buttons.edit', 'Edit')}
                   </Button>
                   <Button
                     variant="outline-danger"
@@ -418,7 +451,7 @@ export const NotificationsPage = ({ doc = null, onSave = null }) => {
                     onClick={() => setDeleting(c)}
                     disabled={saving}
                   >
-                    Delete
+                    {t('common:buttons.delete', 'Delete')}
                   </Button>
                 </td>
               </tr>
@@ -441,13 +474,13 @@ export const NotificationsPage = ({ doc = null, onSave = null }) => {
       {deleting ? (
         <ConfirmDialog
           show
-          title="Delete channel?"
+          title={t('notify:deleteTitle', 'Delete channel?')}
           body={
             <>
-              Delete <strong>{deleting.label}</strong>?
+              {t('notify:deleteBodyPrefix', 'Delete')} <strong>{deleting.label}</strong>?
             </>
           }
-          confirmLabel="Delete"
+          confirmLabel={t('common:buttons.delete', 'Delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />

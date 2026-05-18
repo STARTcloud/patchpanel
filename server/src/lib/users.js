@@ -42,24 +42,24 @@ const newId = () => `u_${randomBytes(8).toString('hex')}`;
 
 const validateUsername = name => {
   if (typeof name !== 'string' || !USERNAME_RE.test(name)) {
-    throw new ValidationError(
-      'username must start with a-z and contain only a-z, 0-9, dot, underscore, hyphen (2-32 chars)'
-    );
+    throw new ValidationError('auth.user.usernameInvalid');
   }
 };
 
 const validatePassword = password => {
   if (typeof password !== 'string' || password.length < 8) {
-    throw new ValidationError('password must be at least 8 characters');
+    throw new ValidationError('auth.user.passwordTooShort');
   }
   if (password.length > 256) {
-    throw new ValidationError('password must be at most 256 characters');
+    throw new ValidationError('auth.user.passwordTooLong');
   }
 };
 
 const validateRole = role => {
   if (!VALID_ROLES.includes(role)) {
-    throw new ValidationError(`role must be one of: ${VALID_ROLES.join(', ')}`);
+    throw new ValidationError('auth.user.roleInvalid', {
+      replacements: { roles: VALID_ROLES.join(', ') },
+    });
   }
 };
 
@@ -69,7 +69,7 @@ const loadDoc = async usersPath => {
   }
   const raw = await readJson(usersPath);
   if (!raw || !Array.isArray(raw.users)) {
-    throw new ValidationError(`users file at ${usersPath} is malformed`);
+    throw new ValidationError('auth.user.fileMalformed', { replacements: { path: usersPath } });
   }
   return raw;
 };
@@ -116,7 +116,7 @@ export const createUser = async (usersPath, { username, password, role }, opts =
   return withLock(lockPathFor(usersPath), async () => {
     const doc = await loadDoc(usersPath);
     if (doc.users.some(u => u.username === username)) {
-      throw new ValidationError(`username already exists: ${username}`);
+      throw new ValidationError('auth.user.usernameExists', { replacements: { username } });
     }
     const now = new Date().toISOString();
     const user = {
@@ -162,12 +162,12 @@ export const changePassword = (usersPath, userId, { currentPassword, newPassword
     const doc = await loadDoc(usersPath);
     const idx = doc.users.findIndex(u => u.id === userId);
     if (idx === -1) {
-      throw new ValidationError('user not found');
+      throw new ValidationError('auth.user.notFound');
     }
     const current = doc.users[idx];
     const currentOk = await bcrypt.compare(currentPassword, current.passwordHash);
     if (!currentOk) {
-      throw new ValidationError('current password is incorrect');
+      throw new ValidationError('auth.user.currentPasswordIncorrect');
     }
     const passwordHash = await bcrypt.hash(newPassword, rounds);
     const now = new Date().toISOString();
@@ -188,7 +188,7 @@ export const forceResetPassword = async (usersPath, username, newPassword, opts 
     const doc = await loadDoc(usersPath);
     const idx = doc.users.findIndex(u => u.username === username);
     if (idx === -1) {
-      throw new ValidationError(`user not found: ${username}`);
+      throw new ValidationError('auth.user.notFoundByName', { replacements: { username } });
     }
     const now = new Date().toISOString();
     doc.users[idx] = { ...doc.users[idx], passwordHash, passwordChangedAt: now };
@@ -203,7 +203,7 @@ export const deleteUser = (usersPath, userId) =>
     const before = doc.users.length;
     doc.users = doc.users.filter(u => u.id !== userId);
     if (doc.users.length === before) {
-      throw new ValidationError('user not found');
+      throw new ValidationError('auth.user.notFound');
     }
     await saveDoc(usersPath, doc);
   });

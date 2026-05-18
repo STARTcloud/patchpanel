@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiPost, buildUrl } from '../api/client.js';
 import { stateDocShape } from '../prop-shapes.js';
@@ -106,36 +107,45 @@ const buildAugmentedDocForByoUpload = ({ doc, name, info }) => {
   };
 };
 
-const validateAcmeMetadata = draft => {
+const validateAcmeMetadata = (draft, t) => {
   if (!ID_REGEX.test(draft.id)) {
-    return 'id must match a-z, 0-9, _, - (starting with a letter)';
+    return t(
+      'cert:certEdit.validate.idFormat',
+      'id must match a-z, 0-9, _, - (starting with a letter)'
+    );
   }
   if (!CERT_NAME_REGEX.test(draft.certName)) {
-    return 'certName must be a valid filesystem-safe certificate name';
+    return t(
+      'cert:certEdit.validate.certNameInvalid',
+      'certName must be a valid filesystem-safe certificate name'
+    );
   }
   if (draft.domains.length === 0) {
-    return 'at least one domain is required';
+    return t('cert:certEdit.validate.domainRequired', 'at least one domain is required');
   }
   if (!draft.providerId) {
-    return 'provider is required';
+    return t('cert:certEdit.validate.providerRequired', 'provider is required');
   }
   if (!draft.acmeAccountId) {
-    return 'ACME account is required';
+    return t('cert:certEdit.validate.acmeAccountRequired', 'ACME account is required');
   }
   if (draft.keyType === 'rsa' && draft.rsaKeySize) {
     if (![2048, 3072, 4096, 8192].includes(draft.rsaKeySize)) {
-      return 'rsaKeySize must be 2048, 3072, 4096, or 8192';
+      return t('cert:certEdit.validate.rsaKeySize', 'rsaKeySize must be 2048, 3072, 4096, or 8192');
     }
   }
   return null;
 };
 
-const validateByoMetadata = draft => {
+const validateByoMetadata = (draft, t) => {
   if (!CERT_NAME_REGEX.test(draft.certName)) {
-    return 'certName must be a valid filesystem-safe certificate name';
+    return t(
+      'cert:certEdit.validate.certNameInvalid',
+      'certName must be a valid filesystem-safe certificate name'
+    );
   }
   if (draft.domains.length === 0) {
-    return 'at least one domain is required';
+    return t('cert:certEdit.validate.domainRequired', 'at least one domain is required');
   }
   return null;
 };
@@ -189,6 +199,7 @@ PemTextarea.propTypes = {
 };
 
 const ValidationPanel = ({ result }) => {
+  const { t } = useTranslation(['cert']);
   if (!result) {
     return null;
   }
@@ -197,14 +208,15 @@ const ValidationPanel = ({ result }) => {
     return (
       <Alert variant="success" className="mb-2 small">
         <div className="d-flex justify-content-between mb-1">
-          <strong>PEM validated successfully.</strong>
-          <Badge bg="success">ready</Badge>
+          <strong>{t('cert:certEdit.validation.success', 'PEM validated successfully.')}</strong>
+          <Badge bg="success">{t('cert:certEdit.validation.ready', 'ready')}</Badge>
         </div>
         <div>
-          <strong>CN:</strong> {info.commonName ?? '(none)'}
+          <strong>{t('cert:certEdit.validation.cn', 'CN:')}</strong>{' '}
+          {info.commonName ?? t('cert:certEdit.validation.none', '(none)')}
         </div>
         <div>
-          <strong>SANs:</strong>{' '}
+          <strong>{t('cert:certEdit.validation.sans', 'SANs:')}</strong>{' '}
           {(info.sans ?? []).map(s => (
             <Badge bg="info" key={s} className="me-1">
               {s}
@@ -212,20 +224,22 @@ const ValidationPanel = ({ result }) => {
           ))}
         </div>
         <div>
-          <strong>Valid:</strong>{' '}
+          <strong>{t('cert:certEdit.validation.valid', 'Valid:')}</strong>{' '}
           {info.notBefore ? new Date(info.notBefore).toLocaleDateString() : '?'} →{' '}
           {info.notAfter ? new Date(info.notAfter).toLocaleDateString() : '?'}
         </div>
         <div>
-          <strong>Chain length:</strong> {info.chainLength ?? 1} cert
-          {(info.chainLength ?? 1) === 1 ? '' : 's'}
+          <strong>{t('cert:certEdit.validation.chainLength', 'Chain length:')}</strong>{' '}
+          {t('cert:certEdit.validation.certCount', '{{count}} cert', {
+            count: info.chainLength ?? 1,
+          })}
         </div>
       </Alert>
     );
   }
   return (
     <Alert variant="danger" className="mb-2 small">
-      <strong>Validation failed.</strong>
+      <strong>{t('cert:certEdit.validation.failed', 'Validation failed.')}</strong>
       <ul className="mb-0 ps-3 mt-1">
         {(result.errors ?? []).map(err => (
           <li key={err}>{err}</li>
@@ -239,23 +253,30 @@ ValidationPanel.propTypes = {
   result: PropTypes.object,
 };
 
-const ProviderSelectField = ({ value, onChange, providers, locked }) => (
-  <Form.Group>
-    <Form.Label>TLS provider</Form.Label>
-    <Form.Select value={value} disabled={locked} onChange={e => onChange(e.target.value)}>
-      <option value="">— choose —</option>
-      {providers.map(p => (
-        <option key={p.id} value={p.id}>
-          {p.type}:{p.id}
+const ProviderSelectField = ({ value, onChange, providers, locked }) => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <Form.Group>
+      <Form.Label>{t('cert:certEdit.providerSelect.label', 'TLS provider')}</Form.Label>
+      <Form.Select value={value} disabled={locked} onChange={e => onChange(e.target.value)}>
+        <option value="">{t('cert:certEdit.providerSelect.choose', '— choose —')}</option>
+        {providers.map(p => (
+          <option key={p.id} value={p.id}>
+            {p.type}:{p.id}
+          </option>
+        ))}
+        <option value={BYO_UPLOAD_OPTION}>
+          {t('cert:certEdit.providerSelect.byoOption', 'Upload my own cert (BYO)')}
         </option>
-      ))}
-      <option value={BYO_UPLOAD_OPTION}>Upload my own cert (BYO)</option>
-    </Form.Select>
-    {locked ? (
-      <Form.Text className="text-muted">Provider is locked once a cert is created.</Form.Text>
-    ) : null}
-  </Form.Group>
-);
+      </Form.Select>
+      {locked ? (
+        <Form.Text className="text-muted">
+          {t('cert:certEdit.providerSelect.locked', 'Provider is locked once a cert is created.')}
+        </Form.Text>
+      ) : null}
+    </Form.Group>
+  );
+};
 
 ProviderSelectField.propTypes = {
   value: PropTypes.string.isRequired,
@@ -265,55 +286,67 @@ ProviderSelectField.propTypes = {
 };
 
 const AcmeMetadataBody = ({ draft, update, doc, isExisting }) => {
+  const { t } = useTranslation(['cert']);
   const acmeAccounts = doc.acmeAccounts ?? [];
   return (
     <Row className="g-3">
       <Col md={6}>
         <Form.Group>
-          <Form.Label>ID</Form.Label>
+          <Form.Label>{t('cert:certEdit.acme.id', 'ID')}</Form.Label>
           <Form.Control
             type="text"
             value={draft.id}
             disabled={isExisting}
             onChange={e => update({ id: e.target.value })}
-            placeholder="e.g. example-com"
+            placeholder={t('cert:certEdit.acme.idPlaceholder', 'e.g. example-com')}
           />
         </Form.Group>
       </Col>
       <Col md={6}>
         <Form.Group>
-          <Form.Label>certName (used as Let&apos;s Encrypt cert name)</Form.Label>
+          <Form.Label>
+            {t('cert:certEdit.acme.certName', "certName (used as Let's Encrypt cert name)")}
+          </Form.Label>
           <Form.Control
             type="text"
             value={draft.certName}
             onChange={e => update({ certName: e.target.value })}
-            placeholder="e.g. example.com"
+            placeholder={t('cert:certEdit.acme.certNamePlaceholder', 'e.g. example.com')}
           />
         </Form.Group>
       </Col>
       <Col xs={12}>
         <Form.Group>
-          <Form.Label>Domains (SANs)</Form.Label>
+          <Form.Label>{t('cert:certEdit.acme.domains', 'Domains (SANs)')}</Form.Label>
           <ListEditor
             items={draft.domains}
             onChange={list => update({ domains: list })}
-            placeholder="e.g. www.example.com or *.example.com"
-            validate={value => (HOSTNAME_REGEX.test(value) ? true : 'invalid domain')}
+            placeholder={t(
+              'cert:certEdit.acme.domainsPlaceholder',
+              'e.g. www.example.com or *.example.com'
+            )}
+            validate={value =>
+              HOSTNAME_REGEX.test(value)
+                ? true
+                : t('cert:certEdit.acme.invalidDomain', 'invalid domain')
+            }
           />
           <Form.Text className="text-muted">
-            The first entry becomes the certificate&apos;s Common Name. Wildcards are permitted
-            (DNS-01 only).
+            {t(
+              'cert:certEdit.acme.domainsHelp',
+              "The first entry becomes the certificate's Common Name. Wildcards are permitted (DNS-01 only)."
+            )}
           </Form.Text>
         </Form.Group>
       </Col>
       <Col md={6}>
         <Form.Group>
-          <Form.Label>ACME account</Form.Label>
+          <Form.Label>{t('cert:certEdit.acme.account', 'ACME account')}</Form.Label>
           <Form.Select
             value={draft.acmeAccountId ?? ''}
             onChange={e => update({ acmeAccountId: e.target.value || undefined })}
           >
-            <option value="">— choose —</option>
+            <option value="">{t('cert:certEdit.acme.choose', '— choose —')}</option>
             {acmeAccounts.map(a => (
               <option key={a.id} value={a.id}>
                 {a.id} ({a.email} · {a.server})
@@ -324,7 +357,7 @@ const AcmeMetadataBody = ({ draft, update, doc, isExisting }) => {
       </Col>
       <Col md={3}>
         <Form.Group>
-          <Form.Label>Key type</Form.Label>
+          <Form.Label>{t('cert:certEdit.acme.keyType', 'Key type')}</Form.Label>
           <Form.Select value={draft.keyType} onChange={e => update({ keyType: e.target.value })}>
             <option value="ecdsa">ecdsa</option>
             <option value="rsa">rsa</option>
@@ -334,7 +367,7 @@ const AcmeMetadataBody = ({ draft, update, doc, isExisting }) => {
       {draft.keyType === 'rsa' ? (
         <Col md={3}>
           <Form.Group>
-            <Form.Label>RSA key size</Form.Label>
+            <Form.Label>{t('cert:certEdit.acme.rsaKeySize', 'RSA key size')}</Form.Label>
             <Form.Select
               value={draft.rsaKeySize ?? 2048}
               onChange={e => update({ rsaKeySize: Number.parseInt(e.target.value, 10) })}
@@ -350,7 +383,10 @@ const AcmeMetadataBody = ({ draft, update, doc, isExisting }) => {
       <Col xs={12}>
         <Form.Check
           type="switch"
-          label="Allow expanding existing lineage with new SANs (--expand)"
+          label={t(
+            'cert:certEdit.acme.expanding',
+            'Allow expanding existing lineage with new SANs (--expand)'
+          )}
           checked={draft.expanding}
           onChange={e => update({ expanding: e.target.checked })}
         />
@@ -374,32 +410,37 @@ const PemEditor = ({
   validation,
   networkError,
   fileInputBump,
-}) => (
-  <>
-    <PemTextarea
-      label="Fullchain PEM (leaf + intermediates)"
-      value={fullchainPem}
-      onChange={setFullchainPem}
-      placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
-      fileAccept=".pem,.crt,.cer,.cert"
-      fileInputKey={`fc-${fileInputBump}`}
-    />
-    <PemTextarea
-      label="Private key PEM (matching private key)"
-      value={privkeyPem}
-      onChange={setPrivkeyPem}
-      placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
-      fileAccept=".pem,.key"
-      fileInputKey={`pk-${fileInputBump}`}
-    />
-    <ValidationPanel result={validation} />
-    {networkError ? (
-      <Alert variant="warning" className="mb-0 small">
-        Request failed: {networkError}
-      </Alert>
-    ) : null}
-  </>
-);
+}) => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <>
+      <PemTextarea
+        label={t('cert:certEdit.pem.fullchainLabel', 'Fullchain PEM (leaf + intermediates)')}
+        value={fullchainPem}
+        onChange={setFullchainPem}
+        placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+        fileAccept=".pem,.crt,.cer,.cert"
+        fileInputKey={`fc-${fileInputBump}`}
+      />
+      <PemTextarea
+        label={t('cert:certEdit.pem.privkeyLabel', 'Private key PEM (matching private key)')}
+        value={privkeyPem}
+        onChange={setPrivkeyPem}
+        placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+        fileAccept=".pem,.key"
+        fileInputKey={`pk-${fileInputBump}`}
+      />
+      <ValidationPanel result={validation} />
+      {networkError ? (
+        <Alert variant="warning" className="mb-0 small">
+          {t('cert:certEdit.pem.requestFailed', 'Request failed: {{message}}', {
+            message: networkError,
+          })}
+        </Alert>
+      ) : null}
+    </>
+  );
+};
 
 PemEditor.propTypes = {
   fullchainPem: PropTypes.string.isRequired,
@@ -411,37 +452,42 @@ PemEditor.propTypes = {
   fileInputBump: PropTypes.number.isRequired,
 };
 
-const ByoNewBody = ({ pem, name, setName, nameValid }) => (
-  <Row className="g-3">
-    <Col xs={12}>
-      <Alert variant="info" className="small mb-0">
-        Paste in your fullchain + private key, give it a name, click Validate then Upload.
-        patchpanel writes the PEM files to disk and adds the matching Certificate entry — no need to
-        wire up a TLS provider separately.
-      </Alert>
-    </Col>
-    <Col xs={12}>
-      <PemEditor {...pem} />
-    </Col>
-    <Col md={8}>
-      <Form.Group>
-        <Form.Label>Name</Form.Label>
-        <Form.Control
-          type="text"
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="auto-filled from the cert's first SAN"
-          isInvalid={name.length > 0 ? !nameValid : null}
-        />
-        <Form.Text className="text-muted">
-          Used as the on-disk folder name and the entry name in the certificates list.
-          Filesystem-safe characters only. Auto-filled from the cert&apos;s first SAN after
-          validation; override before uploading if you want.
-        </Form.Text>
-      </Form.Group>
-    </Col>
-  </Row>
-);
+const ByoNewBody = ({ pem, name, setName, nameValid }) => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <Row className="g-3">
+      <Col xs={12}>
+        <Alert variant="info" className="small mb-0">
+          {t(
+            'cert:byo.new.hint',
+            'Paste in your fullchain + private key, give it a name, click Validate then Upload. patchpanel writes the PEM files to disk and adds the matching Certificate entry — no need to wire up a TLS provider separately.'
+          )}
+        </Alert>
+      </Col>
+      <Col xs={12}>
+        <PemEditor {...pem} />
+      </Col>
+      <Col md={8}>
+        <Form.Group>
+          <Form.Label>{t('cert:byo.new.name', 'Name')}</Form.Label>
+          <Form.Control
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder={t('cert:byo.new.namePlaceholder', "auto-filled from the cert's first SAN")}
+            isInvalid={name.length > 0 ? !nameValid : null}
+          />
+          <Form.Text className="text-muted">
+            {t(
+              'cert:byo.new.nameHelp',
+              "Used as the on-disk folder name and the entry name in the certificates list. Filesystem-safe characters only. Auto-filled from the cert's first SAN after validation; override before uploading if you want."
+            )}
+          </Form.Text>
+        </Form.Group>
+      </Col>
+    </Row>
+  );
+};
 
 ByoNewBody.propTypes = {
   pem: PropTypes.object.isRequired,
@@ -460,6 +506,7 @@ const ByoEditBody = ({
   canReplace,
   onReplace,
 }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const fullchainUrl = buildUrl(`api/byo-certs/${encodeURIComponent(cert.certName)}/fullchain.pem`);
   const privkeyUrl = buildUrl(`api/byo-certs/${encodeURIComponent(cert.certName)}/privkey.pem`);
   const newest = liveCert?.newest;
@@ -469,10 +516,11 @@ const ByoEditBody = ({
         <Col xs={12}>
           <div className="small">
             <div>
-              <strong>certName:</strong> <code>{cert.certName}</code>
+              <strong>{t('cert:byo.edit.certNameLabel', 'certName:')}</strong>{' '}
+              <code>{cert.certName}</code>
             </div>
             <div>
-              <strong>SANs:</strong>{' '}
+              <strong>{t('cert:byo.edit.sansLabel', 'SANs:')}</strong>{' '}
               {(cert.domains ?? []).map(d => (
                 <Badge key={d} bg="info" className="me-1">
                   {d}
@@ -480,14 +528,15 @@ const ByoEditBody = ({
               ))}
             </div>
             <div>
-              <strong>Lineage on disk:</strong>{' '}
+              <strong>{t('cert:byo.edit.lineageLabel', 'Lineage on disk:')}</strong>{' '}
               {newest ? (
                 <>
-                  valid {newest.notBefore ? new Date(newest.notBefore).toLocaleDateString() : '?'} →{' '}
+                  {t('cert:byo.edit.validPrefix', 'valid')}{' '}
+                  {newest.notBefore ? new Date(newest.notBefore).toLocaleDateString() : '?'} →{' '}
                   {newest.notAfter ? new Date(newest.notAfter).toLocaleDateString() : '?'}
                 </>
               ) : (
-                <span className="text-warning">no PEM loaded</span>
+                <span className="text-warning">{t('cert:byo.edit.noPem', 'no PEM loaded')}</span>
               )}
             </div>
           </div>
@@ -502,7 +551,7 @@ const ByoEditBody = ({
             rel="noopener noreferrer"
           >
             <i className="bi bi-download me-1" />
-            Download fullchain.pem
+            {t('cert:byo.edit.downloadFullchain', 'Download fullchain.pem')}
           </Button>
           <Button
             variant="outline-secondary"
@@ -513,17 +562,20 @@ const ByoEditBody = ({
             rel="noopener noreferrer"
           >
             <i className="bi bi-download me-1" />
-            Download privkey.pem
+            {t('cert:byo.edit.downloadPrivkey', 'Download privkey.pem')}
           </Button>
         </Col>
       </Row>
       <details className="mb-3">
-        <summary className="small fw-semibold text-muted text-uppercase">Replace PEM</summary>
+        <summary className="small fw-semibold text-muted text-uppercase">
+          {t('cert:byo.edit.replaceSummary', 'Replace PEM')}
+        </summary>
         <div className="pt-2">
           <Alert variant="warning" className="small">
-            Paste new fullchain + private key below, click Validate, then Replace. The old PEM is
-            overwritten on disk; if the new cert has different SANs the cert entry&apos;s domains
-            are updated to match.
+            {t(
+              'cert:byo.edit.replaceWarning',
+              "Paste new fullchain + private key below, click Validate, then Replace. The old PEM is overwritten on disk; if the new cert has different SANs the cert entry's domains are updated to match."
+            )}
           </Alert>
           <PemEditor {...pem} />
           <div className="d-flex gap-2">
@@ -533,7 +585,7 @@ const ByoEditBody = ({
               onClick={pem.onValidate}
               disabled={!pem.canValidate || replaceState.running}
             >
-              Validate
+              {t('cert:byo.edit.validate', 'Validate')}
             </Button>
             <Button
               variant="warning"
@@ -543,10 +595,11 @@ const ByoEditBody = ({
             >
               {replaceState.running ? (
                 <>
-                  <Spinner as="span" size="sm" animation="border" /> Replacing…
+                  <Spinner as="span" size="sm" animation="border" />{' '}
+                  {t('cert:byo.edit.replacing', 'Replacing…')}
                 </>
               ) : (
-                'Replace PEM'
+                t('cert:byo.edit.replaceButton', 'Replace PEM')
               )}
             </Button>
           </div>
@@ -558,35 +611,45 @@ const ByoEditBody = ({
         </div>
       </details>
       <details>
-        <summary className="small fw-semibold text-muted text-uppercase">Metadata</summary>
+        <summary className="small fw-semibold text-muted text-uppercase">
+          {t('cert:byo.edit.metadataSummary', 'Metadata')}
+        </summary>
         <div className="pt-2">
           <Row className="g-3">
             <Col md={6}>
               <Form.Group>
-                <Form.Label>certName</Form.Label>
+                <Form.Label>{t('cert:byo.edit.certNameField', 'certName')}</Form.Label>
                 <Form.Control
                   type="text"
                   value={draft.certName}
                   onChange={e => update({ certName: e.target.value })}
                 />
                 <Form.Text className="text-muted">
-                  The folder name on disk. Renaming after upload is not recommended — the existing
-                  PEM files stay under the original name.
+                  {t(
+                    'cert:byo.edit.certNameHelp',
+                    'The folder name on disk. Renaming after upload is not recommended — the existing PEM files stay under the original name.'
+                  )}
                 </Form.Text>
               </Form.Group>
             </Col>
             <Col xs={12}>
               <Form.Group>
-                <Form.Label>Domains (SANs)</Form.Label>
+                <Form.Label>{t('cert:byo.edit.domainsField', 'Domains (SANs)')}</Form.Label>
                 <ListEditor
                   items={draft.domains}
                   onChange={list => update({ domains: list })}
-                  placeholder="e.g. www.example.com"
-                  validate={value => (HOSTNAME_REGEX.test(value) ? true : 'invalid domain')}
+                  placeholder={t('cert:byo.edit.domainsPlaceholder', 'e.g. www.example.com')}
+                  validate={value =>
+                    HOSTNAME_REGEX.test(value)
+                      ? true
+                      : t('cert:byo.edit.invalidDomain', 'invalid domain')
+                  }
                 />
                 <Form.Text className="text-muted">
-                  Auto-derived from the cert&apos;s SANs at upload time. Edits here only change what
-                  HAProxy advertises for SNI; they don&apos;t change the actual PEM bytes.
+                  {t(
+                    'cert:byo.edit.domainsHelp',
+                    "Auto-derived from the cert's SANs at upload time. Edits here only change what HAProxy advertises for SNI; they don't change the actual PEM bytes."
+                  )}
                 </Form.Text>
               </Form.Group>
             </Col>
@@ -617,18 +680,31 @@ const resolveByoMode = (selection, providers) => {
   return isByoProviderType(providers, selection);
 };
 
-const computeHeaderTitle = (isExisting, byoMode, cert) => {
+const computeHeaderTitle = (isExisting, byoMode, cert, t) => {
   if (isExisting) {
-    return `Edit certificate: ${cert.certName}`;
+    return t('cert:certEdit.header.edit', 'Edit certificate: {{name}}', { name: cert.certName });
   }
-  return byoMode ? 'Add certificate (upload PEM)' : 'New certificate';
+  return byoMode
+    ? t('cert:certEdit.header.addByo', 'Add certificate (upload PEM)')
+    : t('cert:certEdit.header.new', 'New certificate');
 };
 
-const computePrimaryLabel = (isExisting, byoMode, saving) => {
+const computePrimaryLabel = (isExisting, byoMode, saving, t) => {
   if (!isExisting && byoMode) {
-    return saving ? 'Uploading…' : 'Upload';
+    return saving
+      ? t('cert:certEdit.primary.uploading', 'Uploading…')
+      : t('common:buttons.upload', 'Upload');
   }
-  return isExisting ? 'Update' : 'Add';
+  return isExisting ? t('common:buttons.update', 'Update') : t('common:buttons.add', 'Add');
+};
+
+const PickProviderHint = () => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <Alert variant="secondary" className="small mb-0">
+      {t('cert:certEdit.pickProviderHint', 'Pick a TLS provider above to continue.')}
+    </Alert>
+  );
 };
 
 // Picks the body content based on which provider/mode combination is active.
@@ -653,11 +729,7 @@ const CertEditModalBody = ({
   onReplace,
 }) => {
   if (!providerSelection) {
-    return (
-      <Alert variant="secondary" className="small mb-0">
-        Pick a TLS provider above to continue.
-      </Alert>
-    );
+    return <PickProviderHint />;
   }
   if (byoMode && !isExisting) {
     return (
@@ -709,6 +781,7 @@ CertEditModalBody.propTypes = {
 };
 
 export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave, onCancel }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const isExisting = Boolean(cert?.id);
   const [draft, setDraft] = useState(() => cert ?? emptyCert());
   const [error, setError] = useState(null);
@@ -760,7 +833,9 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
         setByoNameAutoFilled(true);
       }
     } catch (err) {
-      setNetworkError(err.message ?? 'validation request failed');
+      setNetworkError(
+        err.message ?? t('cert:certEdit.error.validationFailed', 'validation request failed')
+      );
     }
   };
 
@@ -780,7 +855,9 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
       const nextDoc = buildAugmentedDocForByoUpload({ doc, name: byoName, info: result.info });
       await onSave(nextDoc);
     } catch (err) {
-      setNetworkError(err.message ?? 'upload request failed');
+      setNetworkError(
+        err.message ?? t('cert:certEdit.error.uploadFailed', 'upload request failed')
+      );
     } finally {
       setSaving(false);
     }
@@ -798,7 +875,7 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
         setReplaceState({
           running: false,
           ok: false,
-          message: result.errors?.join('; ') ?? 'replace failed',
+          message: result.errors?.join('; ') ?? t('cert:byo.edit.replaceFailed', 'replace failed'),
         });
         return;
       }
@@ -819,7 +896,7 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
       setReplaceState({
         running: false,
         ok: true,
-        message: 'PEM replaced and state applied.',
+        message: t('cert:byo.edit.replaceSuccess', 'PEM replaced and state applied.'),
       });
       setFullchainPem('');
       setPrivkeyPem('');
@@ -829,7 +906,7 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
       setReplaceState({
         running: false,
         ok: false,
-        message: err.message ?? 'replace request failed',
+        message: err.message ?? t('cert:byo.edit.replaceRequestFailed', 'replace request failed'),
       });
     }
   };
@@ -851,7 +928,7 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
   };
 
   const handleSaveAcmeMetadata = () => {
-    const message = validateAcmeMetadata(draft);
+    const message = validateAcmeMetadata(draft, t);
     if (message) {
       setError(message);
       return;
@@ -860,7 +937,7 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
   };
 
   const handleSaveByoMetadata = () => {
-    const message = validateByoMetadata(draft);
+    const message = validateByoMetadata(draft, t);
     if (message) {
       setError(message);
       return;
@@ -884,8 +961,8 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
   const canValidate = pemsPresent;
   const canUploadNew =
     byoMode && !isExisting && byoNameValid && pemsPresent && validation?.ok === true;
-  const headerTitle = computeHeaderTitle(isExisting, byoMode, cert);
-  const primaryLabel = computePrimaryLabel(isExisting, byoMode, saving);
+  const headerTitle = computeHeaderTitle(isExisting, byoMode, cert, t);
+  const primaryLabel = computePrimaryLabel(isExisting, byoMode, saving, t);
   const primaryDisabled = saving || (!isExisting && byoMode && !canUploadNew);
   const showValidateButton = !isExisting && byoMode;
 
@@ -943,7 +1020,7 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel} disabled={saving}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         {showValidateButton ? (
           <Button
@@ -951,7 +1028,7 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
             onClick={handleValidatePem}
             disabled={!canValidate || saving}
           >
-            Validate
+            {t('cert:certEdit.validate', 'Validate')}
           </Button>
         ) : null}
         <Button variant="primary" onClick={handlePrimary} disabled={primaryDisabled}>

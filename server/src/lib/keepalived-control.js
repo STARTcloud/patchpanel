@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 
+import { ReloadError, StateError } from './errors.js';
 import { log } from './logger.js';
 
 // Mirror of haproxy-control.js for keepalived. Same auto-detect of supervisor
@@ -76,7 +77,9 @@ const readPid = async pidPath => {
   const raw = await fs.readFile(pidPath ?? DEFAULT_PID_PATH, 'utf8').catch(() => '');
   const pid = Number.parseInt(raw.trim().split(/\s+/u)[0], 10);
   if (!Number.isInteger(pid) || pid <= 1) {
-    throw new Error(`could not read keepalived pid from ${pidPath ?? DEFAULT_PID_PATH}`);
+    throw new StateError('cluster.keepalived.pidUnreadable', {
+      replacements: { path: pidPath ?? DEFAULT_PID_PATH },
+    });
   }
   return pid;
 };
@@ -89,9 +92,10 @@ const signalViaDirect = async (pidPath, signal, action) => {
 
 const requireOk = (result, action) => {
   if (result.code !== 0) {
-    throw new Error(
-      `${action} failed (exit ${result.code}): ${(result.stderr || result.stdout).trim()}`
-    );
+    const output = (result.stderr || result.stdout).trim();
+    throw new ReloadError('cluster.keepalived.reloadFailed', {
+      replacements: { action, code: result.code, output },
+    });
   }
   return result;
 };
@@ -140,10 +144,17 @@ export const start = async () => {
       'systemctl start keepalived'
     );
   }
-  throw new Error(
-    'direct strategy cannot restart keepalived from scratch — no supervisor configured. ' +
-      'Set KEEPALIVED_CONTROL_STRATEGY to s6 or systemd, or start keepalived manually.'
-  );
+  throw new StateError('cluster.keepalived.startUnsupported');
+};
+
+// Binary-presence probe. The UI badge gates on this — if keepalived isn't
+// installed at the configured binPath we hide the indicator entirely
+// instead of leaving it stuck at "checking" (the previous behaviour, which
+// was indistinguishable from a genuinely indeterminate isAlive() result on
+// deployments that simply don't ship keepalived).
+export const isInstalled = (config = {}) => {
+  const bin = config.keepalivedBin || '/usr/sbin/keepalived';
+  return fileExists(bin);
 };
 
 // Liveness via pidfile + process check. Returns null if we can't tell

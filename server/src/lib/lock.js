@@ -1,5 +1,7 @@
 import { promises as fs } from 'node:fs';
 
+import { StateError } from './errors.js';
+
 const DEFAULT_TIMEOUT_MS = 10_000;
 const POLL_INTERVAL_MS = 100;
 
@@ -19,7 +21,10 @@ const tryOpenExclusive = async (lockPath, deadline) => {
     return handle;
   }
   if (Date.now() > deadline) {
-    throw new Error(`could not acquire lock at ${lockPath} within timeout`);
+    throw new StateError('lock.acquireTimeout', {
+      message: `could not acquire lock at ${lockPath} within timeout`,
+      replacements: { path: lockPath },
+    });
   }
   await sleep(POLL_INTERVAL_MS);
   return tryOpenExclusive(lockPath, deadline);

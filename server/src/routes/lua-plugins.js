@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 
 import { Router } from 'express';
 
+import { errorResponse } from '../lib/api-response.js';
 import * as audit from '../lib/audit.js';
 import { log } from '../lib/logger.js';
 import {
@@ -161,17 +162,19 @@ export const luaPluginsRouter = config => {
     const name = typeof req.query.name === 'string' ? req.query.name : null;
     log.api.debug('GET /lua-plugins/file', { ip: req.ip, dir, name });
     if (!isAllowedLuaPluginDir(dirs(), dir)) {
-      res.status(400).json({ ok: false, error: 'dir is not in the configured whitelist' });
+      res.status(400).json({ ok: false, ...errorResponse(req, 'lua.plugin.dirNotWhitelisted') });
       return;
     }
     const idError = validateLuaPluginId(name);
     if (idError) {
-      res.status(400).json({ ok: false, error: idError });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, idError.code, idError.replacements) });
       return;
     }
     try {
       if (!(await luaPluginFileExists(dirs(), dir, name))) {
-        res.status(404).json({ ok: false, error: 'not found' });
+        res.status(404).json({ ok: false, ...errorResponse(req, 'lua.plugin.notFound') });
         return;
       }
       const source = await readLuaPlugin(dirs(), dir, name);
@@ -225,17 +228,21 @@ export const luaPluginsRouter = config => {
     const { dir, name, source } = req.body ?? {};
     log.api.info('POST /lua-plugins/upload', { ip: req.ip, actor, dir, name });
     if (!isAllowedLuaPluginDir(dirs(), dir)) {
-      res.status(400).json({ ok: false, error: 'dir is not in the configured whitelist' });
+      res.status(400).json({ ok: false, ...errorResponse(req, 'lua.plugin.dirNotWhitelisted') });
       return;
     }
     const idError = validateLuaPluginId(name);
     if (idError) {
-      res.status(400).json({ ok: false, error: idError });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, idError.code, idError.replacements) });
       return;
     }
     const sourceError = validateLuaPluginSource(source);
     if (sourceError) {
-      res.status(400).json({ ok: false, error: sourceError });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, sourceError.code, sourceError.replacements) });
       return;
     }
     try {
@@ -301,12 +308,14 @@ export const luaPluginsRouter = config => {
     const { dir, name } = req.body ?? {};
     log.api.info('POST /lua-plugins/delete', { ip: req.ip, actor, dir, name });
     if (!isAllowedLuaPluginDir(dirs(), dir)) {
-      res.status(400).json({ ok: false, error: 'dir is not in the configured whitelist' });
+      res.status(400).json({ ok: false, ...errorResponse(req, 'lua.plugin.dirNotWhitelisted') });
       return;
     }
     const idError = validateLuaPluginId(name);
     if (idError) {
-      res.status(400).json({ ok: false, error: idError });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, idError.code, idError.replacements) });
       return;
     }
     try {

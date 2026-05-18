@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card, Table } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { deriveRouteRows, RouteWizard } from '../components/RouteWizard.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 
 export const RoutesPage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [showWizard, setShowWizard] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -34,13 +36,17 @@ export const RoutesPage = ({ doc = null, onSave = null }) => {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
           <div>
-            <Card.Title className="mb-1">Routes</Card.Title>
+            <Card.Title className="mb-1">{t('haproxy:route.page.title', 'Routes')}</Card.Title>
             <Card.Text className="text-muted small mb-0">
-              <strong>Lens view.</strong> A &ldquo;route&rdquo; here is a pair: an{' '}
-              <code>hdr(host)</code> ACL + an <code>http-request use-backend</code> rule that
-              references it. Use <strong>+ New route</strong> to create both via a wizard. Edits to
-              the underlying ACL or Rule happen on the <Link to="/acls">ACLs</Link> and{' '}
-              <Link to="/rules">Rules</Link> pages.
+              <strong>{t('haproxy:route.page.lensView', 'Lens view.')}</strong>{' '}
+              {t(
+                'haproxy:route.page.description1',
+                'A "route" here is a pair: an hdr(host) ACL + an http-request use-backend rule that references it. Use + New route to create both via a wizard. Edits to the underlying ACL or Rule happen on the'
+              )}{' '}
+              <Link to="/acls">{t('haproxy:route.page.aclsLink', 'ACLs')}</Link>{' '}
+              {t('haproxy:common.and', 'and')}{' '}
+              <Link to="/rules">{t('haproxy:route.page.rulesLink', 'Rules')}</Link>{' '}
+              {t('haproxy:route.page.pages', 'pages.')}
             </Card.Text>
           </div>
           <Button
@@ -50,30 +56,31 @@ export const RoutesPage = ({ doc = null, onSave = null }) => {
             disabled={saving || !onSave}
           >
             <i className="bi bi-plus-lg me-1" />
-            New route
+            {t('haproxy:route.new', 'New route')}
           </Button>
         </div>
         {saveError ? (
           <Alert variant="danger" onClose={() => setSaveError(null)} dismissible>
-            Save failed: {saveError.message}
+            {t('haproxy:common.saveFailed', 'Save failed')}: {saveError.message}
           </Alert>
         ) : null}
         {rows.length === 0 ? (
           <Alert variant="info" className="small mb-0">
-            No routes derived. Either no <code>use-backend</code> rules exist yet, or no
-            host-matching ACLs are referenced by any rule. Click <strong>+ New route</strong> to
-            create the first pair, or build the primitives directly from the ACLs and Rules pages.
+            {t(
+              'haproxy:route.empty',
+              'No routes derived. Either no use-backend rules exist yet, or no host-matching ACLs are referenced by any rule. Click + New route to create the first pair, or build the primitives directly from the ACLs and Rules pages.'
+            )}
           </Alert>
         ) : (
           <Table striped bordered hover responsive size="sm">
             <thead>
               <tr>
-                <th>Frontend</th>
-                <th>Hostnames</th>
-                <th>Backend</th>
-                <th>ACL(s)</th>
-                <th>Rule</th>
-                <th>Status</th>
+                <th>{t('haproxy:route.columns.frontend', 'Frontend')}</th>
+                <th>{t('haproxy:route.columns.hostnames', 'Hostnames')}</th>
+                <th>{t('haproxy:route.columns.backend', 'Backend')}</th>
+                <th>{t('haproxy:route.columns.acls', 'ACL(s)')}</th>
+                <th>{t('haproxy:route.columns.rule', 'Rule')}</th>
+                <th>{t('haproxy:route.columns.status', 'Status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -92,7 +99,13 @@ export const RoutesPage = ({ doc = null, onSave = null }) => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-decoration-none d-block small"
-                        title={`Open https://${h}/ in a new tab`}
+                        title={t(
+                          'haproxy:route.openInNewTab',
+                          'Open https://{{host}}/ in a new tab',
+                          {
+                            host: h,
+                          }
+                        )}
                       >
                         {h}
                         <i className="bi bi-box-arrow-up-right ms-1 small text-muted" />
@@ -118,9 +131,9 @@ export const RoutesPage = ({ doc = null, onSave = null }) => {
                   </td>
                   <td className="text-center">
                     {row.enabled ? (
-                      <Badge bg="success">enabled</Badge>
+                      <Badge bg="success">{t('haproxy:route.status.enabled', 'enabled')}</Badge>
                     ) : (
-                      <Badge bg="secondary">disabled</Badge>
+                      <Badge bg="secondary">{t('haproxy:route.status.disabled', 'disabled')}</Badge>
                     )}
                   </td>
                 </tr>

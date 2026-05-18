@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiGet, apiPut } from '../api/client.js';
 import { TLS_PROVIDER_REGISTRY } from '../lib/tls-provider-kinds.jsx';
@@ -104,12 +105,17 @@ const useStoredCredentials = (providerId, isExisting, show) => {
   return { values, setValues, exists, loading };
 };
 
-const validateDraft = (draft, currentKind) => {
+const validateDraft = (draft, currentKind, t) => {
   if (!ID_REGEX.test(draft.id)) {
-    return 'id must match a-z, 0-9, _, - (starting with a letter)';
+    return t(
+      'cert:tlsProviderEdit.validate.idFormat',
+      'id must match a-z, 0-9, _, - (starting with a letter)'
+    );
   }
   if (!currentKind) {
-    return `unknown TLS provider type: ${draft.type}`;
+    return t('cert:tlsProviderEdit.validate.unknownType', 'unknown TLS provider type: {{type}}', {
+      type: draft.type,
+    });
   }
   return currentKind.validate(draft);
 };
@@ -147,15 +153,16 @@ const persistProviderAndCredentials = async ({
 };
 
 const CredentialsHeaderBadge = ({ loading, isExisting, exists }) => {
+  const { t } = useTranslation(['cert']);
   if (loading || !isExisting) {
     return null;
   }
   if (exists) {
-    return <Badge bg="success">stored</Badge>;
+    return <Badge bg="success">{t('cert:tlsProviderEdit.badge.stored', 'stored')}</Badge>;
   }
   return (
     <Badge bg="warning" text="dark">
-      not yet written
+      {t('cert:tlsProviderEdit.badge.notWritten', 'not yet written')}
     </Badge>
   );
 };
@@ -167,17 +174,18 @@ CredentialsHeaderBadge.propTypes = {
 };
 
 const SaveButtonContent = ({ saving, isExisting }) => {
+  const { t } = useTranslation(['common']);
   if (saving) {
     return (
       <>
-        <Spinner as="span" animation="border" size="sm" /> Saving…
+        <Spinner as="span" animation="border" size="sm" /> {t('common:status.saving', 'Saving…')}
       </>
     );
   }
   if (isExisting) {
-    return 'Update';
+    return t('common:buttons.update', 'Update');
   }
-  return 'Add';
+  return t('common:buttons.add', 'Add');
 };
 
 SaveButtonContent.propTypes = {
@@ -185,25 +193,31 @@ SaveButtonContent.propTypes = {
   isExisting: PropTypes.bool.isRequired,
 };
 
-const IdField = ({ value, isExisting, onChange }) => (
-  <Col md={6}>
-    <Form.Group>
-      <Form.Label>ID</Form.Label>
-      <Form.Control
-        type="text"
-        value={value}
-        disabled={isExisting}
-        onChange={e => onChange(e.target.value)}
-        placeholder="e.g. cloudflare"
-      />
-      {!isExisting ? (
-        <Form.Text className="text-muted">
-          Lowercase a-z, digits, _ or -. Used as the on-disk credentials filename.
-        </Form.Text>
-      ) : null}
-    </Form.Group>
-  </Col>
-);
+const IdField = ({ value, isExisting, onChange }) => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <Col md={6}>
+      <Form.Group>
+        <Form.Label>{t('cert:tlsProviderEdit.idLabel', 'ID')}</Form.Label>
+        <Form.Control
+          type="text"
+          value={value}
+          disabled={isExisting}
+          onChange={e => onChange(e.target.value)}
+          placeholder={t('cert:tlsProviderEdit.idPlaceholder', 'e.g. cloudflare')}
+        />
+        {!isExisting ? (
+          <Form.Text className="text-muted">
+            {t(
+              'cert:tlsProviderEdit.idHelp',
+              'Lowercase a-z, digits, _ or -. Used as the on-disk credentials filename.'
+            )}
+          </Form.Text>
+        ) : null}
+      </Form.Group>
+    </Col>
+  );
+};
 
 IdField.propTypes = {
   value: PropTypes.string.isRequired,
@@ -211,27 +225,33 @@ IdField.propTypes = {
   onChange: PropTypes.func.isRequired,
 };
 
-const TypeField = ({ value, isExisting, onChange }) => (
-  <Col md={6}>
-    <Form.Group>
-      <Form.Label>Type</Form.Label>
-      <Form.Select value={value} disabled={isExisting} onChange={e => onChange(e.target.value)}>
-        {TLS_PROVIDER_REGISTRY.typeOptions
-          .filter(t => t.value !== 'byo')
-          .map(t => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-      </Form.Select>
-      {isExisting ? (
-        <Form.Text className="text-muted">
-          Type cannot change after creation. Delete and recreate to switch.
-        </Form.Text>
-      ) : null}
-    </Form.Group>
-  </Col>
-);
+const TypeField = ({ value, isExisting, onChange }) => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <Col md={6}>
+      <Form.Group>
+        <Form.Label>{t('cert:tlsProviderEdit.typeLabel', 'Type')}</Form.Label>
+        <Form.Select value={value} disabled={isExisting} onChange={e => onChange(e.target.value)}>
+          {TLS_PROVIDER_REGISTRY.typeOptions
+            .filter(opt => opt.value !== 'byo')
+            .map(opt => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+        </Form.Select>
+        {isExisting ? (
+          <Form.Text className="text-muted">
+            {t(
+              'cert:tlsProviderEdit.typeHelp',
+              'Type cannot change after creation. Delete and recreate to switch.'
+            )}
+          </Form.Text>
+        ) : null}
+      </Form.Group>
+    </Col>
+  );
+};
 
 TypeField.propTypes = {
   value: PropTypes.string.isRequired,
@@ -239,16 +259,23 @@ TypeField.propTypes = {
   onChange: PropTypes.func.isRequired,
 };
 
-const NoCredentialsHint = () => (
-  <Col xs={12}>
-    <Form.Text className="text-muted">
-      <i className="bi bi-info-circle me-1" />
-      This provider type does not use a credentials file.
-    </Form.Text>
-  </Col>
-);
+const NoCredentialsHint = () => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <Col xs={12}>
+      <Form.Text className="text-muted">
+        <i className="bi bi-info-circle me-1" />
+        {t(
+          'cert:tlsProviderEdit.noCredentials',
+          'This provider type does not use a credentials file.'
+        )}
+      </Form.Text>
+    </Col>
+  );
+};
 
 const CredentialsSection = ({ template, values, setValues, loading, exists, isExisting }) => {
+  const { t } = useTranslation(['cert']);
   const hasFields = (template?.fields ?? []).length > 0;
   if (!hasFields && !loading) {
     if (!template) {
@@ -260,7 +287,9 @@ const CredentialsSection = ({ template, values, setValues, loading, exists, isEx
     <Col xs={12}>
       <hr className="my-1" />
       <div className="d-flex align-items-center justify-content-between mb-2">
-        <strong className="small text-muted text-uppercase">Credentials</strong>
+        <strong className="small text-muted text-uppercase">
+          {t('cert:tlsProviderEdit.credentialsHeading', 'Credentials')}
+        </strong>
         <CredentialsHeaderBadge loading={loading} isExisting={isExisting} exists={exists} />
       </div>
       <Row className="g-3">
@@ -286,6 +315,7 @@ CredentialsSection.propTypes = {
 };
 
 export const TlsProviderEditModal = ({ show, provider = null, doc, onSave, onClose }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const isExisting = Boolean(provider?.id);
   const [draft, setDraft] = useState(() => provider ?? emptyProvider());
   const [error, setError] = useState(null);
@@ -317,7 +347,7 @@ export const TlsProviderEditModal = ({ show, provider = null, doc, onSave, onClo
   const filledCredentials = useMemo(() => stripEmptyFields(stored.values), [stored.values]);
 
   const handleSave = async () => {
-    const validationError = validateDraft(draft, currentKind);
+    const validationError = validateDraft(draft, currentKind, t);
     if (validationError) {
       setError(validationError);
       return;
@@ -334,7 +364,7 @@ export const TlsProviderEditModal = ({ show, provider = null, doc, onSave, onClo
       });
       onClose();
     } catch (err) {
-      setError(err.message ?? 'save failed');
+      setError(err.message ?? t('cert:tlsProviderEdit.saveFailed', 'save failed'));
     } finally {
       setSaving(false);
     }
@@ -344,15 +374,22 @@ export const TlsProviderEditModal = ({ show, provider = null, doc, onSave, onClo
     <Modal show={show} onHide={onClose} size="lg" backdrop="static">
       <Modal.Header closeButton>
         <Modal.Title>
-          {isExisting ? `Edit TLS provider: ${provider.id}` : 'New TLS provider'}
+          {isExisting
+            ? t('cert:tlsProviderEdit.editTitle', 'Edit TLS provider: {{id}}', {
+                id: provider.id,
+              })
+            : t('cert:tlsProviderEdit.newTitle', 'New TLS provider')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {error ? <Alert variant="danger">{error}</Alert> : null}
         {templateError ? (
           <Alert variant="warning" className="small">
-            Credentials template unavailable: {templateError.message}. You can still save the
-            provider; add credentials later via Edit.
+            {t(
+              'cert:tlsProviderEdit.templateUnavailable',
+              'Credentials template unavailable: {{message}}. You can still save the provider; add credentials later via Edit.',
+              { message: templateError.message }
+            )}
           </Alert>
         ) : null}
         <Row className="g-3">
@@ -377,7 +414,7 @@ export const TlsProviderEditModal = ({ show, provider = null, doc, onSave, onClo
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onClose} disabled={saving}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <Button variant="primary" onClick={handleSave} disabled={saving}>
           <SaveButtonContent saving={saving} isExisting={isExisting} />

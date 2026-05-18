@@ -16,13 +16,17 @@ const CA_DIRECTORY_URLS = Object.freeze({
 const resolveDirectoryUrl = account => {
   if (account.server === 'custom') {
     if (!account.directoryUrl) {
-      throw new CertbotError(`ACME account ${account.id} has server "custom" but no directoryUrl`);
+      throw new CertbotError('cert.certbot.acmeCustomDirectoryUrlMissing', {
+        replacements: { accountId: account.id },
+      });
     }
     return account.directoryUrl;
   }
   const url = CA_DIRECTORY_URLS[account.server];
   if (!url) {
-    throw new CertbotError(`ACME account ${account.id} has unknown server "${account.server}"`);
+    throw new CertbotError('cert.certbot.acmeServerUnknown', {
+      replacements: { accountId: account.id, server: account.server },
+    });
   }
   return url;
 };
@@ -82,9 +86,11 @@ const buildChallengeArgs = (provider, propagationSeconds) => {
         provider.options?.webrootPath ?? '/var/lib/letsencrypt',
       ];
     case 'byo':
-      throw new CertbotError('BYO certificates do not use certbot');
+      throw new CertbotError('cert.certbot.byoNotApplicable');
     default:
-      throw new CertbotError(`unknown TLS provider type: ${provider.type}`);
+      throw new CertbotError('cert.certbot.unknownProviderType', {
+        replacements: { type: provider.type },
+      });
   }
 };
 
@@ -162,9 +168,10 @@ export const renewCert = async ({
   });
   const { code, stdout, stderr } = await runProcess(certbotBin, args, env, timeoutMs);
   if (code !== 0) {
-    throw new CertbotError(`certbot exited with code ${code}`, {
+    throw new CertbotError('cert.certbot.commandFailed', {
       exitCode: code,
       output: stderr || stdout,
+      replacements: { exitCode: code },
     });
   }
   return { code, stdout, stderr };
@@ -178,9 +185,10 @@ export const listCertificates = async certbotBin => {
     DEFAULT_TIMEOUT_MS
   );
   if (code !== 0) {
-    throw new CertbotError(`certbot certificates exited with code ${code}`, {
+    throw new CertbotError('cert.certbot.listFailed', {
       exitCode: code,
       output: stderr || stdout,
+      replacements: { exitCode: code },
     });
   }
   return stdout;

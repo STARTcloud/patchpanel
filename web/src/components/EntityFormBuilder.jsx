@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Badge, Button, Form, InputGroup, Modal } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { genKey } from '../utils/keys.js';
 
@@ -206,6 +207,7 @@ ScalarField.propTypes = {
 };
 
 const StringListField = ({ field, value, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const items = value ?? [];
   const [pending, setPending] = useState('');
   const add = () => {
@@ -222,6 +224,7 @@ const StringListField = ({ field, value, onChange }) => {
     next.splice(idx, 1);
     onChange(next.length === 0 ? undefined : next);
   };
+  const itemLabel = field.itemLabel ?? t('haproxy:entityForm.item', 'item');
   return (
     <Form.Group className="mb-2">
       <Form.Label>
@@ -232,7 +235,12 @@ const StringListField = ({ field, value, onChange }) => {
         <Form.Control
           type="text"
           value={pending}
-          placeholder={field.placeholder ?? `Add ${field.itemLabel ?? 'item'} and press Enter`}
+          placeholder={
+            field.placeholder ??
+            t('haproxy:entityForm.addItemPlaceholder', 'Add {{label}} and press Enter', {
+              label: itemLabel,
+            })
+          }
           onChange={e => setPending(e.target.value)}
           onKeyDown={e => {
             if (e.key === 'Enter') {
@@ -242,12 +250,16 @@ const StringListField = ({ field, value, onChange }) => {
           }}
         />
         <Button variant="outline-secondary" type="button" onClick={add}>
-          Add
+          {t('common:buttons.add', 'Add')}
         </Button>
       </InputGroup>
       <div className="d-flex flex-wrap gap-1 mt-2">
         {items.length === 0 ? (
-          <span className="text-muted small">No {field.itemLabel ?? 'items'} yet.</span>
+          <span className="text-muted small">
+            {t('haproxy:entityForm.noItemsYet', 'No {{label}} yet.', {
+              label: field.itemLabel ?? t('haproxy:entityForm.items', 'items'),
+            })}
+          </span>
         ) : (
           items.map((item, idx) => (
             <Badge key={item} bg="secondary" className="d-flex align-items-center gap-2 py-2">
@@ -257,7 +269,7 @@ const StringListField = ({ field, value, onChange }) => {
                 size="sm"
                 variant="link"
                 className="text-white p-0 lh-1"
-                aria-label={`Remove ${item}`}
+                aria-label={t('haproxy:entityForm.removeItem', 'Remove {{item}}', { item })}
                 onClick={() => remove(idx)}
               >
                 ×
@@ -292,13 +304,14 @@ const renderAnyField = (field, value, onChange) => {
 };
 
 const ListItemEditor = ({ item, itemFields, idx, total, minItems, onChange, onRemove }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const canRemove = total > (minItems ?? 0);
   return (
     <div className="border rounded p-2 mb-2">
       <div className="d-flex justify-content-between align-items-center mb-2">
         <Badge bg="secondary">#{idx + 1}</Badge>
         <Button variant="outline-danger" size="sm" disabled={!canRemove} onClick={onRemove}>
-          Remove
+          {t('common:buttons.remove', 'Remove')}
         </Button>
       </div>
       {itemFields.map(sub => renderAnyField(sub, item[sub.key], v => onChange(sub.key, v)))}
@@ -317,6 +330,7 @@ ListItemEditor.propTypes = {
 };
 
 const ListField = ({ field, items, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const list = items ?? [];
   const update = (idx, key, value) => {
     onChange(list.map((item, i) => (i === idx ? { ...item, [key]: value } : item)));
@@ -329,6 +343,7 @@ const ListField = ({ field, items, onChange }) => {
   const add = () => {
     onChange([...list, blankItem(field.itemFields)]);
   };
+  const itemLabel = field.itemLabel ?? t('haproxy:entityForm.item', 'item');
   return (
     <div className="mb-3">
       <Form.Label>
@@ -336,7 +351,11 @@ const ListField = ({ field, items, onChange }) => {
         {field.required ? <span className="text-danger ms-1">*</span> : null}
       </Form.Label>
       {list.length === 0 ? (
-        <p className="text-muted small mb-2">No {field.itemLabel ?? 'items'} yet.</p>
+        <p className="text-muted small mb-2">
+          {t('haproxy:entityForm.noItemsYet', 'No {{label}} yet.', {
+            label: field.itemLabel ?? t('haproxy:entityForm.items', 'items'),
+          })}
+        </p>
       ) : (
         list.map((item, idx) => (
           <ListItemEditor
@@ -352,7 +371,7 @@ const ListField = ({ field, items, onChange }) => {
         ))
       )}
       <Button variant="outline-primary" size="sm" type="button" onClick={add}>
-        Add {field.itemLabel ?? 'item'}
+        {t('haproxy:entityForm.addItem', 'Add {{label}}', { label: itemLabel })}
       </Button>
       {field.help ? <Form.Text className="text-muted d-block mt-1">{field.help}</Form.Text> : null}
     </div>
@@ -366,6 +385,7 @@ ListField.propTypes = {
 };
 
 const DiscriminatedUnionField = ({ field, kindValue, subDraft, onKindChange, onSubChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const currentKind = kindValue ?? field.options[0].value;
   const currentOption = field.options.find(o => o.value === currentKind) ?? field.options[0];
   const kindSelectField = {
@@ -381,7 +401,7 @@ const DiscriminatedUnionField = ({ field, kindValue, subDraft, onKindChange, onS
       <SelectField field={kindSelectField} value={currentKind} onChange={onKindChange} />
       <div className="border rounded p-3 mb-3 bg-body-tertiary">
         <div className="text-muted small mb-2">
-          Configuration for <code>{currentKind}</code>
+          {t('haproxy:entityForm.configFor', 'Configuration for')} <code>{currentKind}</code>
         </div>
         {currentOption.fields.map(sub =>
           renderAnyField(sub, subDraft?.[sub.key], v => onSubChange(sub.key, v))
@@ -482,6 +502,7 @@ export const EntityFormBuilder = ({
   onSave,
   onCancel,
 }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [draft, setDraft] = useState(() => ensureListKeys(entity ?? emptyTemplate, fields));
   const [error, setError] = useState(null);
 
@@ -533,7 +554,9 @@ export const EntityFormBuilder = ({
   const handleSave = () => {
     const missing = findMissingRequiredField(fields, draft);
     if (missing) {
-      setError(`${missing.label} is required.`);
+      setError(
+        t('haproxy:entityForm.fieldRequired', '{{label}} is required.', { label: missing.label })
+      );
       return;
     }
     setError(null);
@@ -545,7 +568,14 @@ export const EntityFormBuilder = ({
   return (
     <Modal show={show} onHide={onCancel} size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>{isExisting ? `Edit ${label}: ${entity.id}` : `New ${label}`}</Modal.Title>
+        <Modal.Title>
+          {isExisting
+            ? t('haproxy:entityForm.editTitle', 'Edit {{label}}: {{id}}', {
+                label,
+                id: entity.id,
+              })
+            : t('haproxy:entityForm.newTitle', 'New {{label}}', { label })}
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {error ? <Alert variant="danger">{error}</Alert> : null}
@@ -595,10 +625,12 @@ export const EntityFormBuilder = ({
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <Button variant="primary" onClick={handleSave}>
-          {isExisting ? `Update ${label}` : `Add ${label}`}
+          {isExisting
+            ? t('haproxy:entityForm.updateLabel', 'Update {{label}}', { label })
+            : t('haproxy:entityForm.addLabel', 'Add {{label}}', { label })}
         </Button>
       </Modal.Footer>
     </Modal>

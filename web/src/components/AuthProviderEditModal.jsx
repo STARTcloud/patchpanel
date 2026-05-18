@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Button, Col, Form, Modal, Row } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import {
   AUTH_PROVIDER_REGISTRY,
@@ -20,13 +21,19 @@ const emptyProvider = () => {
   return { id: '', type: firstKind.value, config: firstKind.emptyConfig() };
 };
 
-const validateProvider = draft => {
+const validateProvider = (draft, t) => {
   if (!ID_REGEX.test(draft.id)) {
-    return 'id must match a-z, 0-9, _, - (starting with a letter)';
+    return t(
+      'auth:authProvider.idFormatError',
+      'id must match a-z, 0-9, _, - (starting with a letter)'
+    );
   }
   const kind = AUTH_PROVIDER_REGISTRY.get(draft.type);
   if (!kind) {
-    return `unknown auth provider type: ${draft.type}`;
+    return t('auth:authProvider.unknownType', {
+      type: draft.type,
+      defaultValue: 'unknown auth provider type: {{type}}',
+    });
   }
   return kind.validate(draft);
 };
@@ -39,6 +46,7 @@ export const AuthProviderEditModal = ({
   onCancel,
   onLaunchWizard = null,
 }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const [draft, setDraft] = useState(() =>
     provider ? withBasicInternalKeys(provider) : emptyProvider()
   );
@@ -54,7 +62,7 @@ export const AuthProviderEditModal = ({
   const setConfig = config => setDraft(prev => ({ ...prev, config }));
 
   const handleSave = () => {
-    const message = validateProvider(draft);
+    const message = validateProvider(draft, t);
     if (message) {
       setError(message);
       return;
@@ -71,7 +79,12 @@ export const AuthProviderEditModal = ({
     <Modal show={show} onHide={onCancel} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
-          {isExisting ? `Edit auth provider: ${provider.id}` : 'New auth provider'}
+          {isExisting
+            ? t('auth:authProvider.editTitle', {
+                id: provider.id,
+                defaultValue: 'Edit auth provider: {{id}}',
+              })
+            : t('auth:authProvider.newTitle', 'New auth provider')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
@@ -79,18 +92,20 @@ export const AuthProviderEditModal = ({
         {!isExisting && isAutheliaKind && onLaunchWizard ? (
           <Alert variant="info" className="d-flex justify-content-between align-items-center">
             <span>
-              Need patchpanel to generate the backend, host ACL, and portal use-backend rule for
-              you? The Authelia setup wizard creates them all in one shot.
+              {t(
+                'auth:authProvider.autheliaWizardSuggestion',
+                'Need patchpanel to generate the backend, host ACL, and portal use-backend rule for you? The Authelia setup wizard creates them all in one shot.'
+              )}
             </span>
             <Button size="sm" variant="primary" onClick={onLaunchWizard}>
-              Launch wizard
+              {t('auth:authProvider.launchWizard', 'Launch wizard')}
             </Button>
           </Alert>
         ) : null}
         <Row className="g-3">
           <Col md={6}>
             <Form.Group>
-              <Form.Label>ID</Form.Label>
+              <Form.Label>{t('auth:authProvider.idLabel', 'ID')}</Form.Label>
               <Form.Control
                 type="text"
                 value={draft.id}
@@ -101,7 +116,7 @@ export const AuthProviderEditModal = ({
           </Col>
           <Col md={6}>
             <Form.Group>
-              <Form.Label>Type</Form.Label>
+              <Form.Label>{t('auth:authProvider.typeLabel', 'Type')}</Form.Label>
               <Form.Select
                 value={draft.type}
                 disabled={isExisting}
@@ -114,7 +129,10 @@ export const AuthProviderEditModal = ({
                 ))}
               </Form.Select>
               <Form.Text className="text-muted">
-                Type cannot change after creation. Delete and recreate to switch types.
+                {t(
+                  'auth:authProvider.typeHelp',
+                  'Type cannot change after creation. Delete and recreate to switch types.'
+                )}
               </Form.Text>
             </Form.Group>
           </Col>
@@ -123,10 +141,10 @@ export const AuthProviderEditModal = ({
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t('common:buttons.cancel')}
         </Button>
         <Button variant="primary" onClick={handleSave}>
-          {isExisting ? 'Update' : 'Add'}
+          {isExisting ? t('common:buttons.update') : t('common:buttons.add')}
         </Button>
       </Modal.Footer>
     </Modal>

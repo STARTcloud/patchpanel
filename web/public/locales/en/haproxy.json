@@ -1,0 +1,765 @@
+{
+  "common": {
+    "saveFailed": "Save failed",
+    "saved": "Saved.",
+    "order": "Order",
+    "id": "id",
+    "actions": "Actions",
+    "default": "default",
+    "and": "and",
+    "discard": "Discard changes"
+  },
+  "frontend": {
+    "page": {
+      "title": "Frontends",
+      "description": "One row per HAProxy frontend section. Drag rows to reorder; HAProxy parses sections top-to-bottom."
+    },
+    "columns": {
+      "name": "Name",
+      "mode": "Mode",
+      "bind": "Bind",
+      "enabled": "Enabled"
+    },
+    "add": "Add frontend",
+    "actions": {
+      "clone": "Clone",
+      "cloneTitle": "Duplicate this frontend with a fresh id + section name"
+    },
+    "filterPlaceholder": "Filter by name, id, mode, bind address…",
+    "empty": "No frontends. Click Add frontend to create one.",
+    "emptyFiltered": "No frontends match the current filter.",
+    "pending": {
+      "reorder": "Frontends reorder"
+    },
+    "deleteConfirm": {
+      "title": "Delete frontend?",
+      "body": "Delete",
+      "note": "This change applies immediately on save."
+    },
+    "errors": {
+      "idFormat": "id must match a-z, 0-9, _, - (starting with a letter)",
+      "nameFormat": "name must be a valid HAProxy section identifier (letters/digits/_/-, start with letter)",
+      "defaultsRequired": "a defaults block must be selected (create one on the Defaults page first)",
+      "bindRequired": "at least one bind is required",
+      "bindAddressRequired": "every bind needs an address"
+    },
+    "tabs": {
+      "basics": "Basics",
+      "binds": "Binds",
+      "options": "Options"
+    },
+    "edit": {
+      "editTitle": "Edit frontend: {{name}}",
+      "newTitle": "New frontend",
+      "update": "Update frontend",
+      "add": "Add frontend",
+      "id": "ID",
+      "idHelp": "Immutable after creation. Lowercase a-z, digits, _ or -, start with a letter.",
+      "sectionName": "HAProxy section name",
+      "sectionNameHelp": "Rendered as `frontend NAME` in haproxy.cfg.",
+      "description": "Description",
+      "mode": "Mode",
+      "maxconnHelp": "Per-frontend session cap. Leave blank for default.",
+      "fromDefaults": "from (defaults block)",
+      "fromDefaultsHelp": "Required. Each frontend inherits from one named defaults block. Define them on the Defaults page.",
+      "chooseDefaults": "choose a defaults block",
+      "errorFiles": "errorfiles section (frontend-level)",
+      "errorFilesHelp": "Reference one of the `http-errors NAME` sections (define them on the Error pages tab).",
+      "noneErrorFiles": "none — use defaults or per-status overrides",
+      "enabled": "Enabled"
+    },
+    "bind": {
+      "address": "Address",
+      "addressHelp": "*:443, [::]:443, 127.0.0.1:5432, quic4@*:443, /var/run/haproxy.sock, etc.",
+      "bindName": "bind name (shows in stats)",
+      "label": "label (UX-only)",
+      "ipFamily": "IP family",
+      "thread": "thread (e.g. g1/1-4)",
+      "tuningHeading": "Listener tuning",
+      "shardsHelp": "HAProxy 2.5+: by-thread / by-group / number",
+      "maxconnPerListener": "maxconn (per-listener)",
+      "nice": "nice (-20..19)",
+      "mssHelp": "TCP MSS clamp",
+      "triStateHelp": "Three-state: default / on / off",
+      "sslEnabled": "SSL / TLS enabled on this bind",
+      "quicHeading": "QUIC (per-bind)",
+      "quicCcAlgoHelp": "Congestion control for this listener. `nocc` disables CC (debug only).",
+      "quicCcWindowHelp": "Optional initial congestion window size (e.g. 1m, 100k).",
+      "quicSocketHelp": "`connection` = one UDP socket per QUIC connection (better perf, requires SO_REUSEPORT).",
+      "bindNumber": "Bind #{{n}}",
+      "removeTitle": "Remove this bind",
+      "minTitle": "A frontend needs at least one bind",
+      "remove": "Remove bind",
+      "add": "Add bind"
+    },
+    "ssl": {
+      "defaultCert": "default-crt (fallback when no SNI matches)",
+      "alpnHelp": "Comma-separated list (e.g. h2,http/1.1 or h3).",
+      "none": "(none)",
+      "caFile": "ca-file (mTLS client cert validation)",
+      "noCas": "No trusted CAs uploaded yet — add one on the Certificates page.",
+      "caFileHelp": "Bundle used to verify client certs presented to this bind.",
+      "caVerifyFile": "ca-verify-file (alternate chain for ca-names)",
+      "caVerifyHelp": "Optional. Lets HAProxy advertise different CA names than the chain it verifies against.",
+      "crlFile": "crl-file (revocation list)",
+      "noCrls": "No trusted CRLs uploaded yet — add one on the Certificates page.",
+      "crlHelp": "CRL HAProxy uses to reject revoked client certs at the TLS handshake."
+    },
+    "sslFlags": {
+      "strictSni": "strict-sni (reject TLS with no matching cert)",
+      "noTlsTickets": "no-tls-tickets",
+      "allow0rtt": "allow-0rtt",
+      "preferClientCiphers": "prefer-client-ciphers",
+      "crtIgnoreErrors": "crt-ignore-err all",
+      "caIgnoreErrors": "ca-ignore-err all",
+      "noCaNames": "no-ca-names (HAProxy 2.2+)"
+    },
+    "http": {
+      "defaultBackend": "Default backend",
+      "rateLimitSessions": "rate-limit sessions (per second)",
+      "monitorFail": "monitor fail (HAProxy expression)"
+    },
+    "hsts": {
+      "enabled": "HSTS enabled",
+      "maxAge": "max-age (seconds)"
+    },
+    "cors": {
+      "enabled": "CORS enabled"
+    },
+    "compression": {
+      "heading": "Compression",
+      "enabled": "Compression enabled",
+      "algorithm": "Algorithm",
+      "types": "MIME types (one per line)"
+    },
+    "capture": {
+      "none": "No captures.",
+      "header": "Header",
+      "maxLen": "Max length (bytes)"
+    },
+    "errorFiles": {
+      "status": "Status",
+      "path": "File path",
+      "none": "No per-status overrides.",
+      "add": "Add errorfile"
+    },
+    "stats": {
+      "noUsers": "No stats auth users.",
+      "username": "Username",
+      "password": "Password",
+      "addUser": "Add stats user"
+    },
+    "tcp": {
+      "noSniMappings": "No SNI mappings.",
+      "sniPattern": "SNI pattern",
+      "backend": "Backend",
+      "choose": "choose",
+      "addSniMapping": "Add SNI mapping"
+    }
+  },
+  "backend": {
+    "page": {
+      "title": "Backends"
+    },
+    "add": "Add backend",
+    "filterPlaceholder": "Filter by name, id, mode, server…",
+    "summary": "{{shown}} of {{total}} backends shown.",
+    "columns": {
+      "name": "Name",
+      "mode": "Mode",
+      "balance": "Balance",
+      "servers": "Servers"
+    },
+    "actions": {
+      "clone": "Clone",
+      "cloneTitle": "Duplicate this backend with a fresh id/name. Useful when several vhosts share the same upstream pool but you want per-vhost stats rows.",
+      "inUseTitle": "In use by at least one rule, default_backend, or SNI mapping; remove the reference first."
+    },
+    "emptyFiltered": "No backends match the current filter.",
+    "deleteConfirm": {
+      "title": "Delete backend?",
+      "body": "Delete backend",
+      "note": "This change applies immediately on save."
+    },
+    "errors": {
+      "idFormat": "id must match a-z, 0-9, _, - (starting with a letter)",
+      "nameRequired": "name is required",
+      "minServers": "at least one server is required",
+      "serverNameRequired": "each server needs a name",
+      "serverAddrRequired": "server \"{{name}}\" needs a host:port address",
+      "timeoutFormat": "timeout.{{key}} must be like \"30s\" or \"5m\""
+    },
+    "edit": {
+      "editTitle": "Edit backend: {{name}}",
+      "newTitle": "New backend",
+      "update": "Update backend",
+      "add": "Add backend",
+      "id": "ID",
+      "name": "Name (HAProxy directive)",
+      "mode": "Mode",
+      "balance": "Balance",
+      "options": "options (one per line)",
+      "advanced": "Advanced HAProxy directives",
+      "advancedPlaceholder": "raw HAProxy line to inject"
+    },
+    "servers": {
+      "title": "Servers",
+      "help": "Order matters when balance is static-rr or first, and for the failover sequence among backup servers. Drag rows, use the arrows, or click a position badge to jump to a specific slot. Sorting by a column hides the drag handles — click the position header to clear the sort.",
+      "filter": "Filter servers by name or address…",
+      "empty": "No servers yet.",
+      "emptyFiltered": "No servers match the current filter.",
+      "add": "Add server",
+      "minServerTitle": "A backend needs at least one server.",
+      "name": "Name",
+      "address": "Address",
+      "check": "Check",
+      "ssl": "SSL",
+      "sslVerify": "SSL verify",
+      "sni": "SNI",
+      "sniTitle": "Optional. ssl_fc_sni forwards the inbound SNI verbatim; a literal hostname overrides it.",
+      "caFile": "CA file",
+      "caFileTitle": "Trusted CA bundle for upstream TLS verification. Only relevant when SSL verify is required.",
+      "systemDefault": "system default",
+      "cookie": "Cookie",
+      "cookiePlaceholder": "cookie value",
+      "backup": "Backup"
+    }
+  },
+  "acl": {
+    "page": {
+      "title": "ACLs",
+      "description": "Reusable named matchers. Reference them by name from any rule condition; the renderer emits an acl NAME … line at the top of every frontend body that uses it."
+    },
+    "add": "Add ACL",
+    "filterPlaceholder": "Filter by name, field, description…",
+    "empty": "No ACLs yet. Add one before referencing it from a rule.",
+    "emptyFiltered": "No ACLs match the current filter.",
+    "columns": {
+      "name": "Name",
+      "expression": "Expression",
+      "usedBy": "Used by"
+    },
+    "refs": {
+      "unused": "unused",
+      "referencedBy": "Referenced by {{count}} rule",
+      "referencedBy_other": "Referenced by {{count}} rules",
+      "ruleCount": "{{count}} rule",
+      "ruleCount_other": "{{count}} rules"
+    },
+    "actions": {
+      "deleteBlocked": "Referenced by {{count}} rule(s); detach them first."
+    },
+    "deleteConfirm": {
+      "title": "Delete ACL?",
+      "body": "Delete ACL"
+    },
+    "errors": {
+      "idFormat": "id must match a-z, 0-9, _, - (starting with a letter)",
+      "nameFormat": "name must be a valid HAProxy ACL identifier (letter-start, letters/digits/_/./-)",
+      "fieldRequired": "field is required"
+    },
+    "previewIncomplete": "(complete name + field to preview)",
+    "edit": {
+      "editTitle": "Edit ACL: {{name}}",
+      "newTitle": "New ACL",
+      "id": "ID",
+      "idPlaceholder": "e.g. host-home-assistant",
+      "idHelp": "Internal id (immutable). Lowercase a-z, digits, _ or -, start with letter.",
+      "name": "HAProxy ACL name",
+      "nameHelp": "Used in rule conditions to reference this ACL.",
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "e.g. Matches all requests to home.example.com",
+      "field": "Field (HAProxy fetch)",
+      "fieldCurrent": "(currently set; type custom in field below)",
+      "fieldCustomPlaceholder": "custom fetch (e.g. some.future_fetch)",
+      "fieldArg": "Field argument",
+      "fieldArgPlaceholder": "e.g. host, X-Forwarded-For, txn.foo",
+      "fieldArgHelp": "For hdr(NAME), var(scope.NAME), etc.",
+      "none": "(none)",
+      "operator": "Operator",
+      "caseInsensitive": "-i (case-insensitive)",
+      "noDns": "-n (no DNS lookup)",
+      "values": "Values (one or more, space-separated when rendered)",
+      "valuePlaceholder": "value or CIDR or regex",
+      "preview": "Preview"
+    },
+    "fieldGroups": {
+      "common": "Common",
+      "network": "Network",
+      "tls": "TLS",
+      "request": "Request",
+      "response": "Response",
+      "variables": "Variables",
+      "other": "Other"
+    },
+    "operators": {
+      "none": "(none — default str / boolean)",
+      "str": "str (exact string match)",
+      "sub": "sub (substring)",
+      "beg": "beg (begins with)",
+      "end": "end (ends with)",
+      "reg": "reg (regex)",
+      "dir": "dir (path-component match)",
+      "dom": "dom (domain match)",
+      "len": "len (length match)",
+      "bin": "bin (binary match)",
+      "found": "found (key exists; no value)",
+      "ip": "ip (CIDR match for src/dst)",
+      "int": "int (integer equality)",
+      "gt": "gt (greater than)",
+      "lt": "lt (less than)",
+      "ge": "ge (≥)",
+      "le": "le (≤)",
+      "eq": "eq (equal)",
+      "ne": "ne (not equal)",
+      "bool": "bool (boolean fetch, no values)"
+    }
+  },
+  "rule": {
+    "page": {
+      "title": "Rules",
+      "description": "Per-frontend rule chains, one tab per HAProxy phase. Drag rows to reorder. Phase order left-to-right matches HAProxy's evaluation order."
+    },
+    "frontendLabel": "Frontend",
+    "noFrontends": "no frontends",
+    "noFrontendsNotice": "No frontends defined yet. Create a frontend before adding rules.",
+    "add": "Add rule",
+    "filterPlaceholder": "Filter rules…",
+    "empty": "No rules in this phase. Click Add rule to create one.",
+    "emptyFiltered": "No rules match the current filter.",
+    "disabled": "disabled",
+    "always": "always",
+    "columns": {
+      "name": "Name",
+      "action": "Action",
+      "condition": "Condition"
+    },
+    "evaluationNote": "Rules evaluate top-to-bottom. First terminating match wins for actions like deny, redirect, use-backend. Non-terminating actions (set-header, set-var) all run in order.",
+    "deleteConfirm": {
+      "title": "Delete rule?",
+      "body": "Delete rule"
+    },
+    "errors": {
+      "idFormat": "id must match a-z, 0-9, _, - (starting with a letter)"
+    },
+    "edit": {
+      "editTitle": "Edit rule: {{name}}",
+      "newTitle": "New rule",
+      "id": "ID",
+      "name": "Name (display)",
+      "namePlaceholder": "Friendly name",
+      "enabled": "Enabled"
+    },
+    "action": {
+      "heading": "Action",
+      "actionType": "Action type",
+      "headerName": "Header name",
+      "value": "Value",
+      "valuePlaceholder": "log-format ok, e.g. \"%[src]\"",
+      "statusCodeOpt": "Status code (optional)",
+      "statusCode": "Status code",
+      "type": "Type",
+      "target": "Target",
+      "code": "Code",
+      "default302": "default 302",
+      "backend": "Backend",
+      "serviceName": "Service name",
+      "header": "Header",
+      "matchRegex": "Match regex",
+      "replacement": "Replacement",
+      "scope": "Scope",
+      "name": "Name",
+      "expression": "Expression",
+      "level": "Level",
+      "reasonOpt": "Reason (optional)",
+      "mark": "Mark",
+      "tos": "ToS",
+      "keyExpression": "Key (expression)",
+      "table": "Table",
+      "lengthBytes": "Length (bytes)",
+      "functionName": "Function name",
+      "args": "Args",
+      "argPlaceholder": "positional argument",
+      "realmOpt": "Realm (optional)",
+      "method": "Method",
+      "time": "Time",
+      "securityProfile": "Security profile",
+      "securityProfileHelp": "Sugar action — expands at render-time into the profile's deny + track-sc chain gated on this rule's condition.",
+      "authProvider": "Auth provider",
+      "authProviderHelp": "Sugar action — expands at render-time into the provider's auth chain gated on this rule's condition.",
+      "varScope": "Var scope",
+      "varName": "Var name",
+      "resolvers": "Resolvers",
+      "family": "Family",
+      "any": "any",
+      "choose": "choose",
+      "bodyKind": "Body kind",
+      "noBody": "no body",
+      "bodyContent": "Body content",
+      "inlineBody": "Inline body text",
+      "extraHeaders": "Extra response headers",
+      "noExtraHeaders": "No extra headers.",
+      "addHeader": "Add header",
+      "noEditor": "No editor for action",
+      "yet": "yet."
+    },
+    "condition": {
+      "heading": "Condition",
+      "note": "(empty = always; terms join with AND by default, switch to OR per row)",
+      "none1": "No condition — rule fires unconditionally.",
+      "addAclRef": "Add ACL ref",
+      "addInline": "Add inline match",
+      "previewHeader": "Condition preview",
+      "not": "NOT",
+      "type": "Type",
+      "aclRef": "ACL ref",
+      "inlineMatch": "Inline match",
+      "acl": "ACL",
+      "field": "Field",
+      "arg": "Arg",
+      "op": "Op",
+      "values": "Values",
+      "valuePlaceholder": "value",
+      "flags": "Flags",
+      "none": "(none)",
+      "noneShort": "(none)",
+      "combineNext": "Combine with next:",
+      "andLabel": "AND (space)",
+      "orLabel": "OR (||)"
+    }
+  },
+  "route": {
+    "page": {
+      "title": "Routes",
+      "lensView": "Lens view.",
+      "description1": "A \"route\" here is a pair: an hdr(host) ACL + an http-request use-backend rule that references it. Use + New route to create both via a wizard. Edits to the underlying ACL or Rule happen on the",
+      "aclsLink": "ACLs",
+      "rulesLink": "Rules",
+      "pages": "pages."
+    },
+    "new": "New route",
+    "empty": "No routes derived. Either no use-backend rules exist yet, or no host-matching ACLs are referenced by any rule. Click + New route to create the first pair, or build the primitives directly from the ACLs and Rules pages.",
+    "columns": {
+      "frontend": "Frontend",
+      "hostnames": "Hostnames",
+      "backend": "Backend",
+      "acls": "ACL(s)",
+      "rule": "Rule",
+      "status": "Status"
+    },
+    "status": {
+      "enabled": "enabled",
+      "disabled": "disabled"
+    },
+    "openInNewTab": "Open https://{{host}}/ in a new tab"
+  },
+  "routeWizard": {
+    "newRoute": "New route",
+    "createRoute": "Create route",
+    "steps": {
+      "pickFrontend": "Pick frontend",
+      "hostsBackend": "Hostnames & backend",
+      "names": "Names",
+      "review": "Review"
+    },
+    "frontend": "Frontend",
+    "choose": "choose",
+    "noHttpFrontends": "No HTTP frontends defined. Create one on the Frontends page first.",
+    "hostnames": "Hostnames",
+    "hostnamePlaceholder": "e.g. home.example.com",
+    "invalidHostname": "invalid hostname",
+    "hostnamesHelp": "One or more hostnames matched by hdr(host) -i. Wildcards allowed (-i default).",
+    "backend": "Backend",
+    "noBackends": "No backends defined. Create one on the Backends page first.",
+    "aclId": "ACL id",
+    "aclIdHelp": "Internal id for the host-matching ACL entity.",
+    "aclName": "ACL name (HAProxy identifier)",
+    "aclNameHelp": "Rendered as acl NAME hdr(host) -i ….",
+    "ruleId": "Rule id",
+    "ruleLabel": "Rule label (display)",
+    "optional": "optional",
+    "willCreate": "Will create:",
+    "diffHeader": "Resulting state diff",
+    "diffNote": "Saving applies through the normal state → render → reload pipeline. The ACL and Rule are afterward fully editable from the ACLs and Rules pages.",
+    "aclDescription": "Hostname match for {{hostnames}}"
+  },
+  "defaults": {
+    "page": {
+      "title": "Defaults blocks",
+      "description": "Named defaults NAME { … } sections. Each frontend picks one via from. HAProxy 2.4+."
+    },
+    "add": "Add defaults block",
+    "empty": "No defaults blocks yet. You need at least one before adding any frontend.",
+    "emptyFiltered": "No defaults blocks match the current filter.",
+    "filterPlaceholder": "Filter by name, id, mode…",
+    "columns": {
+      "name": "Name",
+      "mode": "Mode",
+      "retries": "Retries",
+      "usedBy": "Used by"
+    },
+    "unused": "unused",
+    "frontendCount": "{{count}} frontend",
+    "frontendCount_other": "{{count}} frontends",
+    "actions": {
+      "deleteBlocked": "Referenced by {{count}} frontend(s); change them first."
+    },
+    "deleteConfirm": {
+      "title": "Delete defaults block?",
+      "body": "Delete"
+    },
+    "errors": {
+      "idFormat": "id must match a-z, 0-9, _, - (starting with a letter)",
+      "nameFormat": "name must be a valid HAProxy section identifier (letters/digits/_/-, start with letter)",
+      "sectionLabel": "errorfiles section (named bundle)",
+      "sectionHelp": "References one of the named http-errors sections (top-level).",
+      "directivesHeading": "http-error directives (with log-format expansion)"
+    },
+    "tabs": {
+      "basics": "Basics",
+      "timeouts": "Timeouts",
+      "errors": "Error pages",
+      "advanced": "Advanced"
+    },
+    "edit": {
+      "editTitle": "Edit defaults block: {{name}}",
+      "newTitle": "New defaults block",
+      "id": "ID",
+      "idHelp": "Immutable after creation.",
+      "sectionName": "HAProxy section name",
+      "sectionNameHelp": "Used as the `from NAME` reference.",
+      "mode": "Mode",
+      "description": "Description",
+      "initAddr": "default-server init-addr (resolution order)",
+      "initAddrHelp": "Cmd/Ctrl-click to select multiple. Empty omits the directive.",
+      "options": "options (one per line)"
+    },
+    "httpErrors": {
+      "empty": "No http-error directives.",
+      "status": "Status",
+      "contentType": "Content-Type",
+      "bodyKind": "Body kind",
+      "body": "Body",
+      "add": "Add http-error directive",
+      "inlinePlaceholder": "Inline body with log-format vars"
+    },
+    "advanced": {
+      "label": "Advanced HAProxy directives",
+      "placeholder": "raw HAProxy line to inject",
+      "help": "Appended verbatim inside the defaults block."
+    }
+  },
+  "global": {
+    "stateSaveUnavailable": "State save unavailable."
+  },
+  "globalSettings": {
+    "title": "HAProxy global block",
+    "description": "Capacity, logging, and unique-id format. These render into the global section of haproxy.cfg. SSL / TLS, Lua plugins, QUIC tunables, and raw passthrough directives are configured in the cards below.",
+    "capacity": "Capacity",
+    "process": "Process",
+    "loggingFormat": "Logging format",
+    "logLevel": "Log level",
+    "jsonLogs": "Emit JSON access logs",
+    "maxconnHelp": "Per-process simultaneous connection limit. Effective value capped by fd-hard-limit / 2 - 256.",
+    "fdHardLimitHelp": "Hard ceiling on file descriptors HAProxy will ever request from the OS.",
+    "bufsizeHelp": "Per-stream buffer size in bytes. 64K covers most workloads.",
+    "hardStopAfterHelp": "Grace period for old workers to drain after a reload before SIGKILL.",
+    "logLevelHelp": "HAProxy log emit level (passed to log stdout format raw local0 X).",
+    "uniqueIdHeaderHelp": "Header name used to surface the unique request id. Blank disables the directive.",
+    "uniqueIdFormatHelp": "HAProxy log-format expression. Default %{+X}o\\ %ci:%cp_%fi:%fp_%Ts_%rt:%pid is the canonical hex form per docs 8.2.1.",
+    "save": "Save global settings"
+  },
+  "advancedDirectives": {
+    "title": "Advanced global directives",
+    "description": "Raw passthrough lines appended verbatim to the rendered global section. One directive per row. Use only for HAProxy features patchpanel doesn't model natively — these lines bypass schema validation.",
+    "placeholder": "e.g. tune.h2.fe.max-concurrent-streams 100",
+    "save": "Save advanced directives"
+  },
+  "advanced": {
+    "page": {
+      "title": "Advanced — HAProxy infrastructure",
+      "description": "DNS resolvers, peer-sync stick-table groups, SMTP mailer groups for email-alert, log-ring sinks, and reusable security policy registry (rate-limit / geo-block / bot-defense). Cert-related infrastructure lives on the Certificates tab; error-page sections live on the Error pages tab; additional listeners live on the new Frontends tab."
+    }
+  },
+  "quic": {
+    "title": "QUIC tunables (global)",
+    "description": "Process-wide and per-side QUIC knobs rendered as tune.quic.* directives in the global section. Per-bind QUIC keywords (quic-cc-algo, quic-force-retry, quic-socket) are configured per-frontend on each quic4@ / quic6@ bind. Backend QUIC requires a server address prefixed with quic4@ or quic6@.",
+    "save": "Save QUIC tunables",
+    "tabs": {
+      "process": "Process",
+      "frontend": "Frontend (tune.quic.fe.*)",
+      "backend": "Backend (tune.quic.be.*)"
+    },
+    "maxIdleTimeoutHelp": "QUIC idle timeout on this side.",
+    "listenOn": "on (accept QUIC binds)",
+    "listenOff": "off (disable QUIC globally)",
+    "listenHelp": "Master switch for QUIC listeners. Replaces the legacy no-quic global flag.",
+    "memTxMaxHelp": "Process-wide TX memory ceiling for QUIC.",
+    "zeroCopyHelp": "Use zero-copy egress forwarding when the kernel supports it."
+  },
+  "ssl": {
+    "title": "SSL / TLS Globals",
+    "description": "Mozilla profile + per-cipher/curve/suite overrides. Frontend and Backend are configured here. Empty array on any field means HAProxy will not emit the corresponding ssl-default-* directive — OpenSSL built-in defaults apply at runtime.",
+    "save": "Save SSL / TLS settings",
+    "override": "override",
+    "overrideCount": "override · {{count}} selected",
+    "presetCount": "preset · {{count}} selected",
+    "overrideCountBadge": "{{count}} override",
+    "overrideCountBadge_other": "{{count}} overrides",
+    "presetUpdated": "preset updated",
+    "presetStale": "The {{name}} preset was based on version {{old}} when last saved. Current preset version is {{current}}.",
+    "refreshFromPreset": "Refresh from current preset",
+    "resetToPreset": "Reset to preset",
+    "revertTitle": "Revert to the preset value",
+    "resetBind": "Reset bind overrides to preset",
+    "resetBindTitle": "Drop any bind-side override that already matches the preset value",
+    "resetServer": "Reset server overrides to preset",
+    "resetServerTitle": "Drop any server-side override that already matches the preset value",
+    "profile": "Profile",
+    "profileHelpPart1": "Mozilla reference values from",
+    "profileHelpPart2": "custom = no preset overlay; every field is explicit.",
+    "tabs": {
+      "frontend": "Frontend",
+      "backend": "Backend",
+      "tune": "Tune",
+      "extras": "Providers + extra files"
+    },
+    "noCapability": "No items reported by this HAProxy / OpenSSL build for this field.",
+    "custom": "custom",
+    "emptyWarning": "No items selected — HAProxy will not emit a ssl-default-* directive for this field. OpenSSL's built-in defaults will apply at runtime.",
+    "knownTokens": "Known tokens:",
+    "probing": "Probing installed HAProxy + OpenSSL for available ciphers / curves / sigalgs…",
+    "probeFailed": "Capability probe failed",
+    "probeFailedNote": "The cipher / curve / sigalg checkbox lists fall back to whatever is already in state. You can still save.",
+    "capsSummary": "{{c}} ciphers · {{cs}} ciphersuites · {{cv}} curves · {{sa}} sigalgs",
+    "providersLoaded": "Providers loaded:",
+    "noneReported": "none reported",
+    "danger": "danger",
+    "keylogOnTitle": "tune.ssl.keylog is ON.",
+    "keylogOnBody": "Session keys are written to the HAProxy log, allowing anyone with log access to decrypt past TLS traffic captured on the wire. Turn off before going live; this is a debugging-only flag.",
+    "keylogConfirm": {
+      "title": "Enable tune.ssl.keylog?",
+      "body": "Turning tune.ssl.keylog on writes session keys to the HAProxy log. Anyone with log access can decrypt TLS traffic captured on the wire. Use only for short-lived Wireshark debugging on a controlled environment. Never leave on in production.",
+      "confirm": "Enable keylog"
+    },
+    "tune": {
+      "dhParamHelp": "DH params bit size. 2048 min; 4096 default.",
+      "cachesizeHelp": "SSL session cache entries. Default 20000.",
+      "lifetimeHelp": "Session cache TTL. Default 300.",
+      "maxrecordHelp": "TLS record size; 0 = auto.",
+      "captureBufferHelp": "ClientHello capture buffer.",
+      "asyncHelp": "Async engine threads."
+    },
+    "providersLabel": "OpenSSL providers loaded (reference / hint only)",
+    "providersHelp": "Tracked in state for documentation. Actual provider availability is reported by openssl list -providers and shown read-only above this card.",
+    "providerDefaultProps": "Provider default properties",
+    "extraFilesHelp": "Extra cert sidecar files to load alongside each PEM. Common values: ocsp, sctl, issuer.",
+    "loadExtraDelExt": "ssl-load-extra-del-ext (strip extension when matching siblings)"
+  },
+  "bindPicker": {
+    "placeholder": "e.g. *:443 or 172.17.1.55:443",
+    "filter": "Filter…",
+    "groups": {
+      "common": "Common",
+      "floating": "Floating IPs (keepalived)",
+      "saved": "Saved presets",
+      "other": "Other"
+    },
+    "items": {
+      "unixSocket": "Unix socket…",
+      "abns": "Abstract namespace (abns@…)",
+      "fd": "Pre-opened fd (fd@…)",
+      "custom": "Custom address…"
+    },
+    "subtitle": {
+      "all": "all interfaces (dual-stack)",
+      "allV4": "all IPv4 interfaces",
+      "allV6": "all IPv6 interfaces",
+      "loopbackV4": "IPv4 loopback",
+      "loopbackV6": "IPv6 loopback",
+      "floating": "floating"
+    },
+    "prompts": {
+      "custom": "Enter a bind address (hostname, IP, or HAProxy address form):",
+      "socket": "Unix socket path:",
+      "abns": "Abstract namespace socket name (abns@…):",
+      "fd": "Pre-opened fd number (fd@…):"
+    },
+    "showingFiltered": "Showing filtered",
+    "showFiltered": "Show filtered",
+    "showFilteredCount": "Show filtered ({{count}})",
+    "reload": "Reload",
+    "reloadTitle": "Re-fetch interface list",
+    "interfacesUnavailable": "Interface list unavailable",
+    "warnings": {
+      "associatedWithVip": "Associated with VIP",
+      "disassociate": "Disassociate",
+      "unreachable": "This address isn't on any local interface and doesn't match any VIP. HAProxy will fail to bind unless transparent is set in this bind's options and net.ipv4.ip_nonlocal_bind=1 is set on the host. patchpanel will not configure either for you.",
+      "floating": "This is a floating IP managed by keepalived. To make HAProxy start even when this node isn't holding the VIP, add transparent to bindOptions and set net.ipv4.ip_nonlocal_bind=1 on the host. patchpanel will not do either for you.",
+      "nodeLocal": "This address only exists on this node — other cluster nodes will fail to bind it."
+    }
+  },
+  "configField": {
+    "show": "Show",
+    "hide": "Hide",
+    "upload": "Upload",
+    "uploading": "Uploading…",
+    "uploadFailed": "upload failed",
+    "commaSeparated": "item-1, item-2, item-3"
+  },
+  "entityForm": {
+    "item": "item",
+    "items": "items",
+    "addItem": "Add {{label}}",
+    "addItemPlaceholder": "Add {{label}} and press Enter",
+    "removeItem": "Remove {{item}}",
+    "noItemsYet": "No {{label}} yet.",
+    "fieldRequired": "{{label}} is required.",
+    "editTitle": "Edit {{label}}: {{id}}",
+    "newTitle": "New {{label}}",
+    "updateLabel": "Update {{label}}",
+    "addLabel": "Add {{label}}",
+    "configFor": "Configuration for"
+  },
+  "entitySection": {
+    "addLabel": "Add {{label}}",
+    "noneConfigured": "No {{title}} configured.",
+    "filter": "Filter {{title}}…",
+    "emptyFiltered": "No {{title}} match the current filter.",
+    "deleteTitle": "Delete {{label}}?",
+    "deleteBody": "Delete",
+    "deleteNote": "This change applies immediately on save."
+  },
+  "cfg": {
+    "stateNotInitialized": "State not initialized",
+    "notFound": "HAProxy config not found at {{path}}"
+  },
+  "stop": {
+    "confirmRequired": "Stopping HAProxy requires { \"confirm\": true } in the body — this will drop all proxied connections"
+  },
+  "server": {
+    "invalidState": "Server state must be one of: {{allowed}}",
+    "invalidWeight": "Server weight must be an integer between 0 and 256"
+  },
+  "reloadFailed": "HAProxy reload failed: {{output}}",
+  "master": {
+    "timeout": "HAProxy master socket timed out after {{timeoutMs}}ms"
+  },
+  "validate": {
+    "failed": "HAProxy config validation failed (exit code {{code}})"
+  },
+  "stats": {
+    "timeout": "HAProxy stats socket timed out after {{timeoutMs}}ms"
+  },
+  "runtime": {
+    "invalidId": "Invalid {{label}}: {{value}}",
+    "invalidKey": "Invalid {{label}}: {{value}}",
+    "invalidMapValue": "Invalid map value",
+    "invalidSessionId": "Invalid session id: {{value}}"
+  },
+  "control": {
+    "pidUnreadable": "Could not read HAProxy pid from {{path}}",
+    "directStartUnavailable": "Direct control strategy cannot start HAProxy — no supervisor configured. Set HAPROXY_CONTROL_STRATEGY to s6 or systemd, or start HAProxy manually.",
+    "commandFailed": "{{action}} failed (exit {{exit}}): {{output}}"
+  }
+}

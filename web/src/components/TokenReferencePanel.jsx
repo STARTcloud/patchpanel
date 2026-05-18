@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo } from 'react';
 import { Badge, Dropdown, Table } from 'react-bootstrap';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { stateDocShape } from '../prop-shapes.js';
@@ -192,33 +193,49 @@ const captureSlotAvailability = (consumers, dir, slot) => {
   return { ok, missing };
 };
 
-const statusForToken = (classified, doc, consumers, varDefs) => {
+const statusForToken = (classified, doc, consumers, varDefs, t) => {
   switch (classified.kind) {
     case 'builtin':
     case 'builtin-paren':
-      return { level: 'ok', detail: 'built-in HAProxy fetch — always available.' };
+      return {
+        level: 'ok',
+        detail: t('common:tokenRef.builtinDetail', 'built-in HAProxy fetch — always available.'),
+      };
     case 'unique-id': {
       const fmt = doc?.globalSettings?.uniqueIdFormat ?? '';
+      const globalLabel = t('common:tokenRef.linkGlobal', 'Global Settings');
       if (fmt.length > 0) {
         return {
           level: 'ok',
-          detail: `unique-id-format is set globally to "${fmt}".`,
-          link: { to: '/global', label: 'Global Settings' },
+          detail: t(
+            'common:tokenRef.uniqueIdSet',
+            'unique-id-format is set globally to "{{fmt}}".',
+            {
+              fmt,
+            }
+          ),
+          link: { to: '/global', label: globalLabel },
         };
       }
       return {
         level: 'missing',
-        detail: 'unique-id-format is empty — HAProxy will emit an empty unique id.',
-        link: { to: '/global', label: 'Global Settings' },
+        detail: t(
+          'common:tokenRef.uniqueIdMissing',
+          'unique-id-format is empty — HAProxy will emit an empty unique id.'
+        ),
+        link: { to: '/global', label: globalLabel },
       };
     }
     case 'capture-req':
     case 'capture-res': {
+      const frontendsLabel = t('common:tokenRef.linkFrontends', 'Frontends');
       if (consumers.length === 0) {
         return {
           level: 'missing',
-          detail:
-            'No frontend inherits this defaults block yet, so captures cannot exist anywhere.',
+          detail: t(
+            'common:tokenRef.captureNoConsumers',
+            'No frontend inherits this defaults block yet, so captures cannot exist anywhere.'
+          ),
         };
       }
       const dir = classified.kind === 'capture-req' ? 'req' : 'res';
@@ -226,123 +243,181 @@ const statusForToken = (classified, doc, consumers, varDefs) => {
       if (missing.length === 0) {
         return {
           level: 'ok',
-          detail: `slot ${classified.slot} available on all ${ok.length} consumer frontend(s): ${ok.join(', ')}`,
-          link: { to: '/frontends', label: 'Frontends' },
+          detail: t(
+            'common:tokenRef.captureOk',
+            'slot {{slot}} available on all {{count}} consumer frontend(s): {{names}}',
+            { slot: classified.slot, count: ok.length, names: ok.join(', ') }
+          ),
+          link: { to: '/frontends', label: frontendsLabel },
         };
       }
-      const okPart = ok.length > 0 ? `OK on: ${ok.join(', ')}. ` : '';
+      const okPart =
+        ok.length > 0
+          ? t('common:tokenRef.captureOkOn', 'OK on: {{names}}. ', { names: ok.join(', ') })
+          : '';
       const missList = missing
-        .map(m => `${m.name} (${m.count} entr${m.count === 1 ? 'y' : 'ies'})`)
+        .map(m =>
+          t('common:tokenRef.captureMissEntry', '{{name}} ({{count}} entr{{suffix}})', {
+            name: m.name,
+            count: m.count,
+            suffix: m.count === 1 ? 'y' : 'ies',
+          })
+        )
         .join(', ');
+      const dirWord =
+        dir === 'req'
+          ? t('common:tokenRef.captureDirReq', 'request')
+          : t('common:tokenRef.captureDirRes', 'response');
       return {
         level: 'missing',
-        detail: `${okPart}Needs at least ${classified.slot + 1} capture ${dir === 'req' ? 'request' : 'response'} header(s) on: ${missList}`,
-        link: { to: '/frontends', label: 'Frontends' },
+        detail: t(
+          'common:tokenRef.captureMiss',
+          '{{okPart}}Needs at least {{needed}} capture {{dir}} header(s) on: {{missList}}',
+          { okPart, needed: classified.slot + 1, dir: dirWord, missList }
+        ),
+        link: { to: '/frontends', label: frontendsLabel },
       };
     }
     case 'var': {
       const key = `${classified.scope}.${classified.name}`;
       const defs = varDefs.get(key) ?? [];
+      const rulesLabel = t('common:tokenRef.linkRules', 'Rules');
       if (defs.length === 0) {
         return {
           level: 'missing',
-          detail: `No set-var rule for var(${key}) found on any consumer frontend. Add an http-request set-var action.`,
-          link: { to: '/rules', label: 'Rules' },
+          detail: t(
+            'common:tokenRef.varMissing',
+            'No set-var rule for var({{key}}) found on any consumer frontend. Add an http-request set-var action.',
+            { key }
+          ),
+          link: { to: '/rules', label: rulesLabel },
         };
       }
       const where = defs
         .map(d => `${d.frontend}:${d.phase}/${d.ruleId}`)
         .slice(0, 3)
         .join(', ');
-      const extra = defs.length > 3 ? ` (+${defs.length - 3} more)` : '';
+      const extra =
+        defs.length > 3
+          ? t('common:tokenRef.varExtra', ' (+{{count}} more)', { count: defs.length - 3 })
+          : '';
       return {
         level: 'ok',
-        detail: `set by ${defs.length} rule(s): ${where}${extra}`,
-        link: { to: '/rules', label: 'Rules' },
+        detail: t('common:tokenRef.varOk', 'set by {{count}} rule(s): {{where}}{{extra}}', {
+          count: defs.length,
+          where,
+          extra,
+        }),
+        link: { to: '/rules', label: rulesLabel },
       };
     }
     case 'unknown':
     default:
       return {
         level: 'unknown',
-        detail:
-          "Unrecognized token — may still be a valid HAProxy fetch we don't know about. Verify against HAProxy 4.2.",
+        detail: t(
+          'common:tokenRef.unknownDetail',
+          "Unrecognized token — may still be a valid HAProxy fetch we don't know about. Verify against HAProxy 4.2."
+        ),
       };
   }
 };
 
 const STATUS_BADGES = Object.freeze({
-  ok: { bg: 'success', icon: 'check-circle', label: 'OK' },
-  missing: { bg: 'warning', icon: 'exclamation-triangle', label: 'Needs setup', text: 'dark' },
-  unknown: { bg: 'secondary', icon: 'question-circle', label: 'Unknown' },
+  ok: { bg: 'success', icon: 'check-circle', key: 'ok', fallback: 'OK' },
+  missing: {
+    bg: 'warning',
+    icon: 'exclamation-triangle',
+    key: 'missing',
+    fallback: 'Needs setup',
+    text: 'dark',
+  },
+  unknown: { bg: 'secondary', icon: 'question-circle', key: 'unknown', fallback: 'Unknown' },
 });
 
 const QUICK_INSERT_GROUPS = Object.freeze([
   {
-    label: 'Identity',
+    key: 'identity',
+    fallbackLabel: 'Identity',
     items: [
-      { token: '%[unique-id]', desc: 'request unique id (needs unique-id-format)' },
-      { token: '%[src]', desc: 'client IP' },
-      { token: '%[date]', desc: 'current epoch' },
-      { token: '%[method]', desc: 'HTTP method' },
-      { token: '%[path]', desc: 'request URI path' },
-      { token: '%[status]', desc: 'response status code' },
+      {
+        token: '%[unique-id]',
+        descKey: 'uniqueId',
+        desc: 'request unique id (needs unique-id-format)',
+      },
+      { token: '%[src]', descKey: 'src', desc: 'client IP' },
+      { token: '%[date]', descKey: 'date', desc: 'current epoch' },
+      { token: '%[method]', descKey: 'method', desc: 'HTTP method' },
+      { token: '%[path]', descKey: 'path', desc: 'request URI path' },
+      { token: '%[status]', descKey: 'status', desc: 'response status code' },
     ],
   },
   {
-    label: 'Headers',
+    key: 'headers',
+    fallbackLabel: 'Headers',
     items: [
-      { token: '%[hdr(host)]', desc: 'Host request header' },
-      { token: '%[hdr(user-agent)]', desc: 'User-Agent request header' },
-      { token: '%[capture.req.hdr(0)]', desc: 'first request capture slot' },
-      { token: '%[capture.res.hdr(0)]', desc: 'first response capture slot' },
+      { token: '%[hdr(host)]', descKey: 'hdrHost', desc: 'Host request header' },
+      { token: '%[hdr(user-agent)]', descKey: 'hdrUa', desc: 'User-Agent request header' },
+      { token: '%[capture.req.hdr(0)]', descKey: 'captureReq', desc: 'first request capture slot' },
+      {
+        token: '%[capture.res.hdr(0)]',
+        descKey: 'captureRes',
+        desc: 'first response capture slot',
+      },
     ],
   },
   {
-    label: 'TLS',
+    key: 'tls',
+    fallbackLabel: 'TLS',
     items: [
-      { token: '%[ssl_fc_protocol]', desc: 'TLS protocol version' },
-      { token: '%[ssl_fc_cipher]', desc: 'TLS cipher suite' },
-      { token: '%[ssl_fc_sni]', desc: 'SNI hostname' },
+      { token: '%[ssl_fc_protocol]', descKey: 'sslProto', desc: 'TLS protocol version' },
+      { token: '%[ssl_fc_cipher]', descKey: 'sslCipher', desc: 'TLS cipher suite' },
+      { token: '%[ssl_fc_sni]', descKey: 'sslSni', desc: 'SNI hostname' },
     ],
   },
   {
-    label: 'Variables',
+    key: 'variables',
+    fallbackLabel: 'Variables',
     items: [
-      { token: '%[var(txn.request_id)]', desc: 'txn-scoped variable' },
-      { token: '%[var(sess.user)]', desc: 'session-scoped variable' },
-      { token: '%[var(req.scheme)]', desc: 'request-scoped variable' },
+      { token: '%[var(txn.request_id)]', descKey: 'varTxn', desc: 'txn-scoped variable' },
+      { token: '%[var(sess.user)]', descKey: 'varSess', desc: 'session-scoped variable' },
+      { token: '%[var(req.scheme)]', descKey: 'varReq', desc: 'request-scoped variable' },
     ],
   },
 ]);
 
-const QuickInsertDropdown = ({ onInsert, disabled }) => (
-  <Dropdown size="sm">
-    <Dropdown.Toggle variant="outline-secondary" size="sm" disabled={disabled}>
-      <i className="bi bi-braces me-1" />
-      Insert token
-    </Dropdown.Toggle>
-    <Dropdown.Menu style={{ maxHeight: '24rem', overflowY: 'auto' }}>
-      {QUICK_INSERT_GROUPS.map(group => (
-        <div key={group.label}>
-          <Dropdown.Header>{group.label}</Dropdown.Header>
-          {group.items.map(item => (
-            <Dropdown.Item
-              key={item.token}
-              onClick={() => onInsert(item.token)}
-              className="d-flex justify-content-between align-items-center gap-2"
-            >
-              <code style={{ fontSize: '0.78rem' }}>{item.token}</code>
-              <span className="text-muted small" style={{ fontSize: '0.72rem' }}>
-                {item.desc}
-              </span>
-            </Dropdown.Item>
-          ))}
-        </div>
-      ))}
-    </Dropdown.Menu>
-  </Dropdown>
-);
+const QuickInsertDropdown = ({ onInsert, disabled }) => {
+  const { t } = useTranslation(['common']);
+  return (
+    <Dropdown size="sm">
+      <Dropdown.Toggle variant="outline-secondary" size="sm" disabled={disabled}>
+        <i className="bi bi-braces me-1" />
+        {t('common:tokenRef.insertToken', 'Insert token')}
+      </Dropdown.Toggle>
+      <Dropdown.Menu style={{ maxHeight: '24rem', overflowY: 'auto' }}>
+        {QUICK_INSERT_GROUPS.map(group => (
+          <div key={group.key}>
+            <Dropdown.Header>
+              {t(`common:tokenRef.group.${group.key}`, group.fallbackLabel)}
+            </Dropdown.Header>
+            {group.items.map(item => (
+              <Dropdown.Item
+                key={item.token}
+                onClick={() => onInsert(item.token)}
+                className="d-flex justify-content-between align-items-center gap-2"
+              >
+                <code style={{ fontSize: '0.78rem' }}>{item.token}</code>
+                <span className="text-muted small" style={{ fontSize: '0.72rem' }}>
+                  {t(`common:tokenRef.desc.${item.descKey}`, item.desc)}
+                </span>
+              </Dropdown.Item>
+            ))}
+          </div>
+        ))}
+      </Dropdown.Menu>
+    </Dropdown>
+  );
+};
 
 QuickInsertDropdown.propTypes = {
   onInsert: PropTypes.func.isRequired,
@@ -350,6 +425,7 @@ QuickInsertDropdown.propTypes = {
 };
 
 const TokenRow = ({ classified, status }) => {
+  const { t } = useTranslation(['common']);
   const badge = STATUS_BADGES[status.level] ?? STATUS_BADGES.unknown;
   return (
     <tr>
@@ -359,7 +435,7 @@ const TokenRow = ({ classified, status }) => {
       <td>
         <Badge bg={badge.bg} text={badge.text}>
           <i className={`bi bi-${badge.icon} me-1`} />
-          {badge.label}
+          {t(`common:tokenRef.badge.${badge.key}`, badge.fallback)}
         </Badge>
       </td>
       <td className="small">
@@ -393,6 +469,7 @@ TokenRow.propTypes = {
 };
 
 export const TokenReferencePanel = ({ body, doc, blockId, onInsert }) => {
+  const { t } = useTranslation(['common']);
   const consumers = useMemo(() => collectConsumerFrontends(doc, blockId), [doc, blockId]);
   const varDefs = useMemo(() => collectSetVarDefinitions(consumers), [consumers]);
   const found = useMemo(() => scanBody(body), [body]);
@@ -400,9 +477,9 @@ export const TokenReferencePanel = ({ body, doc, blockId, onInsert }) => {
     () =>
       found.map(classified => ({
         classified,
-        status: statusForToken(classified, doc, consumers, varDefs),
+        status: statusForToken(classified, doc, consumers, varDefs, t),
       })),
-    [found, doc, consumers, varDefs]
+    [found, doc, consumers, varDefs, t]
   );
 
   const counts = useMemo(() => {
@@ -416,39 +493,48 @@ export const TokenReferencePanel = ({ body, doc, blockId, onInsert }) => {
   return (
     <div className="mt-3">
       <div className="d-flex justify-content-between align-items-center mb-2 gap-2 flex-wrap">
-        <span className="small fw-semibold text-muted text-uppercase">Tokens in this body</span>
+        <span className="small fw-semibold text-muted text-uppercase">
+          {t('common:tokenRef.tokensInBody', 'Tokens in this body')}
+        </span>
         <QuickInsertDropdown onInsert={onInsert} disabled={!onInsert} />
       </div>
       {rows.length === 0 ? (
         <div className="small text-muted">
-          No <code>%[token]</code> references found in the body.
+          <Trans
+            i18nKey="common:tokenRef.noTokens"
+            t={t}
+            defaults="No <0>%[token]</0> references found in the body."
+            components={[<code key="0" />]}
+          />
         </div>
       ) : (
         <>
           <div className="small text-muted mb-2 d-flex gap-3 flex-wrap">
             <span>
-              <Badge bg="success">{counts.ok}</Badge> OK
+              <Badge bg="success">{counts.ok}</Badge> {t('common:tokenRef.badge.ok', 'OK')}
             </span>
             <span>
               <Badge bg="warning" text="dark">
                 {counts.missing}
               </Badge>{' '}
-              need setup
+              {t('common:tokenRef.needSetup', 'need setup')}
             </span>
             <span>
-              <Badge bg="secondary">{counts.unknown}</Badge> unknown
+              <Badge bg="secondary">{counts.unknown}</Badge>{' '}
+              {t('common:tokenRef.badge.unknown', 'unknown')}
             </span>
             <span className="ms-auto">
-              Consumer frontends: <strong>{consumers.length}</strong>
+              {t('common:tokenRef.consumerFrontends', 'Consumer frontends:')}{' '}
+              <strong>{consumers.length}</strong>
               {consumers.length > 0 ? ` (${consumers.map(f => f.name).join(', ')})` : ''}
             </span>
           </div>
           <Table size="sm" responsive className="mb-2 small">
             <thead>
               <tr>
-                <th style={{ width: '14rem' }}>Token</th>
-                <th style={{ width: '7rem' }}>Status</th>
-                <th>Detail</th>
+                <th style={{ width: '14rem' }}>{t('common:tokenRef.col.token', 'Token')}</th>
+                <th style={{ width: '7rem' }}>{t('common:tokenRef.col.status', 'Status')}</th>
+                <th>{t('common:tokenRef.col.detail', 'Detail')}</th>
               </tr>
             </thead>
             <tbody>
@@ -464,41 +550,67 @@ export const TokenReferencePanel = ({ body, doc, blockId, onInsert }) => {
         </>
       )}
       <details className="small">
-        <summary className="text-muted">Reference: what configures each token kind</summary>
+        <summary className="text-muted">
+          {t('common:tokenRef.referenceSummary', 'Reference: what configures each token kind')}
+        </summary>
         <div className="ps-3 pt-2">
           <p className="mb-1">
             <Badge bg="success" className="me-1">
-              built-in
+              {t('common:tokenRef.kind.builtin', 'built-in')}
             </Badge>
-            HAProxy sample fetches (<code>%[src]</code>, <code>%[date]</code>,{' '}
-            <code>%[hdr(NAME)]</code>, <code>%[ssl_fc_*]</code>, <code>%[path]</code>,{' '}
-            <code>%[method]</code>, <code>%[status]</code>, …). No setup required.
+            <Trans
+              i18nKey="common:tokenRef.help.builtin"
+              t={t}
+              defaults="HAProxy sample fetches (<0>%[src]</0>, <1>%[date]</1>, <2>%[hdr(NAME)]</2>, <3>%[ssl_fc_*]</3>, <4>%[path]</4>, <5>%[method]</5>, <6>%[status]</6>, …). No setup required."
+              components={[
+                <code key="0" />,
+                <code key="1" />,
+                <code key="2" />,
+                <code key="3" />,
+                <code key="4" />,
+                <code key="5" />,
+                <code key="6" />,
+              ]}
+            />
           </p>
           <p className="mb-1">
             <Badge bg="primary" className="me-1">
-              global
+              {t('common:tokenRef.kind.global', 'global')}
             </Badge>
-            <code>%[unique-id]</code> requires <code>unique-id-format</code> set in{' '}
-            <Link to="/global">Global Settings</Link>. patchpanel defaults to the canonical hex
-            format.
+            <Trans
+              i18nKey="common:tokenRef.help.global"
+              t={t}
+              defaults="<0>%[unique-id]</0> requires <1>unique-id-format</1> set in <2>Global Settings</2>. patchpanel defaults to the canonical hex format."
+              components={[<code key="0" />, <code key="1" />, <Link key="2" to="/global" />]}
+            />
           </p>
           <p className="mb-1">
             <Badge bg="info" className="me-1">
-              per-frontend
+              {t('common:tokenRef.kind.perFrontend', 'per-frontend')}
             </Badge>
-            <code>%[capture.req.hdr(N)]</code> / <code>%[capture.res.hdr(N)]</code> require{' '}
-            <code>captureRequestHeaders[]</code> / <code>captureResponseHeaders[]</code> on each
-            frontend that inherits this defaults block — slot index is 0-based and matches the entry
-            order in the capture array. Edit on{' '}
-            <Link to="/frontends">Frontends → HTTP options → Capture</Link>.
+            <Trans
+              i18nKey="common:tokenRef.help.perFrontend"
+              t={t}
+              defaults="<0>%[capture.req.hdr(N)]</0> / <1>%[capture.res.hdr(N)]</1> require <2>captureRequestHeaders[]</2> / <3>captureResponseHeaders[]</3> on each frontend that inherits this defaults block — slot index is 0-based and matches the entry order in the capture array. Edit on <4>Frontends → HTTP options → Capture</4>."
+              components={[
+                <code key="0" />,
+                <code key="1" />,
+                <code key="2" />,
+                <code key="3" />,
+                <Link key="4" to="/frontends" />,
+              ]}
+            />
           </p>
           <p className="mb-0">
             <Badge bg="warning" text="dark" className="me-1">
-              rule
+              {t('common:tokenRef.kind.rule', 'rule')}
             </Badge>
-            <code>%[var(SCOPE.NAME)]</code> requires an <code>http-request set-var</code> rule on a
-            consumer frontend with the same scope + name, fired before the response. Edit on{' '}
-            <Link to="/rules">Rules</Link>.
+            <Trans
+              i18nKey="common:tokenRef.help.rule"
+              t={t}
+              defaults="<0>%[var(SCOPE.NAME)]</0> requires an <1>http-request set-var</1> rule on a consumer frontend with the same scope + name, fired before the response. Edit on <2>Rules</2>."
+              components={[<code key="0" />, <code key="1" />, <Link key="2" to="/rules" />]}
+            />
           </p>
         </div>
       </details>

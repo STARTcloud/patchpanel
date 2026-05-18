@@ -2,6 +2,7 @@ import { join as joinPath } from 'node:path';
 
 import { Router } from 'express';
 
+import { errorResponse } from '../lib/api-response.js';
 import { fileExists, readText } from '../lib/files.js';
 import { log } from '../lib/logger.js';
 import { ERROR_FILE_CODES } from '../lib/state-schema.js';
@@ -97,7 +98,7 @@ export const errorPagesRouter = () => {
   router.get('/error-pages/:code', async (req, res, next) => {
     const { code } = req.params;
     if (!isValidCode(code)) {
-      res.status(400).json({ error: `unsupported status code: ${code}` });
+      res.status(400).json(errorResponse(req, 'config.errorPages.unsupportedCode', { code }));
       return;
     }
     try {

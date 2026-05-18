@@ -1,0 +1,453 @@
+{
+  "panels": {
+    "kpiRoutes": { "title": "Routes", "subtitle": "Total routes (click for full table)." },
+    "kpiBackends": { "title": "Backends", "subtitle": "Total backends (click for full table)." },
+    "kpiCerts": { "title": "Certificates", "subtitle": "Total certs (click for full table)." },
+    "kpiProviders": {
+      "title": "TLS Providers",
+      "subtitle": "Total providers (click for full table)."
+    },
+    "liveTotals": {
+      "title": "Live totals",
+      "subtitle": "Request rate · Bandwidth · Sessions · CPU idle (always-live)."
+    },
+    "alerts": {
+      "title": "Active alerts",
+      "subtitle": "Backends down, certs expiring, uncovered routes."
+    },
+    "liveRate": {
+      "title": "Live request rate",
+      "subtitle": "req/s aggregated across all frontends + sparkline."
+    },
+    "errorRate": { "title": "Error rate", "subtitle": "4xx + 5xx % over the sampled hour." },
+    "connectionPool": {
+      "title": "Connection pool",
+      "subtitle": "Current sessions vs MaxConn ceiling."
+    },
+    "runtime": {
+      "title": "HAProxy runtime",
+      "subtitle": "Process / Connections / Rates / Cumulative / Health."
+    },
+    "health": {
+      "title": "Backend health",
+      "subtitle": "UP / DOWN / other counts per backend + per server."
+    },
+    "tlsCoverage": {
+      "title": "TLS coverage",
+      "subtitle": "Routes by cert status — valid / expiring / expired / missing."
+    },
+    "topHosts": { "title": "Top hosts", "subtitle": "Busiest 10 routes by request rate." },
+    "geoOrigins": {
+      "title": "Top countries",
+      "subtitle": "Client request origins by country (requires GeoIP)."
+    },
+    "originMap": {
+      "title": "Origin map",
+      "subtitle": "World choropleth shaded by client session count (requires GeoIP)."
+    },
+    "topClients": {
+      "title": "Top clients",
+      "subtitle": "Per-IP breakdown with country / location (requires GeoIP for enrichment)."
+    },
+    "snapshotTimeline": {
+      "title": "Snapshot timeline",
+      "subtitle": "Last 8 state snapshots with relative timestamps."
+    },
+    "slowest": { "title": "Slowest backends", "subtitle": "Top 5 by rtime average." },
+    "httpcodes": { "title": "HTTP status codes", "subtitle": "Donut chart of the sampled hour." },
+    "actions": { "title": "Quick actions", "subtitle": "Reload HAProxy + Renew all certs." },
+    "certs": { "title": "Certificate status", "subtitle": "Per-cert remaining lifetime badges." },
+    "activity": { "title": "Recent activity", "subtitle": "Last 10 audit entries." },
+    "frontendTraffic": {
+      "title": "Frontend traffic — {{name}}",
+      "subtitle": "Live in/out bandwidth for frontend {{name}}."
+    }
+  },
+  "panel": {
+    "openPage": "Open {{title}} page",
+    "configureLayout": "Configure layout",
+    "expandFullscreen": "Expand to full-screen",
+    "dragReorder": "Drag to reorder"
+  },
+  "runtimeGroup": {
+    "process": "Process",
+    "connections": "Connections",
+    "rates": "Rates",
+    "cumulative": "Cumulative",
+    "health": "Health"
+  },
+  "runtimeCard": {
+    "title": "HAProxy runtime"
+  },
+  "health": {
+    "title": "Backend health",
+    "backends": "Backends:",
+    "servers": "Servers:",
+    "upCount": "{{count}} UP",
+    "downCount": "{{count}} DOWN",
+    "otherCount": "{{count}} other"
+  },
+  "quickActions": {
+    "title": "Quick actions",
+    "reloaded": "HAProxy reloaded.",
+    "stopped": "HAProxy stopped.",
+    "started": "HAProxy started.",
+    "renewalCompleted": "Renewal completed (loadable: {{count}}).",
+    "stopBody1Prefix": "This will",
+    "stopProcess": "stop the HAProxy process",
+    "stopBody1Suffix": "All proxied connections will be dropped immediately and the proxy will be unreachable until you start it again.",
+    "strategyLabel": "Strategy:",
+    "unknown": "unknown",
+    "directMode": "Direct mode has no supervisor — patchpanel cannot restart HAProxy from the UI.",
+    "restartHint": "Restart available via the Start button.",
+    "stopTitle": "Stop HAProxy?",
+    "stopHaproxy": "Stop HAProxy",
+    "checkingStatus": "Checking HAProxy status…",
+    "running": "running",
+    "haproxyStatus": "HAProxy {{state}}",
+    "strategySuffix": " · strategy: {{strategy}}",
+    "reloading": "Reloading…",
+    "reloadHaproxy": "Reload HAProxy",
+    "stopping": "Stopping…",
+    "starting": "Starting…",
+    "startHaproxy": "Start HAProxy",
+    "directStartDisabled": "Direct strategy cannot start HAProxy — no supervisor configured.",
+    "renewing": "Renewing…",
+    "renewAll": "Renew all certs"
+  },
+  "sampling": "Sampling… (5s ticks)",
+  "samplingShort": "Sampling…",
+  "recentActivity": {
+    "title": "Recent activity",
+    "empty": "No audit entries yet."
+  },
+  "certStatus": {
+    "title": "Certificate status",
+    "empty": "No certificates configured.",
+    "missing": "missing",
+    "expired": "expired"
+  },
+  "socket": {
+    "unavailable": "HAProxy stats socket unavailable",
+    "fallbackMessage": "HAProxy may not be running yet, or the runtime socket is unreachable."
+  },
+  "slowest": {
+    "title": "Slowest backends",
+    "sortedPrefix": "Sorted by HAProxy",
+    "sortedSuffix": "(average response time over the last 1024 requests per backend).",
+    "empty": "No backends with recorded response times.",
+    "col": {
+      "backend": "Backend",
+      "rtime": "rtime",
+      "rtimeMax": "rtime-max",
+      "qtime": "qtime",
+      "scur": "scur"
+    }
+  },
+  "httpCodes": {
+    "title": "HTTP status codes",
+    "noTraffic": "No traffic in the sampled window yet.",
+    "seriesName": "responses",
+    "distribution": "Distribution across all frontends in the last hour (delta-based)."
+  },
+  "kpi": {
+    "routes": "Routes",
+    "backends": "Backends",
+    "certificates": "Certificates",
+    "tlsProviders": "TLS Providers",
+    "noCert": "{{count}} no cert",
+    "allCovered": "all covered",
+    "upCount": "{{count}} UP",
+    "downCount": "{{count}} DOWN",
+    "expiredCount": "{{count}} expired",
+    "expiringCount": "{{count}} expiring",
+    "allValid": "all valid",
+    "unusedCount": "{{count}} unused"
+  },
+  "hiddenPanels": "Hidden panels",
+  "showPanel": "Show {{title}}",
+  "fallbackPanelTitle": "Panel",
+  "noStateDoc": "No state document loaded.",
+  "traffic": {
+    "in": "in",
+    "out": "out"
+  },
+  "sessions": {
+    "chartTitle": "Active sessions per proxy",
+    "axisLabel": "sessions"
+  },
+  "topSources": {
+    "unavailable": "Active sessions unavailable:",
+    "topClientIps": "Top client IPs",
+    "activeBadge": "{{count}} active",
+    "noActive": "No active sessions.",
+    "byFrontend": "Sessions by frontend",
+    "byBackend": "Sessions by backend"
+  },
+  "infoCard": {
+    "title": "HAProxy runtime",
+    "noInfo": "No info yet."
+  },
+  "controls": {
+    "filterPlaceholder": "Filter by proxy / server / status…",
+    "hideDown": "Hide DOWN servers",
+    "clearCountersTitle": "Reset all max/total counters via `clear counters all` on the runtime socket. Current sessions and rates are not affected; max/total/error counts reset to zero.",
+    "clearCounters": "Clear counters",
+    "downloadCsv": "Download stats as CSV",
+    "csv": "CSV",
+    "downloadJson": "Download stats as JSON",
+    "json": "JSON"
+  },
+  "chartTile": {
+    "expand": "Expand chart"
+  },
+  "tables": {
+    "title": "Frontends / Backends / Servers",
+    "description": "Refreshes every 5 seconds. Rows are grouped by proxy (FRONTEND on top, BACKEND row at the bottom of each group). Per-server actions (Set ready / Drain / Maintenance / Set weight) and per-frontend actions (Enable / Disable / Set maxconn) apply via the HAProxy runtime stats socket — no reload needed. Hover any row's name for the per-row HTTP-code + queue/connect/response/total time breakdown."
+  },
+  "trends": {
+    "frontendTraffic": "Frontend traffic",
+    "bytesHint": "Bytes-per-second sampled every 5 seconds. Click the expand icon on any chart for a fullscreen view.",
+    "backendTraffic": "Backend traffic"
+  },
+  "fetchingHour": "Fetching the recent hour from HAProxy stats sampler…",
+  "unavailable": "Stats unavailable:",
+  "actionFailed": "Server action failed:",
+  "actionApplied": "Runtime action applied.",
+  "tabs": {
+    "live": "Live tables",
+    "trends": "Trends"
+  },
+  "prompt": {
+    "weightTitle": "Set weight for {{name}}",
+    "weightLabel": "Weight (0-256)",
+    "weightHelp": "0 = drain new connections. Higher weight = more share of the load.",
+    "maxconnTitle": "Set maxconn for frontend {{name}}",
+    "maxconnLabel": "Max concurrent connections",
+    "maxconnHelp": "Hard cap on simultaneous connections this frontend will accept. 0 unlimited."
+  },
+  "confirmClear": {
+    "title": "Clear all HAProxy counters?",
+    "body1": "This runs",
+    "body2": "on the runtime socket. Max / total / error counters reset to zero across every frontend, backend, and server. Active sessions and rates are",
+    "not": "not",
+    "body3": "affected, so traffic keeps flowing.",
+    "body4": "Useful for getting clean numbers after a deploy / load test. The action is logged to the audit trail."
+  },
+  "detailTooltip": {
+    "http1xx": "HTTP 1xx:",
+    "http2xx": "HTTP 2xx:",
+    "http3xx": "HTTP 3xx:",
+    "http4xx": "HTTP 4xx:",
+    "http5xx": "HTTP 5xx:",
+    "rtimeAvg": "rtime (avg):",
+    "rtimeMax": "rtime (max):",
+    "qtime": "qtime:",
+    "ctime": "ctime:",
+    "ttime": "ttime:"
+  },
+  "rowActions": {
+    "action": "Action",
+    "frontendState": "Frontend state",
+    "enable": "Enable",
+    "disable": "Disable",
+    "setMaxconn": "Set maxconn…",
+    "runtimeState": "Runtime state",
+    "setReady": "Set ready",
+    "drain": "Drain",
+    "maintenance": "Maintenance",
+    "setWeight": "Set weight…"
+  },
+  "table": {
+    "groupLinkTitle": "Jump to the Backends tab focused on this proxy",
+    "noRows": "No stats rows yet.",
+    "noFilterMatch": "No rows match the current filter.",
+    "col": {
+      "name": "Name",
+      "status": "Status",
+      "sessions": "Sessions",
+      "sessionRate": "Session rate",
+      "bytes": "Bytes",
+      "errors": "Errors",
+      "warnings": "Warnings",
+      "chkFail": "Chk fail",
+      "weight": "Wght",
+      "actions": "Actions",
+      "cur": "Cur",
+      "max": "Max",
+      "total": "Total",
+      "in": "In",
+      "out": "Out",
+      "req": "Req",
+      "conn": "Conn",
+      "resp": "Resp",
+      "retr": "Retr",
+      "redis": "Redis"
+    }
+  },
+  "customize": {
+    "title": "Show / hide panels",
+    "hint": "Drag panels on the dashboard itself to reorder. Use the switches below to toggle visibility. The KPI tiles at the top stay always-visible.",
+    "noPanels": "No customizable panels.",
+    "reset": "Reset to defaults",
+    "buttonTitle": "Show/hide dashboard panels + reset layout",
+    "button": "Customize",
+    "showPanelAria": "Show {{title}}",
+    "statsBadge": "stats"
+  },
+  "panelLayout": {
+    "cellAria": "Set width {{w}} rows {{h}}",
+    "tooSmall": "Too small for this panel",
+    "title": "Panel layout",
+    "sizeAuto": "{{w}} × auto",
+    "clickHint": "Click a cell to size the panel",
+    "width": "Width",
+    "heightRows": "Height (rows)",
+    "auto": "auto",
+    "fullWidth": "Full width",
+    "autoHeight": "Auto height (size to content)",
+    "hidePanel": "Hide this panel",
+    "done": "Done"
+  },
+  "alerts": {
+    "title": "Active alerts",
+    "allNominal": "All systems nominal — no degraded backends, no expiring certs, every route is covered.",
+    "moreCount": "+ {{count}} more…",
+    "backendDown": "Backend {{name}} is DOWN",
+    "backendDownDetail": "{{status}} — no healthy servers",
+    "serversDown": "{{count}} server(s) down in {{pxname}}",
+    "certNoLineage": "Cert {{name}} has no lineage on disk",
+    "certNoLineageDetail": "No PEM loaded — HAProxy can't serve TLS for this cert yet",
+    "certExpired": "Cert {{name}} expired {{days}}d ago",
+    "certExpiredDetail": "notAfter {{date}}",
+    "certExpiring": "Cert {{name}} expires in {{days}}d",
+    "renewalRecommended": "Renewal recommended",
+    "routesNoCert": "{{count}} route(s) without a covering cert"
+  },
+  "connectionPool": {
+    "title": "Connection pool",
+    "activeSessions": "active sessions",
+    "pctOfCap": "{{pct}}% of cap"
+  },
+  "liveRate": {
+    "title": "Live request rate",
+    "subtitle": "req/s · all frontends"
+  },
+  "errorRate": {
+    "title": "Error rate",
+    "summary": "4xx + 5xx over the sampled hour"
+  },
+  "tlsCoverage": {
+    "title": "TLS coverage",
+    "empty": "No enabled routes yet. Add a route on the Routes tab to start.",
+    "valid": "Valid (≥14d)",
+    "expiring": "Expiring (<14d)",
+    "expired": "Expired",
+    "missing": "No cert",
+    "seriesName": "routes",
+    "enabledRouteCount": "{{count}} enabled route(s)"
+  },
+  "topHosts": {
+    "title": "Top hosts (req/s)",
+    "noTraffic": "No traffic in the sampled window yet."
+  },
+  "snapshots": {
+    "title": "Snapshot timeline",
+    "unavailable": "Snapshots unavailable:",
+    "empty": "No snapshots yet. They accumulate as you save state."
+  },
+  "geo": {
+    "title": "Top countries",
+    "unknown": "Unknown",
+    "liveUnavailable": "Live sessions unavailable:",
+    "checking": "Checking GeoIP status…",
+    "enrichmentPrefix": "GeoIP enrichment is",
+    "off": "off",
+    "turnOnPrefix": "Turn it on under",
+    "settingsLink": "Settings → GeoIP",
+    "turnOnSuffix": "to start resolving client IPs to countries.",
+    "noActive": "No active sessions yet. Origins aggregate here once public-IP traffic comes in.",
+    "lanOnly": "Only LAN / private-IP traffic right now ({{count}} session(s)). Private addresses don't resolve to a country. Public-IP sessions will show up here when they arrive.",
+    "unresolvedPrefix": "GeoIP is enabled but {{count}} public-IP session(s) couldn't be resolved.",
+    "onlineFallbackPrefix": "You're using online-only fallback ({{provider}}); check the addon logs for 'online geoip lookup failed' to see why the provider is rejecting requests (rate limit / bad token / network).",
+    "localDbSourcePrefix": "Local DB source is",
+    "butDb": "but the DB is",
+    "present": "present",
+    "missing": "missing",
+    "clickPrefix": "Click",
+    "downloadNow": "Download now",
+    "under": "under",
+    "noCountryResolved": "No country-resolved sessions yet ({{priv}} private, {{unres}} unresolved)."
+  },
+  "liveTotals": {
+    "title": "Live totals",
+    "requestRate": "Request rate",
+    "bandwidth": "Bandwidth",
+    "sessions": "Sessions",
+    "cpuIdle": "CPU idle"
+  },
+  "originMap": {
+    "title": "Origin map",
+    "empty": "No country-resolved sessions yet. Map populates as GeoIP resolves public-IP clients.",
+    "pointFormat": "<b>{point.name}</b>: {point.value} session(s)",
+    "seriesName": "Sessions"
+  },
+  "clients": {
+    "title": "Top clients",
+    "empty": "No active sessions yet. Clients aggregate here once traffic comes in.",
+    "home": "home",
+    "lan": "LAN",
+    "col": {
+      "ip": "IP",
+      "country": "Country",
+      "location": "Location",
+      "sessions": "Sessions"
+    }
+  },
+  "topology": {
+    "title": "Topology",
+    "description": "Click any node to isolate its subgraph · double-click to open its edit page · hover to highlight the connected chain · drag to reposition (saved per-browser).",
+    "nodesLabel": "nodes",
+    "edgesLabel": "edges",
+    "searchPlaceholder": "Search hostname / route / backend…",
+    "clearSearch": "Clear search",
+    "authFilterTitle": "Filter routes by auth gating",
+    "authFilter": {
+      "all": "All routes",
+      "authGated": "Auth-gated only",
+      "open": "Open only",
+      "gatedBy": "Gated by: {{id}} ({{type}})"
+    },
+    "layoutDirectionTitle": "Graph layout direction (positions are saved per-direction)",
+    "layout": {
+      "lr": "Left → Right",
+      "rl": "Right → Left",
+      "tb": "Top → Bottom",
+      "bt": "Bottom → Top"
+    },
+    "weathermap": "Weathermap",
+    "resetLayoutTitle": "Clear saved node positions for current direction and re-run auto layout",
+    "resetLayout": "Reset layout",
+    "isolated": "isolated",
+    "subgraphPrefix": "Subgraph of",
+    "clearHint": "Click empty canvas to clear.",
+    "clear": "clear",
+    "noNodes": "No nodes visible. Either no routes are defined yet, or your filters exclude everything — clear the auth filter or search to see the full graph.",
+    "throughput": "Throughput",
+    "kind": {
+      "frontend": "frontend",
+      "route": "route",
+      "backend": "backend",
+      "server": "server",
+      "authProvider": "auth provider"
+    },
+    "authGatedBy": "Auth-gated by {{providerId}} ({{providerType}})",
+    "serverCount": "{{count}} server(s)",
+    "gatedBy": "gated by",
+    "lookup": "lookup"
+  },
+  "sessionsUnavailable": "HAProxy session data is currently unavailable",
+  "sampler": {
+    "notRunning": "Stats sampler is not running"
+  }
+}

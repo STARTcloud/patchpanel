@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Alert, Button, Card, Form } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 
 import { ListEditor } from './ListEditor.jsx';
 
 export const AdvancedDirectivesCard = ({ doc, onSave }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [draft, setDraft] = useState(null);
   const [status, setStatus] = useState(null);
   const current = draft ?? doc.globalSettings.advancedDirectives ?? [];
@@ -18,7 +20,7 @@ export const AdvancedDirectivesCard = ({ doc, onSave }) => {
       globalSettings: { ...doc.globalSettings, advancedDirectives: current },
     })
       .then(() => {
-        setStatus({ kind: 'success', message: 'Saved.' });
+        setStatus({ kind: 'success', message: t('haproxy:common.saved', 'Saved.') });
         setDraft(null);
       })
       .catch(err => setStatus({ kind: 'danger', message: err.message }));
@@ -27,11 +29,14 @@ export const AdvancedDirectivesCard = ({ doc, onSave }) => {
   return (
     <Card className="mb-3">
       <Card.Body>
-        <Card.Title>Advanced global directives</Card.Title>
+        <Card.Title>
+          {t('haproxy:advancedDirectives.title', 'Advanced global directives')}
+        </Card.Title>
         <Card.Text className="text-muted small">
-          Raw passthrough lines appended verbatim to the rendered <code>global</code> section. One
-          directive per row. Use only for HAProxy features patchpanel doesn&apos;t model natively —
-          these lines bypass schema validation.
+          {t(
+            'haproxy:advancedDirectives.description',
+            "Raw passthrough lines appended verbatim to the rendered global section. One directive per row. Use only for HAProxy features patchpanel doesn't model natively — these lines bypass schema validation."
+          )}
         </Card.Text>
         {status ? <Alert variant={status.kind}>{status.message}</Alert> : null}
         <Form onSubmit={submit}>
@@ -41,11 +46,14 @@ export const AdvancedDirectivesCard = ({ doc, onSave }) => {
               setStatus(null);
               setDraft(list);
             }}
-            placeholder="e.g. tune.h2.fe.max-concurrent-streams 100"
+            placeholder={t(
+              'haproxy:advancedDirectives.placeholder',
+              'e.g. tune.h2.fe.max-concurrent-streams 100'
+            )}
           />
           <div className="mt-3">
             <Button type="submit" variant="primary" size="sm" disabled={!draft}>
-              Save advanced directives
+              {t('haproxy:advancedDirectives.save', 'Save advanced directives')}
             </Button>
           </div>
         </Form>

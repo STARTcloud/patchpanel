@@ -4,8 +4,16 @@ import { Router } from 'express';
 
 import * as audit from '../lib/audit.js';
 import { errorResponse } from '../lib/api-response.js';
-import { ensureDir, fileExists, safePathUnder, writeAtomic } from '../lib/files.js';
+import {
+  BLOB_KINDS,
+  buildLocalManifest,
+  ensureBlobParentDir,
+  resolveBlobPath,
+} from '../lib/blob-kinds.js';
+import { fileExists, writeAtomic } from '../lib/files.js';
 import { log } from '../lib/logger.js';
+import * as peerClient from '../lib/peer-client.js';
+import { buildLocalSnapshot } from '../lib/peer-observability.js';
 import { computeStateChecksum, probeDrift, pushStateToAllPeers } from '../lib/peer-sync.js';
 import {
   createInboundToken,
@@ -43,15 +51,9 @@ import { loadState } from '../lib/state.js';
 // paste Node B's URL + that token into Node A's "Add peer" form. Run twice
 // (once on each node) for bidirectional sync.
 
-// Blob kinds we accept on the peer cert-sync channel. Each maps to a
-// destination directory in the local config. Whitelist-only to prevent
-// arbitrary file writes through this endpoint.
-const BLOB_KINDS = Object.freeze({
-  'trusted-ca': { dirKey: 'trustedCasDir', suffix: '.pem', mode: 0o644 },
-  'trusted-crl': { dirKey: 'trustedCrlsDir', suffix: '.pem', mode: 0o644 },
-  credential: { dirKey: 'credentials', suffix: '.ini', mode: 0o600 },
-  'lua-plugin': { dirKey: 'luaPluginsDir', suffix: '.lua', mode: 0o644 },
-});
+// Whitelisted blob kinds + their on-disk layout live in lib/blob-kinds.js
+// so the sync orchestrator (peer-sync.js) can share the same definitions
+// for reading + diffing what to push. Don't redefine here.
 
 // Bearer-token middleware for incoming peer API calls. Looks up the token
 // in the flat inboundTokens[] set. Peer identity is purely informational —
@@ -182,15 +184,15 @@ export const peerRouter = config => {
     const actor = PEER_ACTOR(req);
     const { url, name, token } = req.body ?? {};
     if (typeof url !== 'string' || url.length === 0) {
-      res.status(400).json({ error: 'url is required' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.urlRequired'));
       return;
     }
     if (typeof name !== 'string' || name.length === 0) {
-      res.status(400).json({ error: 'name is required' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.nameRequired'));
       return;
     }
     if (typeof token !== 'string' || token.length < 16) {
-      res.status(400).json({ error: "token is required (paste from peer's inbound-tokens list)" });
+      res.status(400).json(errorResponse(req, 'cluster.peer.outboundTokenRequired'));
       return;
     }
     log.api.info('POST /peers', { ip: req.ip, actor, url, name });
@@ -244,7 +246,7 @@ export const peerRouter = config => {
     const actor = PEER_ACTOR(req);
     const { id } = req.params;
     if (!SAFE_PEER_ID.test(id)) {
-      res.status(400).json({ error: 'invalid peer id' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.peerIdInvalid'));
       return;
     }
     log.api.info('DELETE /peers/:id', { ip: req.ip, actor, id });
@@ -298,14 +300,14 @@ export const peerRouter = config => {
     const actor = PEER_ACTOR(req);
     const { id } = req.params;
     if (!SAFE_PEER_ID.test(id)) {
-      res.status(400).json({ error: 'invalid peer id' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.peerIdInvalid'));
       return;
     }
     log.api.info('POST /peers/:id/sync-now', { ip: req.ip, actor, id });
     try {
       const state = await loadState(config.paths.state);
       if (!state) {
-        res.status(409).json({ error: 'no local state to push' });
+        res.status(409).json(errorResponse(req, 'cluster.peer.noLocalStateToPush'));
         return;
       }
       const result = await pushStateToAllPeers(config, state, {});
@@ -349,11 +351,76 @@ export const peerRouter = config => {
     try {
       const state = await loadState(config.paths.state);
       if (!state) {
-        res.status(409).json({ error: 'no local state' });
+        res.status(409).json(errorResponse(req, 'cluster.peer.noLocalState'));
         return;
       }
       const report = await probeDrift(config, state);
       res.set('cache-control', 'no-store').json({ peers: report });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/peers/snapshots:
+   *   get:
+   *     summary: Aggregate live snapshots from every paired peer
+   *     description: |
+   *       Local-side fanout that calls `GET /api/peer/snapshot` on every configured peer (in parallel, 5s per-peer timeout) and returns the combined result. Powers the cluster-mate tiles on the Topology page so the browser only ever talks to the local node — peer tokens stay server-side. Each entry resolves independently; a single down peer doesn't fail the response.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *       - CookieAuth: []
+   *     responses:
+   *       200:
+   *         description: Per-peer snapshots
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ts: { type: string, format: 'date-time' }
+   *                 peers:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       peerId: { type: string }
+   *                       name: { type: string }
+   *                       url: { type: string }
+   *                       ok: { type: boolean }
+   *                       snapshot: { type: object, nullable: true, description: 'Same shape as /api/peer/snapshot' }
+   *                       error: { type: string, nullable: true }
+   *                       status: { type: integer, nullable: true }
+   */
+  router.get('/peers/snapshots', async (req, res, next) => {
+    log.api.debug('GET /peers/snapshots', { ip: req.ip });
+    try {
+      const store = await loadPeersStore(config.paths.peersStore);
+      const entries = await Promise.all(
+        store.peers.map(async peer => {
+          try {
+            const snapshot = await peerClient.getPeerSnapshot({
+              baseUrl: peer.url,
+              token: peer.outboundToken,
+              timeoutMs: 5000,
+            });
+            return { peerId: peer.id, name: peer.name, url: peer.url, ok: true, snapshot };
+          } catch (err) {
+            return {
+              peerId: peer.id,
+              name: peer.name,
+              url: peer.url,
+              ok: false,
+              snapshot: null,
+              error: err.message,
+              status: err.status ?? null,
+            };
+          }
+        })
+      );
+      res.set('cache-control', 'no-store').json({ ts: new Date().toISOString(), peers: entries });
     } catch (err) {
       next(err);
     }
@@ -436,7 +503,7 @@ export const peerRouter = config => {
     const actor = PEER_ACTOR(req);
     const { label } = req.body ?? {};
     if (label !== undefined && typeof label !== 'string') {
-      res.status(400).json({ error: 'label must be a string if provided' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.labelMustBeString'));
       return;
     }
     log.api.info('POST /peers/inbound-tokens', { ip: req.ip, actor });
@@ -504,12 +571,12 @@ export const peerRouter = config => {
     const actor = PEER_ACTOR(req);
     const { id } = req.params;
     if (!SAFE_TOKEN_ID.test(id)) {
-      res.status(400).json({ error: 'invalid token id' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.tokenIdInvalid'));
       return;
     }
     const { label } = req.body ?? {};
     if (typeof label !== 'string' || label.trim().length === 0) {
-      res.status(400).json({ error: 'label is required (non-empty string)' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.labelRequired'));
       return;
     }
     log.api.info('PATCH /peers/inbound-tokens/:id', { ip: req.ip, actor, id });
@@ -526,7 +593,7 @@ export const peerRouter = config => {
         }),
       }));
       if (!updated) {
-        res.status(404).json({ error: 'token not found' });
+        res.status(404).json(errorResponse(req, 'cluster.peer.tokenNotFound'));
         return;
       }
       audit.record({
@@ -566,7 +633,7 @@ export const peerRouter = config => {
     const actor = PEER_ACTOR(req);
     const { id } = req.params;
     if (!SAFE_TOKEN_ID.test(id)) {
-      res.status(400).json({ error: 'invalid token id' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.tokenIdInvalid'));
       return;
     }
     log.api.info('DELETE /peers/inbound-tokens/:id', { ip: req.ip, actor, id });
@@ -637,6 +704,49 @@ export const peerRouter = config => {
    *                 checksum: { type: string, nullable: true }
    *       401: { description: 'Bad/missing inbound token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
    */
+  /**
+   * @swagger
+   * /api/peer/state-pull:
+   *   get:
+   *     summary: Pull this node's full state document
+   *     description: |
+   *       Peer-side counterpart to `POST /api/peer/state`. A follower with `sync.pullEnabled: true` calls this on its configured upstream every `sync.pullIntervalSeconds` seconds, applies the response locally if the checksum differs from its own, and then pulls cert blobs via the manifest diff. Same inbound-token auth as the other `/api/peer/*` endpoints.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *     responses:
+   *       200:
+   *         description: State + checksum
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 state: { type: object, nullable: true }
+   *                 checksum: { type: string, nullable: true }
+   *                 ts: { type: string, format: 'date-time' }
+   *       401: { description: 'Bad/missing inbound token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
+  router.get('/peer/state-pull', peerAuth(config), async (req, res, next) => {
+    log.api.debug('GET /peer/state-pull', { caller: req.peerIdentity?.callerName ?? null });
+    try {
+      const state = await loadState(config.paths.state);
+      if (!state) {
+        res
+          .set('cache-control', 'no-store')
+          .json({ state: null, checksum: null, ts: new Date().toISOString() });
+        return;
+      }
+      res.set('cache-control', 'no-store').json({
+        state,
+        checksum: computeStateChecksum(state),
+        ts: new Date().toISOString(),
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.get('/peer/state-checksum', peerAuth(config), async (req, res, next) => {
     log.api.debug('GET /peer/state-checksum', { caller: req.peerIdentity?.callerName ?? null });
     try {
@@ -681,7 +791,7 @@ export const peerRouter = config => {
     const actor = peerActor(req);
     const { state, checksum } = req.body ?? {};
     if (!state || typeof state !== 'object') {
-      res.status(400).json({ error: 'state body is required' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.stateBodyRequired'));
       return;
     }
     log.api.info('POST /peer/state', { from: actor, checksum });
@@ -710,6 +820,98 @@ export const peerRouter = config => {
 
   /**
    * @swagger
+   * /api/peer/cert-manifest:
+   *   get:
+   *     summary: List every sync-eligible file on this node with fingerprints
+   *     description: |
+   *       Returns one row per file that could be exchanged via the blob endpoints — trusted CAs, trusted CRLs, ACME / DNS provider credentials, Lua plugins, BYO certs (fullchain + privkey), and Let's Encrypt lineages (fullchain + privkey). Each row carries an SHA-256 fingerprint so a paired peer can compute "what does the other node have that differs from me?" without pulling every file. Same inbound-token auth as `/api/peer/state-checksum`.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Manifest
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 entries:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       kind: { type: string, enum: [trusted-ca, trusted-crl, credential, lua-plugin, byo-cert-fullchain, byo-cert-privkey, le-cert-fullchain, le-cert-privkey] }
+   *                       id: { type: string, description: 'Logical id within the kind (basename / domain / cert-name).' }
+   *                       fingerprint: { type: string, description: 'SHA-256 hex of the file bytes.' }
+   *                       size: { type: integer }
+   *                       mtime: { type: number, description: 'mtime in epoch ms' }
+   *                 ts: { type: string, format: 'date-time' }
+   *       401: { description: 'Bad/missing inbound token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
+  router.get('/peer/cert-manifest', peerAuth(config), async (req, res, next) => {
+    log.api.debug('GET /peer/cert-manifest', { caller: req.peerIdentity?.callerName ?? null });
+    try {
+      const entries = await buildLocalManifest(config);
+      res.set('cache-control', 'no-store').json({ entries, ts: new Date().toISOString() });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * @swagger
+   * /api/peer/snapshot:
+   *   get:
+   *     summary: Live observability snapshot of this node
+   *     description: |
+   *       Returns the same data the local Dashboard reads about this node — HAProxy alive + traffic counters, keepalived alive + VRRP instances, node identity — pre-bundled so a paired peer can render a satellite cluster-node tile from a single round-trip. Read-only. Each block degrades independently: if HAProxy is down, that block reports `ok:false` but `keepalived` and `node` still return.
+   *     tags: [Configuration]
+   *     security:
+   *       - BearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Snapshot
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 ts: { type: string, format: 'date-time' }
+   *                 node:
+   *                   type: object
+   *                   properties:
+   *                     nodeId: { type: string, nullable: true }
+   *                     vrrp: { type: object }
+   *                 haproxy:
+   *                   type: object
+   *                   properties:
+   *                     ok: { type: boolean }
+   *                     alive: { type: boolean }
+   *                     info: { type: object, nullable: true }
+   *                     error: { type: string, nullable: true }
+   *                 keepalived:
+   *                   type: object
+   *                   properties:
+   *                     ok: { type: boolean }
+   *                     installed: { type: boolean }
+   *                     alive: { type: boolean, nullable: true }
+   *                     strategy: { type: string, nullable: true }
+   *                     instances: { type: array, items: { type: object } }
+   *       401: { description: 'Bad/missing inbound token', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+   */
+  router.get('/peer/snapshot', peerAuth(config), async (req, res, next) => {
+    log.api.debug('GET /peer/snapshot', { caller: req.peerIdentity?.callerName ?? null });
+    try {
+      const snapshot = await buildLocalSnapshot(config);
+      res.set('cache-control', 'no-store').json(snapshot);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * @swagger
    * /api/peer/blob/{kind}/{id}:
    *   get:
    *     summary: Fetch a sync blob from this node
@@ -722,7 +924,7 @@ export const peerRouter = config => {
    *       - in: path
    *         name: kind
    *         required: true
-   *         schema: { type: string, enum: [trusted-ca, trusted-crl, credential, lua-plugin] }
+   *         schema: { type: string, enum: [trusted-ca, trusted-crl, credential, lua-plugin, byo-cert-fullchain, byo-cert-privkey, le-cert-fullchain, le-cert-privkey] }
    *       - in: path
    *         name: id
    *         required: true
@@ -740,29 +942,28 @@ export const peerRouter = config => {
    */
   router.get('/peer/blob/:kind/:id', peerAuth(config), async (req, res, next) => {
     const { kind, id } = req.params;
-    const kindDef = BLOB_KINDS[kind];
-    if (!kindDef) {
-      res.status(400).json({ error: `unknown blob kind: ${kind}` });
+    if (!BLOB_KINDS[kind]) {
+      res.status(400).json(errorResponse(req, 'cluster.peer.blobKindUnknown', { kind }));
       return;
     }
     if (!SAFE_BLOB_ID.test(id)) {
-      res.status(400).json({ error: 'invalid blob id' });
-      return;
-    }
-    const dir = config.paths[kindDef.dirKey];
-    if (!dir) {
-      res.status(500).json({ error: `paths.${kindDef.dirKey} is not configured` });
+      res.status(400).json(errorResponse(req, 'cluster.peer.blobIdInvalid'));
       return;
     }
     let filePath;
     try {
-      filePath = safePathUnder(dir, `${id}${kindDef.suffix}`);
+      filePath = resolveBlobPath(config, kind, id);
     } catch (err) {
-      res.status(400).json({ error: err.message });
+      log.api.warn('peer blob path rejected', { kind, id, error: err.message });
+      res.status(400).json(errorResponse(req, 'cluster.peer.blobPathInvalid'));
+      return;
+    }
+    if (!filePath) {
+      res.status(500).json(errorResponse(req, 'cluster.peer.blobDirNotConfigured', { kind }));
       return;
     }
     if (!(await fileExists(filePath))) {
-      res.status(404).json({ error: 'blob not found' });
+      res.status(404).json(errorResponse(req, 'cluster.peer.blobNotFound'));
       return;
     }
     try {
@@ -787,7 +988,7 @@ export const peerRouter = config => {
    *       - in: path
    *         name: kind
    *         required: true
-   *         schema: { type: string, enum: [trusted-ca, trusted-crl, credential, lua-plugin] }
+   *         schema: { type: string, enum: [trusted-ca, trusted-crl, credential, lua-plugin, byo-cert-fullchain, byo-cert-privkey, le-cert-fullchain, le-cert-privkey] }
    *       - in: path
    *         name: id
    *         required: true
@@ -819,29 +1020,32 @@ export const peerRouter = config => {
     const { kind, id } = req.params;
     const kindDef = BLOB_KINDS[kind];
     if (!kindDef) {
-      res.status(400).json({ error: `unknown blob kind: ${kind}` });
+      res.status(400).json(errorResponse(req, 'cluster.peer.blobKindUnknown', { kind }));
       return;
     }
     if (!SAFE_BLOB_ID.test(id)) {
-      res.status(400).json({ error: 'invalid blob id' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.blobIdInvalid'));
       return;
     }
     const body = typeof req.body?.body === 'string' ? req.body.body : null;
     if (!body) {
-      res.status(400).json({ error: 'body is required' });
+      res.status(400).json(errorResponse(req, 'cluster.peer.blobBodyRequired'));
       return;
     }
-    const dir = config.paths[kindDef.dirKey];
-    if (!dir) {
-      res.status(500).json({ error: `paths.${kindDef.dirKey} is not configured` });
-      return;
-    }
-    await ensureDir(dir);
     let filePath;
     try {
-      filePath = safePathUnder(dir, `${id}${kindDef.suffix}`);
+      // Creates the kind-rooted parent dir if missing — cert kinds use a
+      // per-id subdir layout (`<byoCertsDir>/example.com/`,
+      // `<letsencryptDir>/live/example.com/`) that won't exist on a fresh
+      // peer the first time we sync.
+      filePath = await ensureBlobParentDir(config, kind, id);
     } catch (err) {
-      res.status(400).json({ error: err.message });
+      log.api.warn('peer blob path rejected', { kind, id, error: err.message });
+      res.status(400).json(errorResponse(req, 'cluster.peer.blobPathInvalid'));
+      return;
+    }
+    if (!filePath) {
+      res.status(500).json(errorResponse(req, 'cluster.peer.blobDirNotConfigured', { kind }));
       return;
     }
     try {

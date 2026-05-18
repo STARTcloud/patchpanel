@@ -1,29 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Badge, Button, Card, Form, InputGroup, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { useSSE } from '../hooks/useSSE.jsx';
-
-const REFRESH_INTERVALS = Object.freeze([
-  { label: 'live (SSE)', value: -1 },
-  { label: 'off', value: 0 },
-  { label: '2s', value: 2_000 },
-  { label: '5s', value: 5_000 },
-  { label: '15s', value: 15_000 },
-  { label: '60s', value: 60_000 },
-]);
 
 const MAX_BUFFERED_LINES = 5_000;
 const LOGS_PATH = 'api/logs';
 const LOGS_STREAM_PATH = 'api/logs/stream';
 
-const refreshDescription = (live, refreshMs) => {
+const buildRefreshDescription = (t, live, refreshMs) => {
   if (live) {
     return '';
   }
   if (refreshMs > 0) {
-    return `Auto-refreshing every ${refreshMs / 1000}s.`;
+    return t('logs:refreshAutoEvery', 'Auto-refreshing every {{seconds}}s.', {
+      seconds: refreshMs / 1000,
+    });
   }
-  return 'Auto-refresh disabled — use Refresh.';
+  return t('logs:refreshDisabled', 'Auto-refresh disabled — use Refresh.');
 };
 
 const fetchLogs = async () => {
@@ -50,6 +44,7 @@ const fetchLogs = async () => {
 };
 
 export const LogsPage = () => {
+  const { t } = useTranslation(['logs', 'common']);
   const [filter, setFilter] = useState('');
   const [refreshMs, setRefreshMs] = useState(-1);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -57,6 +52,15 @@ export const LogsPage = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const preRef = useRef(null);
+
+  const refreshOptions = [
+    { label: t('logs:interval.live', 'live (SSE)'), value: -1 },
+    { label: t('logs:interval.off', 'off'), value: 0 },
+    { label: t('logs:interval.s2', '2s'), value: 2_000 },
+    { label: t('logs:interval.s5', '5s'), value: 5_000 },
+    { label: t('logs:interval.s15', '15s'), value: 15_000 },
+    { label: t('logs:interval.s60', '60s'), value: 60_000 },
+  ];
 
   const live = refreshMs === -1;
 
@@ -166,14 +170,14 @@ export const LogsPage = () => {
     <Card className="patchpanel-fullheight-page">
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-          <Card.Title className="mb-0">HAProxy addon logs</Card.Title>
+          <Card.Title className="mb-0">{t('logs:title', 'HAProxy addon logs')}</Card.Title>
           <div className="d-flex gap-2 align-items-center flex-wrap">
             <InputGroup size="sm" style={{ width: '15rem' }}>
               <InputGroup.Text>
                 <i className="bi bi-funnel" />
               </InputGroup.Text>
               <Form.Control
-                placeholder="Filter lines…"
+                placeholder={t('logs:filterPlaceholder', 'Filter lines…')}
                 value={filter}
                 onChange={e => setFilter(e.target.value)}
               />
@@ -188,10 +192,10 @@ export const LogsPage = () => {
               value={refreshMs}
               onChange={e => setRefreshMs(Number(e.target.value))}
               style={{ width: '7rem' }}
-              aria-label="Refresh interval"
-              title="Refresh interval"
+              aria-label={t('logs:refreshIntervalLabel', 'Refresh interval')}
+              title={t('logs:refreshIntervalLabel', 'Refresh interval')}
             >
-              {REFRESH_INTERVALS.map(opt => (
+              {refreshOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -200,35 +204,53 @@ export const LogsPage = () => {
             <Form.Check
               type="switch"
               id="logs-auto-scroll"
-              label="auto-scroll"
+              label={t('logs:autoScroll', 'auto-scroll')}
               checked={autoScroll}
               onChange={e => setAutoScroll(e.target.checked)}
             />
             <Button variant="outline-primary" size="sm" onClick={load} disabled={loading}>
-              {loading ? <Spinner as="span" animation="border" size="sm" /> : 'Refresh'}
+              {loading ? (
+                <Spinner as="span" animation="border" size="sm" />
+              ) : (
+                t('common:buttons.refresh', 'Refresh')
+              )}
             </Button>
           </div>
         </div>
         <Card.Text className="text-muted small d-flex align-items-center gap-2 flex-wrap">
           <span>
-            Live tail of this addon&apos;s logs as captured by the Home Assistant supervisor.{' '}
-            {refreshDescription(live, refreshMs)}
+            {t(
+              'logs:tailDescription',
+              "Live tail of this addon's logs as captured by the Home Assistant supervisor."
+            )}{' '}
+            {buildRefreshDescription(t, live, refreshMs)}
           </span>
           {live ? (
             <Badge bg={sse.connected ? 'success' : 'warning'}>
-              {sse.connected ? 'live (SSE connected)' : 'live (reconnecting…)'}
+              {sse.connected
+                ? t('logs:sseConnected', 'live (SSE connected)')
+                : t('logs:sseReconnecting', 'live (reconnecting…)')}
             </Badge>
           ) : null}
           <span>
-            Showing {filteredLines.length} of {lines.length} lines
-            {trimmed ? ` (filter: "${filter.trim()}")` : ''}.
+            {t('logs:showingCount', 'Showing {{shown}} of {{total}} lines', {
+              shown: filteredLines.length,
+              total: lines.length,
+            })}
+            {trimmed
+              ? t('logs:filterSuffix', ' (filter: "{{filter}}")', { filter: filter.trim() })
+              : ''}
+            .
           </span>
         </Card.Text>
         {error ? (
           <Alert variant="danger">
-            Failed to load logs: {error.message}
+            {t('logs:loadFailed', 'Failed to load logs:')} {error.message}
             {error.status === 501
-              ? ' — this likely means patchpanel is running outside a Home Assistant addon.'
+              ? t(
+                  'logs:notInAddon',
+                  ' — this likely means patchpanel is running outside a Home Assistant addon.'
+                )
               : ''}
           </Alert>
         ) : null}
@@ -242,7 +264,7 @@ export const LogsPage = () => {
             whiteSpace: 'pre',
           }}
         >
-          {filteredText || (loading ? '' : '(empty)')}
+          {filteredText || (loading ? '' : t('logs:empty', '(empty)'))}
         </pre>
       </Card.Body>
     </Card>

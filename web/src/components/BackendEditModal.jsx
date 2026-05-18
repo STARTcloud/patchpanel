@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Button, Col, Form, Modal, Row } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { genKey } from '../utils/keys.js';
 
@@ -57,44 +58,62 @@ const withServerKeys = backend => ({
   servers: backend.servers.map(s => ({ ...s, _key: s._key ?? genKey() })),
 });
 
-const validateBackend = draft => {
+const validateBackend = (draft, t) => {
   if (!ID_REGEX.test(draft.id)) {
-    return 'id must match a-z, 0-9, _, - (starting with a letter)';
+    return t(
+      'haproxy:backend.errors.idFormat',
+      'id must match a-z, 0-9, _, - (starting with a letter)'
+    );
   }
   if (!draft.name.trim()) {
-    return 'name is required';
+    return t('haproxy:backend.errors.nameRequired', 'name is required');
   }
   if (draft.servers.length === 0) {
-    return 'at least one server is required';
+    return t('haproxy:backend.errors.minServers', 'at least one server is required');
   }
   for (const s of draft.servers) {
     if (!s.name.trim()) {
-      return 'each server needs a name';
+      return t('haproxy:backend.errors.serverNameRequired', 'each server needs a name');
     }
     if (!ADDR_PORT_REGEX.test(s.address)) {
-      return `server "${s.name}" needs a host:port address`;
+      return t(
+        'haproxy:backend.errors.serverAddrRequired',
+        'server "{{name}}" needs a host:port address',
+        { name: s.name }
+      );
     }
   }
   for (const [key, value] of Object.entries(draft.timeouts ?? {})) {
     if (value && !DURATION_REGEX.test(value)) {
-      return `timeout.${key} must be like "30s" or "5m"`;
+      return t(
+        'haproxy:backend.errors.timeoutFormat',
+        'timeout.{{key}} must be like "30s" or "5m"',
+        { key }
+      );
     }
   }
   return null;
 };
 
-const ServerRowActions = ({ row, ctx }) => (
-  <Button
-    variant="outline-danger"
-    size="sm"
-    type="button"
-    onClick={() => ctx.onRemove(row._key)}
-    disabled={ctx.totalServers === 1}
-    title={ctx.totalServers === 1 ? 'A backend needs at least one server.' : ''}
-  >
-    ×
-  </Button>
-);
+const ServerRowActions = ({ row, ctx }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <Button
+      variant="outline-danger"
+      size="sm"
+      type="button"
+      onClick={() => ctx.onRemove(row._key)}
+      disabled={ctx.totalServers === 1}
+      title={
+        ctx.totalServers === 1
+          ? t('haproxy:backend.servers.minServerTitle', 'A backend needs at least one server.')
+          : ''
+      }
+    >
+      ×
+    </Button>
+  );
+};
 
 ServerRowActions.propTypes = {
   row: PropTypes.shape({ _key: PropTypes.string.isRequired }).isRequired,
@@ -104,10 +123,10 @@ ServerRowActions.propTypes = {
   }).isRequired,
 };
 
-const buildServerColumns = (updateServer, trustedCas) => [
+const buildServerColumns = (updateServer, trustedCas, t) => [
   {
     key: 'name',
-    label: 'Name',
+    label: t('haproxy:backend.servers.name', 'Name'),
     sortable: true,
     accessor: row => row.name,
     render: row => (
@@ -120,7 +139,7 @@ const buildServerColumns = (updateServer, trustedCas) => [
   },
   {
     key: 'address',
-    label: 'Address',
+    label: t('haproxy:backend.servers.address', 'Address'),
     sortable: true,
     accessor: row => row.address,
     render: row => (
@@ -134,7 +153,7 @@ const buildServerColumns = (updateServer, trustedCas) => [
   },
   {
     key: 'check',
-    label: 'Check',
+    label: t('haproxy:backend.servers.check', 'Check'),
     className: 'text-center',
     render: row => (
       <Form.Check
@@ -146,7 +165,7 @@ const buildServerColumns = (updateServer, trustedCas) => [
   },
   {
     key: 'ssl',
-    label: 'SSL',
+    label: t('haproxy:backend.servers.ssl', 'SSL'),
     className: 'text-center',
     render: row => (
       <Form.Check
@@ -164,7 +183,7 @@ const buildServerColumns = (updateServer, trustedCas) => [
   },
   {
     key: 'sslVerify',
-    label: 'SSL verify',
+    label: t('haproxy:backend.servers.sslVerify', 'SSL verify'),
     render: row =>
       row.ssl ? (
         <Form.Select
@@ -181,14 +200,17 @@ const buildServerColumns = (updateServer, trustedCas) => [
   },
   {
     key: 'sni',
-    label: 'SNI',
+    label: t('haproxy:backend.servers.sni', 'SNI'),
     render: row =>
       row.ssl ? (
         <Form.Control
           size="sm"
           value={row.sni ?? ''}
           placeholder="ssl_fc_sni"
-          title="Optional. `ssl_fc_sni` forwards the inbound SNI verbatim; a literal hostname overrides it."
+          title={t(
+            'haproxy:backend.servers.sniTitle',
+            'Optional. ssl_fc_sni forwards the inbound SNI verbatim; a literal hostname overrides it.'
+          )}
           onChange={e => updateServer(row._key, { ...row, sni: e.target.value || undefined })}
         />
       ) : (
@@ -197,18 +219,21 @@ const buildServerColumns = (updateServer, trustedCas) => [
   },
   {
     key: 'caTrustedCaId',
-    label: 'CA file',
+    label: t('haproxy:backend.servers.caFile', 'CA file'),
     render: row =>
       row.ssl ? (
         <Form.Select
           size="sm"
           value={row.caTrustedCaId ?? ''}
-          title="Trusted CA bundle for upstream TLS verification. Only relevant when SSL verify is required."
+          title={t(
+            'haproxy:backend.servers.caFileTitle',
+            'Trusted CA bundle for upstream TLS verification. Only relevant when SSL verify is required.'
+          )}
           onChange={e =>
             updateServer(row._key, { ...row, caTrustedCaId: e.target.value || undefined })
           }
         >
-          <option value="">(system default)</option>
+          <option value="">({t('haproxy:backend.servers.systemDefault', 'system default')})</option>
           {trustedCas.map(ca => (
             <option key={ca.id} value={ca.id}>
               {ca.name} ({ca.id})
@@ -221,19 +246,19 @@ const buildServerColumns = (updateServer, trustedCas) => [
   },
   {
     key: 'cookie',
-    label: 'Cookie',
+    label: t('haproxy:backend.servers.cookie', 'Cookie'),
     render: row => (
       <Form.Control
         size="sm"
         value={row.cookie ?? ''}
-        placeholder="cookie value"
+        placeholder={t('haproxy:backend.servers.cookiePlaceholder', 'cookie value')}
         onChange={e => updateServer(row._key, { ...row, cookie: e.target.value || undefined })}
       />
     ),
   },
   {
     key: 'backup',
-    label: 'Backup',
+    label: t('haproxy:backend.servers.backup', 'Backup'),
     className: 'text-center',
     render: row => (
       <Form.Check
@@ -246,6 +271,7 @@ const buildServerColumns = (updateServer, trustedCas) => [
 ];
 
 export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave, onCancel }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [draft, setDraft] = useState(() => (backend ? withServerKeys(backend) : emptyBackend()));
   const [error, setError] = useState(null);
 
@@ -263,7 +289,7 @@ export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave
   const reorderServers = nextRows => setDraft(prev => ({ ...prev, servers: nextRows }));
 
   const handleSave = () => {
-    const message = validateBackend(draft);
+    const message = validateBackend(draft, t);
     if (message) {
       setError(message);
       return;
@@ -276,19 +302,23 @@ export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave
 
   const isExisting = Boolean(backend?.id);
   const timeouts = draft.timeouts ?? {};
-  const serverColumns = buildServerColumns(updateServer, trustedCas);
+  const serverColumns = buildServerColumns(updateServer, trustedCas, t);
 
   return (
     <Modal show={show} onHide={onCancel} size="xl">
       <Modal.Header closeButton>
-        <Modal.Title>{isExisting ? `Edit backend: ${backend.name}` : 'New backend'}</Modal.Title>
+        <Modal.Title>
+          {isExisting
+            ? t('haproxy:backend.edit.editTitle', 'Edit backend: {{name}}', { name: backend.name })
+            : t('haproxy:backend.edit.newTitle', 'New backend')}
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {error ? <Alert variant="danger">{error}</Alert> : null}
         <Row className="g-3">
           <Col md={4}>
             <Form.Group>
-              <Form.Label>ID</Form.Label>
+              <Form.Label>{t('haproxy:backend.edit.id', 'ID')}</Form.Label>
               <Form.Control
                 type="text"
                 value={draft.id}
@@ -299,7 +329,7 @@ export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave
           </Col>
           <Col md={4}>
             <Form.Group>
-              <Form.Label>Name (HAProxy directive)</Form.Label>
+              <Form.Label>{t('haproxy:backend.edit.name', 'Name (HAProxy directive)')}</Form.Label>
               <Form.Control
                 type="text"
                 value={draft.name}
@@ -309,7 +339,7 @@ export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave
           </Col>
           <Col md={2}>
             <Form.Group>
-              <Form.Label>Mode</Form.Label>
+              <Form.Label>{t('haproxy:backend.edit.mode', 'Mode')}</Form.Label>
               <Form.Select value={draft.mode} onChange={e => update({ mode: e.target.value })}>
                 <option value="http">http</option>
                 <option value="tcp">tcp</option>
@@ -318,7 +348,7 @@ export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave
           </Col>
           <Col md={2}>
             <Form.Group>
-              <Form.Label>Balance</Form.Label>
+              <Form.Label>{t('haproxy:backend.edit.balance', 'Balance')}</Form.Label>
               <Form.Select
                 value={draft.balance}
                 onChange={e => update({ balance: e.target.value })}
@@ -336,31 +366,36 @@ export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave
             </Form.Group>
           </Col>
           <Col xs={12}>
-            <h6 className="mb-1">Servers</h6>
+            <h6 className="mb-1">{t('haproxy:backend.servers.title', 'Servers')}</h6>
             <p className="text-muted small mb-2">
-              <strong>Order matters</strong> when <code>balance</code> is <code>static-rr</code> or{' '}
-              <code>first</code>, and for the failover sequence among <code>backup</code> servers.
-              Drag rows, use the arrows, or click a position badge to jump to a specific slot.
-              Sorting by a column hides the drag handles — click the position header to clear the
-              sort.
+              {t(
+                'haproxy:backend.servers.help',
+                'Order matters when balance is static-rr or first, and for the failover sequence among backup servers. Drag rows, use the arrows, or click a position badge to jump to a specific slot. Sorting by a column hides the drag handles — click the position header to clear the sort.'
+              )}
             </p>
             <ReorderableTable
               rows={draft.servers}
               rowKey={row => row._key}
               columns={serverColumns}
               searchFields={['name', 'address']}
-              filterPlaceholder="Filter servers by name or address…"
-              positionLabel="Order"
+              filterPlaceholder={t(
+                'haproxy:backend.servers.filter',
+                'Filter servers by name or address…'
+              )}
+              positionLabel={t('haproxy:common.order', 'Order')}
               reorderable
               onReorder={reorderServers}
               RowActions={ServerRowActions}
               rowActionsContext={{ onRemove: removeServer, totalServers: draft.servers.length }}
-              emptyState="No servers yet."
-              emptyFilteredState="No servers match the current filter."
+              emptyState={t('haproxy:backend.servers.empty', 'No servers yet.')}
+              emptyFilteredState={t(
+                'haproxy:backend.servers.emptyFiltered',
+                'No servers match the current filter.'
+              )}
             />
             <div className="mt-2">
               <Button variant="outline-primary" size="sm" type="button" onClick={addServer}>
-                Add server
+                {t('haproxy:backend.servers.add', 'Add server')}
               </Button>
             </div>
           </Col>
@@ -393,7 +428,7 @@ export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave
                 value={draft.httpReuse ?? ''}
                 onChange={e => update({ httpReuse: e.target.value || undefined })}
               >
-                <option value="">(default)</option>
+                <option value="">({t('haproxy:common.default', 'default')})</option>
                 <option value="never">never</option>
                 <option value="safe">safe</option>
                 <option value="aggressive">aggressive</option>
@@ -428,7 +463,7 @@ export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave
           </Col>
           <Col xs={12}>
             <Form.Group>
-              <Form.Label>options (one per line)</Form.Label>
+              <Form.Label>{t('haproxy:backend.edit.options', 'options (one per line)')}</Form.Label>
               <ListEditor
                 items={draft.options}
                 onChange={list => update({ options: list })}
@@ -438,11 +473,16 @@ export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave
           </Col>
           <Col xs={12}>
             <Form.Group>
-              <Form.Label>Advanced HAProxy directives</Form.Label>
+              <Form.Label>
+                {t('haproxy:backend.edit.advanced', 'Advanced HAProxy directives')}
+              </Form.Label>
               <ListEditor
                 items={draft.advancedDirectives}
                 onChange={list => update({ advancedDirectives: list })}
-                placeholder="raw HAProxy line to inject"
+                placeholder={t(
+                  'haproxy:backend.edit.advancedPlaceholder',
+                  'raw HAProxy line to inject'
+                )}
               />
             </Form.Group>
           </Col>
@@ -450,10 +490,12 @@ export const BackendEditModal = ({ show, backend = null, trustedCas = [], onSave
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <Button variant="primary" onClick={handleSave}>
-          {isExisting ? 'Update backend' : 'Add backend'}
+          {isExisting
+            ? t('haproxy:backend.edit.update', 'Update backend')
+            : t('haproxy:backend.edit.add', 'Add backend')}
         </Button>
       </Modal.Footer>
     </Modal>

@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 
 import { z } from 'zod';
 
+import { ConfigError } from './errors.js';
 import { ensureDir, fileExists, writeAtomic } from './files.js';
 import { log } from './logger.js';
 
@@ -65,7 +66,7 @@ const dirOf = path => path.slice(0, path.lastIndexOf('/'));
 
 export const loadPeersStore = async path => {
   if (!path) {
-    throw new Error('paths.peersStore is not configured');
+    throw new ConfigError('cluster.peersStore.pathMissing');
   }
   if (!(await fileExists(path))) {
     return emptyStore();
@@ -94,7 +95,7 @@ export const loadPeersStore = async path => {
 
 export const savePeersStore = async (path, candidate) => {
   if (!path) {
-    throw new Error('paths.peersStore is not configured');
+    throw new ConfigError('cluster.peersStore.pathMissing');
   }
   const parsed = PeersStoreSchema.parse(candidate);
   const body = `${JSON.stringify(parsed, null, 2)}\n`;

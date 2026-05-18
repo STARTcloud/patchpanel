@@ -1,5 +1,6 @@
 import { Chart } from '@highcharts/react';
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 
 import { createChartOptions } from './chartDefaults.js';
 import './Highcharts.jsx';
@@ -29,7 +30,12 @@ const pickScale = history => {
   return SCALE_UNITS[SCALE_UNITS.length - 1];
 };
 
-export const TrafficChart = ({ title, history, theme = 'light', height = '100%' }) => {
+// `height` defaults to undefined → Highcharts uses the renderTo container's
+// offsetHeight, which is what we want everywhere the chart lives in a flex
+// chain with a definite height. Callers needing a fixed pixel size (e.g.
+// the fullscreen ExpandedChartModal in StatsPage) pass an explicit number.
+export const TrafficChart = ({ title, history, theme = 'light', height }) => {
+  const { t } = useTranslation(['stats']);
   const scale = pickScale(history);
   const options = createChartOptions({
     title,
@@ -40,12 +46,12 @@ export const TrafficChart = ({ title, history, theme = 'light', height = '100%' 
     tooltipValueDecimals: 2,
     series: [
       {
-        name: 'in',
+        name: t('stats:traffic.in', 'in'),
         data: history.map(p => [p.ts, p.binRate / scale.divisor]),
         color: '#64b5f6',
       },
       {
-        name: 'out',
+        name: t('stats:traffic.out', 'out'),
         data: history.map(p => [p.ts, p.boutRate / scale.divisor]),
         color: '#ff9800',
       },
@@ -65,5 +71,5 @@ TrafficChart.propTypes = {
     })
   ).isRequired,
   theme: PropTypes.oneOf(['light', 'dark']),
-  height: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  height: PropTypes.number,
 };

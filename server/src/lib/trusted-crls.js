@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 
+import { ValidationError } from './errors.js';
 import { ensureDir, fileExists, removeIfExists, safePathUnder, writeAtomic } from './files.js';
 import { findCrlPemBlocks } from './pem.js';
 
@@ -20,9 +21,10 @@ import { findCrlPemBlocks } from './pem.js';
 
 const TRUSTED_CRL_ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
 
+// Returns null when id valid, otherwise `{ code, replacements }`.
 export const validateTrustedCrlId = id => {
   if (typeof id !== 'string' || !TRUSTED_CRL_ID_REGEX.test(id)) {
-    return 'id must match a-z, 0-9, _, - (1-63 chars, letter-start)';
+    return { code: 'cert.trustedCrl.idInvalid', replacements: {} };
   }
   return null;
 };
@@ -55,22 +57,24 @@ const fingerprintFromBody = b64Body => {
   return hash.match(/.{2}/gu).join(':');
 };
 
+// `errors[]` carries `{ code, replacements }` objects.
 export const validateTrustedCrlPem = ({ pem }) => {
   if (typeof pem !== 'string' || pem.trim().length === 0) {
-    return { ok: false, errors: ['pem is required'] };
+    return { ok: false, errors: [{ code: 'cert.trustedCrl.pemRequired', replacements: {} }] };
   }
   const blocks = findCrlPemBlocks(pem);
   if (blocks.length === 0) {
     return {
       ok: false,
-      errors: [
-        'no X509 CRL block found — expected -----BEGIN X509 CRL----- … -----END X509 CRL-----',
-      ],
+      errors: [{ code: 'cert.trustedCrl.noCrlBlock', replacements: {} }],
     };
   }
   const fingerprint = fingerprintFromBody(blocks[0].body);
   if (!fingerprint) {
-    return { ok: false, errors: ['CRL body is not valid base64'] };
+    return {
+      ok: false,
+      errors: [{ code: 'cert.trustedCrl.bodyNotBase64', replacements: {} }],
+    };
   }
   return {
     ok: true,
@@ -83,7 +87,7 @@ export const validateTrustedCrlPem = ({ pem }) => {
 const sanitizeTrustedCrlPath = (trustedCrlsDir, id) => {
   const idError = validateTrustedCrlId(id);
   if (idError) {
-    throw new Error(idError);
+    throw new ValidationError(idError.code, { replacements: idError.replacements });
   }
   return safePathUnder(trustedCrlsDir, `${id}.pem`);
 };

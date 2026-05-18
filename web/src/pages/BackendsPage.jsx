@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button, Card, Form, InputGroup, Table } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 
 import { BackendEditModal } from '../components/BackendEditModal.jsx';
@@ -9,6 +10,7 @@ import { useTableControls } from '../hooks/useTableControls.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 
 export const BackendsPage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [editing, setEditing] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -105,14 +107,17 @@ export const BackendsPage = ({ doc = null, onSave = null }) => {
     <Card>
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-          <Card.Title className="mb-0">Backends</Card.Title>
+          <Card.Title className="mb-0">{t('haproxy:backend.page.title', 'Backends')}</Card.Title>
           <div className="d-flex gap-2 align-items-center">
             <InputGroup size="sm" style={{ width: '20rem' }}>
               <InputGroup.Text>
                 <i className="bi bi-search" />
               </InputGroup.Text>
               <Form.Control
-                placeholder="Filter by name, id, mode, server…"
+                placeholder={t(
+                  'haproxy:backend.filterPlaceholder',
+                  'Filter by name, id, mode, server…'
+                )}
                 value={controls.search}
                 onChange={e => controls.setSearch(e.target.value)}
               />
@@ -128,38 +133,45 @@ export const BackendsPage = ({ doc = null, onSave = null }) => {
               onClick={() => setShowNew(true)}
               disabled={saving || !onSave}
             >
-              Add backend
+              {t('haproxy:backend.add', 'Add backend')}
             </Button>
           </div>
         </div>
         <Card.Text className="text-muted">
-          {controls.view.length} of {doc.backends.length} backend
-          {doc.backends.length === 1 ? '' : 's'} shown. {saving ? 'Saving…' : null}
-          {saveError ? <span className="text-danger">Save failed: {saveError.message}</span> : null}
+          {t('haproxy:backend.summary', '{{shown}} of {{total}} backends shown.', {
+            shown: controls.view.length,
+            total: doc.backends.length,
+          })}{' '}
+          {saving ? t('common:status.saving', 'Saving…') : null}
+          {saveError ? (
+            <span className="text-danger">
+              {t('haproxy:common.saveFailed', 'Save failed')}: {saveError.message}
+            </span>
+          ) : null}
         </Card.Text>
         <Table striped bordered hover responsive size="sm">
           <thead>
             <tr>
               <SortableHeader
-                label="Name"
+                label={t('haproxy:backend.columns.name', 'Name')}
                 field="name"
                 sort={controls.sort}
                 onToggle={controls.toggleSort}
               />
               <SortableHeader
-                label="Mode"
+                label={t('haproxy:backend.columns.mode', 'Mode')}
                 field="mode"
                 sort={controls.sort}
                 onToggle={controls.toggleSort}
               />
               <SortableHeader
-                label="Balance"
+                label={t('haproxy:backend.columns.balance', 'Balance')}
                 field="balance"
                 sort={controls.sort}
                 onToggle={controls.toggleSort}
               />
-              <th>Servers</th>
-              <th className="text-end">Actions</th>
+              <th>{t('haproxy:backend.columns.servers', 'Servers')}</th>
+              <th className="text-end">{t('haproxy:common.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -197,7 +209,7 @@ export const BackendsPage = ({ doc = null, onSave = null }) => {
                       onClick={() => setEditing(backend)}
                       disabled={saving || !onSave}
                     >
-                      Edit
+                      {t('common:buttons.edit', 'Edit')}
                     </Button>
                     <Button
                       variant="outline-info"
@@ -205,9 +217,12 @@ export const BackendsPage = ({ doc = null, onSave = null }) => {
                       className="me-1"
                       onClick={() => handleClone(backend)}
                       disabled={saving || !onSave}
-                      title="Duplicate this backend with a fresh id/name. Useful when several vhosts share the same upstream pool but you want per-vhost stats rows."
+                      title={t(
+                        'haproxy:backend.actions.cloneTitle',
+                        'Duplicate this backend with a fresh id/name. Useful when several vhosts share the same upstream pool but you want per-vhost stats rows.'
+                      )}
                     >
-                      Clone
+                      {t('haproxy:backend.actions.clone', 'Clone')}
                     </Button>
                     <Button
                       variant="outline-danger"
@@ -216,11 +231,14 @@ export const BackendsPage = ({ doc = null, onSave = null }) => {
                       disabled={saving || !onSave || isInUse(backend.id)}
                       title={
                         isInUse(backend.id)
-                          ? 'In use by at least one rule, default_backend, or SNI mapping; remove the reference first.'
+                          ? t(
+                              'haproxy:backend.actions.inUseTitle',
+                              'In use by at least one rule, default_backend, or SNI mapping; remove the reference first.'
+                            )
                           : ''
                       }
                     >
-                      Delete
+                      {t('common:buttons.delete', 'Delete')}
                     </Button>
                   </td>
                 </tr>
@@ -229,7 +247,7 @@ export const BackendsPage = ({ doc = null, onSave = null }) => {
             {controls.view.length === 0 ? (
               <tr>
                 <td colSpan={5} className="text-center text-muted small py-3">
-                  No backends match the current filter.
+                  {t('haproxy:backend.emptyFiltered', 'No backends match the current filter.')}
                 </td>
               </tr>
             ) : null}
@@ -256,14 +274,15 @@ export const BackendsPage = ({ doc = null, onSave = null }) => {
       {deleting ? (
         <ConfirmDialog
           show
-          title="Delete backend?"
+          title={t('haproxy:backend.deleteConfirm.title', 'Delete backend?')}
           body={
             <>
-              Delete backend <strong>{deleting.name}</strong> ({deleting.id})? This change applies
-              immediately on save.
+              {t('haproxy:backend.deleteConfirm.body', 'Delete backend')}{' '}
+              <strong>{deleting.name}</strong> ({deleting.id})?{' '}
+              {t('haproxy:backend.deleteConfirm.note', 'This change applies immediately on save.')}
             </>
           }
-          confirmLabel="Delete"
+          confirmLabel={t('common:buttons.delete', 'Delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />

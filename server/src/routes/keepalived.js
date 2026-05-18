@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import * as audit from '../lib/audit.js';
+import { errorResponse } from '../lib/api-response.js';
 import { fileExists, readText } from '../lib/files.js';
 import * as keepalivedControl from '../lib/keepalived-control.js';
 import { loadNodeConfig } from '../lib/node-config.js';
@@ -49,7 +50,7 @@ export const keepalivedRouter = config => {
       if (source === 'state') {
         const state = await loadState(config.paths.state);
         if (!state) {
-          res.status(409).json({ error: 'state not initialized' });
+          res.status(409).json(errorResponse(req, 'cluster.state.notInitialized'));
           return;
         }
         const nodeConfig = await loadNodeConfig(config.paths.nodeConfig);
@@ -61,9 +62,11 @@ export const keepalivedRouter = config => {
         return;
       }
       if (!(await fileExists(config.paths.keepalivedConfig))) {
-        res
-          .status(404)
-          .json({ error: `keepalived.conf not found at ${config.paths.keepalivedConfig}` });
+        res.status(404).json(
+          errorResponse(req, 'cluster.keepalived.configNotFound', {
+            path: config.paths.keepalivedConfig,
+          })
+        );
         return;
       }
       const text = await readText(config.paths.keepalivedConfig);
@@ -174,10 +177,7 @@ export const keepalivedRouter = config => {
   router.post('/keepalived/stop', async (req, res, next) => {
     const actor = req.user?.id ?? null;
     if (req.body?.confirm !== true) {
-      res.status(400).json({
-        error:
-          'stop requires { "confirm": true } in body — VIPs held by this node will fail over to a peer (if one exists)',
-      });
+      res.status(400).json(errorResponse(req, 'cluster.keepalived.stopConfirmRequired'));
       return;
     }
     log.api.info('POST /keepalived/stop', { ip: req.ip, actor });
@@ -265,6 +265,7 @@ export const keepalivedRouter = config => {
    *             schema:
    *               type: object
    *               properties:
+   *                 installed: { type: boolean, description: 'Whether the keepalived binary exists at paths.keepalivedBin' }
    *                 alive: { type: boolean }
    *                 strategy: { type: string, enum: [s6, systemctl, direct] }
    *                 instances:
@@ -281,10 +282,13 @@ export const keepalivedRouter = config => {
   router.get('/keepalived/state', async (req, res, next) => {
     log.api.debug('GET /keepalived/state', { ip: req.ip });
     try {
-      const strategy = await keepalivedControl.getStrategy();
-      const alive = await keepalivedControl.isAlive({
-        pidPath: config.paths.keepalivedPidFile,
+      const installed = await keepalivedControl.isInstalled({
+        keepalivedBin: config.paths.keepalivedBin,
       });
+      const strategy = await keepalivedControl.getStrategy();
+      const alive = installed
+        ? await keepalivedControl.isAlive({ pidPath: config.paths.keepalivedPidFile })
+        : false;
       const state = await loadState(config.paths.state);
       const instances = (state?.keepalived?.instances ?? []).map(inst => ({
         id: inst.id,
@@ -293,7 +297,7 @@ export const keepalivedRouter = config => {
         state: null,
         holding: null,
       }));
-      res.set('cache-control', 'no-store').json({ alive, strategy, instances });
+      res.set('cache-control', 'no-store').json({ installed, alive, strategy, instances });
     } catch (err) {
       next(err);
     }

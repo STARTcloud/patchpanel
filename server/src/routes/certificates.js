@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { errorResponse } from '../lib/api-response.js';
 import { discoverByoLineages, discoverLineages, pickNewestValid } from '../lib/cert-lineage.js';
 import { renewAllCerts } from '../lib/cert-renewal.js';
 import { log } from '../lib/logger.js';
@@ -130,14 +131,14 @@ export const certificatesRouter = config => {
    *                     error: { type: string, nullable: true }
    *       409: { description: 'State not initialized', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
    */
-  router.post('/certificates/renew', async (req, res) => {
+  router.post('/certificates/renew', async (req, res, next) => {
     log.api.info('POST /certificates/renew', {
       ip: req.ip,
       actor: req.user?.id ?? null,
     });
     const state = await loadState(config.paths.state);
     if (!state) {
-      res.status(409).json({ error: 'state not initialized' });
+      res.status(409).json(errorResponse(req, 'cert.state.notInitialized'));
       return;
     }
     if (state.tls.certs.length === 0) {
@@ -145,11 +146,19 @@ export const certificatesRouter = config => {
       return;
     }
     const force = Boolean(req.body?.force);
-    const result = await renewAllCerts(config, state, {
-      actor: req.user?.id ?? null,
-      force,
-    });
-    res.json(result);
+    try {
+      const result = await renewAllCerts(config, state, {
+        actor: req.user?.id ?? null,
+        force,
+      });
+      res.json(result);
+    } catch (err) {
+      if (err?.code === 'cert.renewal.notLeader') {
+        res.status(409).json(errorResponse(req, err.code, err.replacements));
+        return;
+      }
+      next(err);
+    }
   });
 
   /**
@@ -181,7 +190,7 @@ export const certificatesRouter = config => {
    *       404: { description: 'Cert id not found in state', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
    *       409: { description: 'State not initialized', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
    */
-  router.post('/certificates/:id/renew', async (req, res) => {
+  router.post('/certificates/:id/renew', async (req, res, next) => {
     const certId = req.params.id;
     log.api.info('POST /certificates/:id/renew', {
       ip: req.ip,
@@ -190,20 +199,28 @@ export const certificatesRouter = config => {
     });
     const state = await loadState(config.paths.state);
     if (!state) {
-      res.status(409).json({ error: 'state not initialized' });
+      res.status(409).json(errorResponse(req, 'cert.state.notInitialized'));
       return;
     }
     if (!state.tls.certs.some(c => c.id === certId)) {
-      res.status(404).json({ error: `cert not found: ${certId}` });
+      res.status(404).json(errorResponse(req, 'cert.notFound', { certId }));
       return;
     }
     const force = Boolean(req.body?.force);
-    const result = await renewAllCerts(config, state, {
-      actor: req.user?.id ?? null,
-      force,
-      certId,
-    });
-    res.json(result);
+    try {
+      const result = await renewAllCerts(config, state, {
+        actor: req.user?.id ?? null,
+        force,
+        certId,
+      });
+      res.json(result);
+    } catch (err) {
+      if (err?.code === 'cert.renewal.notLeader') {
+        res.status(409).json(errorResponse(req, err.code, err.replacements));
+        return;
+      }
+      next(err);
+    }
   });
 
   return router;

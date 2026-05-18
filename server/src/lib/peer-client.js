@@ -83,8 +83,35 @@ export const pushState = ({ baseUrl, token, bundle, timeoutMs }) =>
 export const getStateChecksum = ({ baseUrl, token, timeoutMs }) =>
   callJson({ method: 'GET', baseUrl, path: '/api/peer/state-checksum', token, timeoutMs });
 
+export const getPeerState = ({ baseUrl, token, timeoutMs }) =>
+  callJson({
+    method: 'GET',
+    baseUrl,
+    path: '/api/peer/state-pull',
+    token,
+    timeoutMs: timeoutMs ?? 30_000,
+  });
+
 export const getClock = ({ baseUrl, token, timeoutMs }) =>
   callJson({ method: 'GET', baseUrl, path: '/api/peer/clock', token, timeoutMs });
+
+export const getCertManifest = ({ baseUrl, token, timeoutMs }) =>
+  callJson({
+    method: 'GET',
+    baseUrl,
+    path: '/api/peer/cert-manifest',
+    token,
+    timeoutMs: timeoutMs ?? 10_000,
+  });
+
+export const getPeerSnapshot = ({ baseUrl, token, timeoutMs }) =>
+  callJson({
+    method: 'GET',
+    baseUrl,
+    path: '/api/peer/snapshot',
+    token,
+    timeoutMs: timeoutMs ?? 5_000,
+  });
 
 export const pushBlob = ({ baseUrl, token, kind, id, payload, timeoutMs }) =>
   callJson({

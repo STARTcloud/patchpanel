@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import * as audit from '../lib/audit.js';
+import { errorResponse } from '../lib/api-response.js';
 import * as keepalivedControl from '../lib/keepalived-control.js';
 import { loadNodeConfig, NodeConfigSchema, saveNodeConfig } from '../lib/node-config.js';
 import { log } from '../lib/logger.js';
@@ -35,6 +36,7 @@ export const nodeConfigRouter = config => {
    *               type: object
    *               properties:
    *                 nodeId: { type: string }
+   *                 renewalLeader: { type: boolean, description: 'When false, this node skips certbot renewals; the leader pushes renewed certs via peer-sync.' }
    *                 vrrp: { type: object, additionalProperties: { type: object } }
    */
   router.get('/node-config', async (req, res, next) => {
@@ -89,7 +91,11 @@ export const nodeConfigRouter = config => {
     log.api.info('PUT /node-config', { ip: req.ip, actor });
     const parsed = NodeConfigSchema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ ok: false, errors: parsed.error.issues });
+      res.status(400).json({
+        ok: false,
+        errors: parsed.error.issues,
+        ...errorResponse(req, 'cluster.node.config.invalid'),
+      });
       return;
     }
     try {

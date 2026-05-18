@@ -1,0 +1,43 @@
+{
+  "plugins": {
+    "title": "Lua plugins",
+    "description": "Global <0>lua-load</0> + optional <1>lua-prepend-path</1> entries. Each plugin renders as <2>lua-prepend-path PREPEND/?/http.lua</2> (when set) followed by <3>lua-load PATH</3>. Plugins registered via this list expose their <4>core.register_action</4> functions as <5>lua.&lt;name&gt;</5> usable from a Rule's <6>lua</6> action.",
+    "empty": "No Lua plugins configured.",
+    "col": {
+      "name": "Name",
+      "path": "Path",
+      "prepend": "Prepend path (optional)"
+    },
+    "addPlugin": "Add Lua plugin",
+    "uploadFile": "Upload .lua file",
+    "savePlugins": "Save Lua plugins",
+    "uploaded": "Uploaded {{name}}. Click Save to apply.",
+    "saved": "Saved."
+  },
+  "upload": {
+    "title": "Upload Lua plugin",
+    "intro": "Pick an upload-target directory, name the plugin, pick a <0>.lua</0> file or paste source. The plugin lands at <1>&lt;dir&gt;/&lt;name&gt;.lua</1>; a new row is added to the Lua plugins table with that path pre-filled so you only need to hit <2>Save Lua plugins</2> to wire it in.",
+    "dirsLoadFailed": "failed to load upload-target list",
+    "dirsLoadError": "Could not load upload-target list: {{message}}",
+    "readFailed": "Could not read selected file. Paste source manually.",
+    "failed": "upload failed",
+    "requestFailed": "upload request failed",
+    "dirLabel": "Upload-target directory",
+    "noDirs": "(no dirs configured)",
+    "dirHint": "Configured via <0>paths.luaPluginsDirs</0> in <1>config.yaml</1>.",
+    "nameLabel": "Plugin name",
+    "nameHint": "Lowercase letters, digits, <0>_</0>, <1>-</1>. 1–63 chars, must start with a letter. Used as the filename (<2>&lt;name&gt;.lua</2>).",
+    "sourceLabel": "Lua source",
+    "sourcePlaceholder": "-- paste Lua source here, or pick a .lua file above",
+    "bytesUsed": "{{used}} / {{limit}} bytes",
+    "sizeExceeded": "source exceeds the size limit",
+    "uploading": "Uploading…"
+  },
+  "plugin": {
+    "dirNotWhitelisted": "dir is not in the configured whitelist",
+    "idInvalid": "name must match a-z, 0-9, _, - (1-63 chars, letter-start)",
+    "sourceRequired": "source is required",
+    "sourceTooLarge": "source exceeds {{maxBytes}} bytes",
+    "notFound": "Lua plugin not found"
+  }
+}

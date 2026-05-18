@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Button, Card } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { ConfirmDialog } from './ConfirmDialog.jsx';
 import { EntityFormBuilder } from './EntityFormBuilder.jsx';
@@ -22,27 +23,30 @@ import { ReorderableTable } from './ReorderableTable.jsx';
 // be reused on the Certificates / Error pages / Frontends tabs — entities
 // now live next to the surface they modify, not stacked under "Advanced".
 
-const EntityRowActions = ({ row, ctx }) => (
-  <>
-    <Button
-      variant="outline-secondary"
-      size="sm"
-      className="me-1"
-      onClick={() => ctx.setEditing(row)}
-      disabled={ctx.saving || !ctx.onSave}
-    >
-      Edit
-    </Button>
-    <Button
-      variant="outline-danger"
-      size="sm"
-      onClick={() => ctx.setDeleting(row)}
-      disabled={ctx.saving || !ctx.onSave}
-    >
-      Delete
-    </Button>
-  </>
-);
+const EntityRowActions = ({ row, ctx }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      <Button
+        variant="outline-secondary"
+        size="sm"
+        className="me-1"
+        onClick={() => ctx.setEditing(row)}
+        disabled={ctx.saving || !ctx.onSave}
+      >
+        {t('common:buttons.edit', 'Edit')}
+      </Button>
+      <Button
+        variant="outline-danger"
+        size="sm"
+        onClick={() => ctx.setDeleting(row)}
+        disabled={ctx.saving || !ctx.onSave}
+      >
+        {t('common:buttons.delete', 'Delete')}
+      </Button>
+    </>
+  );
+};
 
 EntityRowActions.propTypes = {
   row: PropTypes.object.isRequired,
@@ -98,6 +102,7 @@ const setEntities = (doc, path, entities) => {
 };
 
 export const EntitySectionCard = ({ doc, onSave, section }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [editing, setEditing] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -148,26 +153,36 @@ export const EntitySectionCard = ({ doc, onSave, section }) => {
             onClick={() => setShowNew(true)}
             disabled={saving || !onSave}
           >
-            Add {section.label}
+            {t('haproxy:entitySection.addLabel', 'Add {{label}}', { label: section.label })}
           </Button>
         </div>
         {saveError ? (
           <Alert variant="danger" onClose={() => setSaveError(null)} dismissible>
-            Save failed: {saveError.message}
+            {t('haproxy:common.saveFailed', 'Save failed')}: {saveError.message}
           </Alert>
         ) : null}
         {entities.length === 0 ? (
-          <p className="text-muted small mb-0">No {section.title.toLowerCase()} configured.</p>
+          <p className="text-muted small mb-0">
+            {t('haproxy:entitySection.noneConfigured', 'No {{title}} configured.', {
+              title: section.title.toLowerCase(),
+            })}
+          </p>
         ) : (
           <ReorderableTable
             rows={entities}
             rowKey={row => row.id}
             columns={section.columns}
             searchFields={section.searchFields}
-            filterPlaceholder={`Filter ${section.title.toLowerCase()}…`}
+            filterPlaceholder={t('haproxy:entitySection.filter', 'Filter {{title}}…', {
+              title: section.title.toLowerCase(),
+            })}
             RowActions={EntityRowActions}
             rowActionsContext={{ saving, onSave, setEditing, setDeleting }}
-            emptyFilteredState={`No ${section.title.toLowerCase()} match the current filter.`}
+            emptyFilteredState={t(
+              'haproxy:entitySection.emptyFiltered',
+              'No {{title}} match the current filter.',
+              { title: section.title.toLowerCase() }
+            )}
           />
         )}
       </Card.Body>
@@ -185,13 +200,16 @@ export const EntitySectionCard = ({ doc, onSave, section }) => {
       {deleting ? (
         <ConfirmDialog
           show
-          title={`Delete ${section.label.toLowerCase()}?`}
+          title={t('haproxy:entitySection.deleteTitle', 'Delete {{label}}?', {
+            label: section.label.toLowerCase(),
+          })}
           body={
             <>
-              Delete <code>{deleting.id}</code>? This change applies immediately on save.
+              {t('haproxy:entitySection.deleteBody', 'Delete')} <code>{deleting.id}</code>?{' '}
+              {t('haproxy:entitySection.deleteNote', 'This change applies immediately on save.')}
             </>
           }
-          confirmLabel="Delete"
+          confirmLabel={t('common:buttons.delete', 'Delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />

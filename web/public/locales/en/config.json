@@ -1,0 +1,119 @@
+{
+  "page": {
+    "title": "Settings",
+    "subtitle": "Operator configuration (/etc/patchpanel/config.yaml). Saves persist immediately but most fields require a process restart to take effect.",
+    "restarting": "Restarting…",
+    "restart": "Restart now",
+    "loadFailed": "failed to load config",
+    "saved": "Saved to disk. Click Restart now to apply, or restart manually later."
+  },
+  "restart": {
+    "title": "Restart patchpanel?",
+    "body": "This exits the process. systemd (or the HA addon supervisor) restarts it within seconds.",
+    "note": "The browser tab will auto-reload after a few seconds.",
+    "confirm": "Restart"
+  },
+  "errorPages": {
+    "title": "Error pages",
+    "intro": "Each per-status override below can be edited in one of two modes:<0/><1>Raw (.http, errorfile)</1> — full HTTP response served byte-for-byte, no token expansion.<2/><3>Log-format (lf-file)</3> — HAProxy expands <4>%[unique-id]</4>, <5>%[var(…)]</5>, <6>%[hdr(…)]</6> etc. at serve time; required if you want per-request data like the unique ID to appear in the page. Rendered as <7>http-error status N content-type \"text/html; charset=utf-8\" lf-file …</7>.<8/>The <9>Error pages sections</9> at the bottom define named <10>http-errors NAME</10> bundles that frontends and defaults blocks can reference via <11>useErrorFilesId</11>.",
+    "saveUnavailable": "State save unavailable.",
+    "editMode": {
+      "raw": "Raw .http (errorfile)",
+      "lf": "Log-format (lf-file)"
+    },
+    "previewMode": {
+      "override": "Override",
+      "bundled": "Bundled",
+      "both": "Side-by-side"
+    },
+    "viewport": {
+      "desktop": "Desktop",
+      "tablet": "Tablet",
+      "mobile": "Mobile"
+    },
+    "theme": {
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "previewVars": {
+      "summary": "Preview variables ({{count}}) — replaces <0>%[token]</0> in the preview only",
+      "token": "Token",
+      "mockValue": "Mock value",
+      "removeTitle": "Remove this token",
+      "addVariable": "Add variable",
+      "examples": "Examples: <0>unique-id</0>, <1>hdr(host)</1>, <2>var(txn.request_id)</2>, <3>ssl_fc_protocol</3>. HAProxy itself does not expand these in static errorfile bodies — for real expansion you need <4>http-response set-header</4> / <5>http-after-response</5> directives or Lua. This panel mocks them so you can iterate on the look of your template."
+    },
+    "preview": {
+      "overrideTitle": "override preview",
+      "bundledTitle": "bundled preview",
+      "override": "Override",
+      "bundled": "Bundled",
+      "title": "preview",
+      "noContentType": "(no content-type)",
+      "rawBody": "raw body",
+      "noHttpHeaders": "no HTTP headers",
+      "bytes": "{{count}} bytes",
+      "empty": "(empty)"
+    },
+    "modeHelp": {
+      "raw": "Served byte-for-byte via <0>errorfile</0>. HAProxy does NOT expand <1>%[token]</1> tokens here — what you type is what hits the wire. Written to <2>{{outPath}}</2>.",
+      "lf": "Served via <0>http-error … lf-file</0>. HAProxy <1>does</1> expand log-format tokens like <2>%[unique-id]</2>, <3>%[var(txn.x)]</3>, <4>%[hdr(host)]</4>, <5>%[src]</5> at request time. Written to <6>{{outPath}}</6>; the matching <7>http-error status {{codePh}}</7> directive is auto-injected on save."
+    },
+    "modal": {
+      "overrideIn": "override in defaults block",
+      "lfBody": "Log-format body",
+      "rawBody": "Raw response body",
+      "loadBundledTitle": "Load the bundled .http template into the editor as a starting point",
+      "loadBundled": "Load bundled",
+      "lfPlaceholder": "<!doctype html>\n<html>...\n<p>Unique ID: %[unique-id]</p>\n...",
+      "rawPlaceholder": "HTTP/1.0 503 Service Unavailable\nCache-Control: no-cache\nContent-Type: text/html\n\n<html>...",
+      "clearToRemove": "Clear to remove.",
+      "livePreview": "Live preview",
+      "viewport": "Viewport",
+      "theme": "Theme",
+      "lfNote": "Token expansion is <0>real</0> in this mode — the values below model what HAProxy will substitute at serve time.",
+      "rawNote": "Tokens are mocked for the preview only. In raw mode HAProxy serves the file byte-for-byte; tokens would render as literal text in production.",
+      "clearLf": "Clear (lf-file)",
+      "clearRaw": "Clear (raw)"
+    },
+    "perStatus": {
+      "title": "Per-status template overrides",
+      "description": "The 19 canonical HTTP status codes. Each row shows the current path emitted into <0>haproxy.cfg</0> for this defaults block, whether a custom body override is set, and an Edit button that opens the bundled template plus an editor for the override body.",
+      "bundledUnavailable": "Bundled templates unavailable: {{message}}",
+      "saveFailed": "Save failed: {{message}}",
+      "loadingBundled": "Loading bundled templates…",
+      "noBlocks": "No defaults blocks yet. Add one on the Defaults page first.",
+      "defaultsBlock": "Defaults block <0>{{name}}</0>",
+      "col": {
+        "code": "Code",
+        "path": "Path",
+        "override": "Override"
+      },
+      "notSet": "not set",
+      "badge": {
+        "rawTitle": "errorfile override (raw)",
+        "raw": "raw",
+        "lfTitle": "http-error lf-file (expanded)",
+        "lf": "lf-file",
+        "bundled": "bundled"
+      },
+      "edit": "Edit"
+    },
+    "idSelect": {
+      "noSections": "No <0>http-errors</0> sections defined. Add one on the <1>Error pages</1> tab first.",
+      "noneOption": "(none — use individual errorfile directives)",
+      "sectionOption": "{{name}} ({{id}}) · {{count}} files"
+    },
+    "unsupportedCode": "Unsupported HTTP status code: {{code}}"
+  },
+  "loadedPathUnknown": "Configuration loader has no known on-disk path",
+  "validation": {
+    "bodyPatchObject": "body.patch must be an object",
+    "patchEmpty": "patch must not be empty"
+  },
+  "upload": {
+    "targetAndContentRequired": "targetPath and content are required strings",
+    "filenamePattern": "filename must match [a-zA-Z0-9._-]+.(pem|crt|key|ca-bundle)",
+    "targetMustBeUnderRoot": "target must be under {{root}}"
+  }
+}

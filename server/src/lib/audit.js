@@ -2,6 +2,7 @@ import { dirname } from 'node:path';
 
 import Database from 'better-sqlite3';
 
+import { StateError } from './errors.js';
 import { ensureDir } from './files.js';
 import { log } from './logger.js';
 
@@ -66,7 +67,7 @@ export const record = entry => {
 
 export const recent = (limit = 100, filter = {}) => {
   if (!dbInstance) {
-    throw new Error('audit log not opened; call openAudit() first');
+    throw new StateError('state.audit.notOpen');
   }
   const where = [];
   const params = [];

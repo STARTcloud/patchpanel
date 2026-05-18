@@ -32,7 +32,15 @@ const main = async () => {
     return;
   }
 
-  await renewAllCerts(config, state, { actor: 'cron' });
+  try {
+    await renewAllCerts(config, state, { actor: 'cron' });
+  } catch (err) {
+    if (err?.code === 'cert.renewal.notLeader') {
+      log.app.info('renewal skipped — this node is not the renewal leader');
+      return;
+    }
+    throw err;
+  }
 };
 
 main().catch(exitOnError);

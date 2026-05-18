@@ -1,4 +1,5 @@
 import { Alert } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { AdvancedDirectivesCard } from '../components/AdvancedDirectivesCard.jsx';
 import { GlobalSettingsCard } from '../components/GlobalSettingsCard.jsx';
@@ -8,13 +9,14 @@ import { SslGlobalsCard } from '../components/SslGlobalsCard.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 
 export const GlobalPage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   if (!doc) {
     return null;
   }
   if (!onSave) {
     return (
       <Alert variant="warning" className="m-3">
-        State save unavailable.
+        {t('haproxy:global.stateSaveUnavailable', 'State save unavailable.')}
       </Alert>
     );
   }

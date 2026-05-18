@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Alert, Button, Col, Form, Row } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 
 export const LetsencryptCard = ({ doc, onSave }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const [draft, setDraft] = useState(null);
   const [status, setStatus] = useState(null);
   const current = draft ?? doc.letsencrypt;
@@ -14,7 +16,7 @@ export const LetsencryptCard = ({ doc, onSave }) => {
     setStatus(null);
     onSave({ ...doc, letsencrypt: current })
       .then(() => {
-        setStatus({ kind: 'success', message: 'Saved.' });
+        setStatus({ kind: 'success', message: t('cert:letsencrypt.saved', 'Saved.') });
         setDraft(null);
       })
       .catch(err => {
@@ -25,15 +27,17 @@ export const LetsencryptCard = ({ doc, onSave }) => {
   return (
     <>
       <p className="text-muted small mb-2">
-        Global renewal settings. Account identity (email + ACME server) lives per-account in the
-        ACME accounts card above. Each certificate picks which account it uses.
+        {t(
+          'cert:letsencrypt.description',
+          'Global renewal settings. Account identity (email + ACME server) lives per-account in the ACME accounts card above. Each certificate picks which account it uses.'
+        )}
       </p>
       {status ? <Alert variant={status.kind}>{status.message}</Alert> : null}
       <Form onSubmit={submit}>
         <Row className="g-3">
           <Col md={4}>
             <Form.Group>
-              <Form.Label>DNS propagation (s)</Form.Label>
+              <Form.Label>{t('cert:letsencrypt.dnsPropagation', 'DNS propagation (s)')}</Form.Label>
               <Form.Control
                 type="number"
                 min={30}
@@ -49,7 +53,9 @@ export const LetsencryptCard = ({ doc, onSave }) => {
           </Col>
           <Col md={4}>
             <Form.Group>
-              <Form.Label>Renewal schedule (cron)</Form.Label>
+              <Form.Label>
+                {t('cert:letsencrypt.renewalSchedule', 'Renewal schedule (cron)')}
+              </Form.Label>
               <Form.Control
                 type="text"
                 value={current.renewalSchedule}
@@ -61,7 +67,7 @@ export const LetsencryptCard = ({ doc, onSave }) => {
             <Form.Check
               type="switch"
               id="le-skip"
-              label="Skip renewal entirely"
+              label={t('cert:letsencrypt.skipRenewal', 'Skip renewal entirely')}
               checked={current.skipRenewal}
               onChange={e => update({ skipRenewal: e.target.checked })}
               className="mt-4"
@@ -69,14 +75,14 @@ export const LetsencryptCard = ({ doc, onSave }) => {
             <Form.Check
               type="switch"
               id="le-force"
-              label="Force renewal on next run"
+              label={t('cert:letsencrypt.forceRenewal', 'Force renewal on next run')}
               checked={current.forceRenewal}
               onChange={e => update({ forceRenewal: e.target.checked })}
             />
           </Col>
           <Col xs={12}>
             <Button type="submit" variant="primary" disabled={!draft}>
-              Save
+              {t('common:buttons.save', 'Save')}
             </Button>
           </Col>
         </Row>

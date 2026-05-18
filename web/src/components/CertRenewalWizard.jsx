@@ -1,13 +1,12 @@
 import PropTypes from 'prop-types';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Row, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiPost } from '../api/client.js';
 import { stateDocShape } from '../prop-shapes.js';
 
 import { WizardShell } from './WizardShell.jsx';
-
-const STEP_LABELS = Object.freeze(['Pick cert', 'Pre-flight', 'Action', 'Run']);
 
 const formatJson = value => {
   if (value === null || value === undefined) {
@@ -21,11 +20,12 @@ const formatJson = value => {
 };
 
 const ProviderTestBlock = ({ testing, result }) => {
+  const { t } = useTranslation(['cert']);
   if (testing) {
     return (
       <div className="d-flex align-items-center gap-2 small text-muted">
         <Spinner as="span" animation="border" size="sm" />
-        Testing provider credentials…
+        {t('cert:renewal.providerTest.testing', 'Testing provider credentials…')}
       </div>
     );
   }
@@ -36,8 +36,12 @@ const ProviderTestBlock = ({ testing, result }) => {
   return (
     <Alert variant={ok ? 'success' : 'warning'} className="mt-3 mb-0">
       <div className="d-flex justify-content-between align-items-center mb-1">
-        <strong>Provider test</strong>
-        <Badge bg={ok ? 'success' : 'warning'}>{ok ? 'PASS' : 'CHECK'}</Badge>
+        <strong>{t('cert:renewal.providerTest.label', 'Provider test')}</strong>
+        <Badge bg={ok ? 'success' : 'warning'}>
+          {ok
+            ? t('cert:renewal.providerTest.pass', 'PASS')
+            : t('cert:renewal.providerTest.check', 'CHECK')}
+        </Badge>
       </div>
       {result.message ? <div className="small">{result.message}</div> : null}
       {result.details ? (
@@ -57,29 +61,45 @@ ProviderTestBlock.propTypes = {
   result: PropTypes.object,
 };
 
-const PickCertStep = ({ draft, update, doc }) => (
-  <Row className="g-3">
-    <Col xs={12}>
-      <Form.Group>
-        <Form.Label>Which certificate are you troubleshooting?</Form.Label>
-        <Form.Select value={draft.certId} onChange={e => update({ certId: e.target.value })}>
-          <option value="">— choose —</option>
-          {doc.tls.certs.map(c => (
-            <option key={c.id} value={c.id}>
-              {c.certName} ({c.id}) · {c.domains.length} SAN
-              {c.domains.length === 1 ? '' : 's'} · provider {c.providerId}
-            </option>
-          ))}
-        </Form.Select>
-        {doc.tls.certs.length === 0 ? (
-          <Form.Text className="text-warning">
-            No certificates in state yet. Use the cert wizard first.
-          </Form.Text>
-        ) : null}
-      </Form.Group>
-    </Col>
-  </Row>
-);
+const PickCertStep = ({ draft, update, doc }) => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <Row className="g-3">
+      <Col xs={12}>
+        <Form.Group>
+          <Form.Label>
+            {t('cert:renewal.pickCert.label', 'Which certificate are you troubleshooting?')}
+          </Form.Label>
+          <Form.Select value={draft.certId} onChange={e => update({ certId: e.target.value })}>
+            <option value="">{t('cert:renewal.pickCert.choose', '— choose —')}</option>
+            {doc.tls.certs.map(c => (
+              <option key={c.id} value={c.id}>
+                {t(
+                  'cert:renewal.pickCert.option',
+                  '{{certName}} ({{id}}) · {{count}} SAN · provider {{providerId}}',
+                  {
+                    certName: c.certName,
+                    id: c.id,
+                    count: c.domains.length,
+                    providerId: c.providerId,
+                  }
+                )}
+              </option>
+            ))}
+          </Form.Select>
+          {doc.tls.certs.length === 0 ? (
+            <Form.Text className="text-warning">
+              {t(
+                'cert:renewal.pickCert.empty',
+                'No certificates in state yet. Use the cert wizard first.'
+              )}
+            </Form.Text>
+          ) : null}
+        </Form.Group>
+      </Col>
+    </Row>
+  );
+};
 
 PickCertStep.propTypes = {
   draft: PropTypes.object.isRequired,
@@ -88,23 +108,24 @@ PickCertStep.propTypes = {
 };
 
 const PreflightStep = ({ draft, doc, testing, testResult }) => {
+  const { t } = useTranslation(['cert']);
   const cert = doc.tls.certs.find(c => c.id === draft.certId);
   const provider = cert ? doc.tls.providers.find(p => p.id === cert.providerId) : null;
   if (!cert) {
     return (
       <Alert variant="info" className="mb-0">
-        Go back and pick a cert.
+        {t('cert:renewal.preflight.goBack', 'Go back and pick a cert.')}
       </Alert>
     );
   }
   return (
     <div className="small">
       <dl className="row mb-0">
-        <dt className="col-sm-3">certName</dt>
+        <dt className="col-sm-3">{t('cert:renewal.preflight.certName', 'certName')}</dt>
         <dd className="col-sm-9">
           <code>{cert.certName}</code>
         </dd>
-        <dt className="col-sm-3">Domains</dt>
+        <dt className="col-sm-3">{t('cert:renewal.preflight.domains', 'Domains')}</dt>
         <dd className="col-sm-9">
           {cert.domains.map(d => (
             <Badge key={d} bg="info" className="me-1">
@@ -112,17 +133,25 @@ const PreflightStep = ({ draft, doc, testing, testResult }) => {
             </Badge>
           ))}
         </dd>
-        <dt className="col-sm-3">TLS provider</dt>
+        <dt className="col-sm-3">{t('cert:renewal.preflight.tlsProvider', 'TLS provider')}</dt>
         <dd className="col-sm-9">
           {provider ? (
             <>
               {provider.type}:<code>{provider.id}</code>{' '}
               {provider.credentialsRef ? (
-                <span className="text-muted">creds {provider.credentialsRef}</span>
+                <span className="text-muted">
+                  {t('cert:renewal.preflight.creds', 'creds {{ref}}', {
+                    ref: provider.credentialsRef,
+                  })}
+                </span>
               ) : null}
             </>
           ) : (
-            <span className="text-danger">missing provider {cert.providerId}</span>
+            <span className="text-danger">
+              {t('cert:renewal.preflight.missingProvider', 'missing provider {{id}}', {
+                id: cert.providerId,
+              })}
+            </span>
           )}
         </dd>
       </dl>
@@ -138,53 +167,63 @@ PreflightStep.propTypes = {
   testResult: PropTypes.object,
 };
 
-const ActionStep = ({ draft, update }) => (
-  <div>
-    <Form.Group>
-      <Form.Label>What do you want to do?</Form.Label>
-      <div className="d-flex flex-column gap-2">
-        <Form.Check
-          type="radio"
-          id="renew-act-renew"
-          name="renew-act"
-          label={
-            <span>
-              <strong>Renew if needed.</strong> Standard renewal — certbot decides based on
-              remaining lifetime.
-            </span>
-          }
-          checked={draft.action === 'renew'}
-          onChange={() => update({ action: 'renew' })}
-        />
-        <Form.Check
-          type="radio"
-          id="renew-act-force"
-          name="renew-act"
-          label={
-            <span>
-              <strong>Force renew.</strong> Re-issues even if the current cert isn&apos;t close to
-              expiry. Use after switching staging↔prod or after credentials changed.
-            </span>
-          }
-          checked={draft.action === 'force'}
-          onChange={() => update({ action: 'force' })}
-        />
-        <Form.Check
-          type="radio"
-          id="renew-act-skip"
-          name="renew-act"
-          label={
-            <span>
-              <strong>Skip renewal.</strong> Close the wizard without changing anything.
-            </span>
-          }
-          checked={draft.action === 'skip'}
-          onChange={() => update({ action: 'skip' })}
-        />
-      </div>
-    </Form.Group>
-  </div>
-);
+const ActionStep = ({ draft, update }) => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <div>
+      <Form.Group>
+        <Form.Label>{t('cert:renewal.action.label', 'What do you want to do?')}</Form.Label>
+        <div className="d-flex flex-column gap-2">
+          <Form.Check
+            type="radio"
+            id="renew-act-renew"
+            name="renew-act"
+            label={
+              <span>
+                <strong>{t('cert:renewal.action.renew.title', 'Renew if needed.')}</strong>{' '}
+                {t(
+                  'cert:renewal.action.renew.desc',
+                  'Standard renewal — certbot decides based on remaining lifetime.'
+                )}
+              </span>
+            }
+            checked={draft.action === 'renew'}
+            onChange={() => update({ action: 'renew' })}
+          />
+          <Form.Check
+            type="radio"
+            id="renew-act-force"
+            name="renew-act"
+            label={
+              <span>
+                <strong>{t('cert:renewal.action.force.title', 'Force renew.')}</strong>{' '}
+                {t(
+                  'cert:renewal.action.force.desc',
+                  "Re-issues even if the current cert isn't close to expiry. Use after switching staging↔prod or after credentials changed."
+                )}
+              </span>
+            }
+            checked={draft.action === 'force'}
+            onChange={() => update({ action: 'force' })}
+          />
+          <Form.Check
+            type="radio"
+            id="renew-act-skip"
+            name="renew-act"
+            label={
+              <span>
+                <strong>{t('cert:renewal.action.skip.title', 'Skip renewal.')}</strong>{' '}
+                {t('cert:renewal.action.skip.desc', 'Close the wizard without changing anything.')}
+              </span>
+            }
+            checked={draft.action === 'skip'}
+            onChange={() => update({ action: 'skip' })}
+          />
+        </div>
+      </Form.Group>
+    </div>
+  );
+};
 
 ActionStep.propTypes = {
   draft: PropTypes.object.isRequired,
@@ -192,10 +231,13 @@ ActionStep.propTypes = {
 };
 
 const RunStep = ({ draft, running, runResult }) => {
+  const { t } = useTranslation(['cert']);
   if (draft.action === 'skip') {
     return (
       <Alert variant="info" className="mb-0">
-        Nothing to do — click <strong>Finish</strong> to close the wizard.
+        {t('cert:renewal.run.skipPrefix', 'Nothing to do — click')}{' '}
+        <strong>{t('cert:renewal.run.finish', 'Finish')}</strong>{' '}
+        {t('cert:renewal.run.skipSuffix', 'to close the wizard.')}
       </Alert>
     );
   }
@@ -204,8 +246,10 @@ const RunStep = ({ draft, running, runResult }) => {
       <div className="d-flex align-items-center gap-2">
         <Spinner as="span" animation="border" size="sm" />
         <span>
-          Renewal in progress. DNS-01 propagation can take a couple minutes per cert — leave the
-          wizard open.
+          {t(
+            'cert:renewal.run.inProgress',
+            'Renewal in progress. DNS-01 propagation can take a couple minutes per cert — leave the wizard open.'
+          )}
         </span>
       </div>
     );
@@ -213,7 +257,9 @@ const RunStep = ({ draft, running, runResult }) => {
   if (!runResult) {
     return (
       <Alert variant="info" className="mb-0">
-        Click <strong>Run renewal</strong> to start.
+        {t('cert:renewal.run.clickStart', 'Click')}{' '}
+        <strong>{t('cert:renewal.run.startButton', 'Run renewal')}</strong>{' '}
+        {t('cert:renewal.run.toStart', 'to start.')}
       </Alert>
     );
   }
@@ -221,9 +267,16 @@ const RunStep = ({ draft, running, runResult }) => {
   return (
     <div>
       <Alert variant={reloadOk ? 'success' : 'danger'} className="mb-2">
-        {reloadOk ? 'Renewal pipeline finished.' : 'Renewal completed but HAProxy reload failed.'}
+        {reloadOk
+          ? t('cert:renewal.run.finished', 'Renewal pipeline finished.')
+          : t('cert:renewal.run.reloadFailed', 'Renewal completed but HAProxy reload failed.')}
         {typeof runResult.loadableCertCount === 'number' ? (
-          <> Loadable PEMs now: {runResult.loadableCertCount}.</>
+          <>
+            {' '}
+            {t('cert:renewal.run.loadable', 'Loadable PEMs now: {{count}}.', {
+              count: runResult.loadableCertCount,
+            })}
+          </>
         ) : null}
       </Alert>
       <pre
@@ -256,6 +309,16 @@ const validateStep = (step, draft) => {
 };
 
 export const CertRenewalWizard = ({ show, doc, onCancel, onComplete = null }) => {
+  const { t } = useTranslation(['cert', 'common']);
+  const STEP_LABELS = useMemo(
+    () => [
+      t('cert:renewal.steps.pickCert', 'Pick cert'),
+      t('cert:renewal.steps.preflight', 'Pre-flight'),
+      t('cert:renewal.steps.action', 'Action'),
+      t('cert:renewal.steps.run', 'Run'),
+    ],
+    [t]
+  );
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState({ certId: '', action: 'renew' });
   const [testing, setTesting] = useState(false);
@@ -282,13 +345,13 @@ export const CertRenewalWizard = ({ show, doc, onCancel, onComplete = null }) =>
     } catch (err) {
       setTestResult({
         ok: false,
-        message: err.message ?? 'provider test failed',
+        message: err.message ?? t('cert:renewal.providerTest.failed', 'provider test failed'),
         details: err.payload ?? null,
       });
     } finally {
       setTesting(false);
     }
-  }, [doc, draft.certId]);
+  }, [doc, draft.certId, t]);
 
   useEffect(() => {
     if (step !== 1 || !draft.certId) {
@@ -318,7 +381,7 @@ export const CertRenewalWizard = ({ show, doc, onCancel, onComplete = null }) =>
           }
           setTestResult({
             ok: false,
-            message: err.message ?? 'provider test failed',
+            message: err.message ?? t('cert:renewal.providerTest.failed', 'provider test failed'),
             details: err.payload ?? null,
           });
         })
@@ -331,7 +394,7 @@ export const CertRenewalWizard = ({ show, doc, onCancel, onComplete = null }) =>
     return () => {
       cancelled = true;
     };
-  }, [step, draft.certId, doc]);
+  }, [step, draft.certId, doc, t]);
 
   const runRenewal = async () => {
     setRunning(true);
@@ -368,15 +431,17 @@ export const CertRenewalWizard = ({ show, doc, onCancel, onComplete = null }) =>
 
   const finishLabel = (() => {
     if (draft.action === 'skip') {
-      return 'Close';
+      return t('common:buttons.close', 'Close');
     }
-    return runResult ? 'Close' : 'Run renewal';
+    return runResult
+      ? t('common:buttons.close', 'Close')
+      : t('cert:renewal.run.startButton', 'Run renewal');
   })();
 
   return (
     <WizardShell
       show={show}
-      title="Certificate renewal troubleshooter"
+      title={t('cert:renewal.title', 'Certificate renewal troubleshooter')}
       stepLabels={STEP_LABELS}
       currentStep={step}
       canAdvance={canAdvance}
@@ -412,12 +477,13 @@ export const CertRenewalWizard = ({ show, doc, onCancel, onComplete = null }) =>
           >
             {testing ? (
               <>
-                <Spinner as="span" animation="border" size="sm" /> Testing…
+                <Spinner as="span" animation="border" size="sm" />{' '}
+                {t('cert:renewal.testingShort', 'Testing…')}
               </>
             ) : (
               <>
                 <i className="bi bi-arrow-clockwise me-1" />
-                Re-run provider test
+                {t('cert:renewal.rerunProviderTest', 'Re-run provider test')}
               </>
             )}
           </Button>

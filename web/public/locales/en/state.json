@@ -1,0 +1,119 @@
+{
+  "raw": {
+    "title": "Raw State",
+    "subtitle": "Edit the canonical state.json directly. Saving runs schema validation, renders the new haproxy.cfg, validates it with <0>haproxy -c</0>, and reloads HAProxy via the master socket on success.",
+    "validationHints": "Validation hints (from haproxy -c):",
+    "lineN": "line {{n}}",
+    "refBackend": "→ edit on the <0>Backends</0> tab",
+    "refServer": "→ server <0>{{serverName}}</0> in backend <1>{{backendId}}</1>",
+    "refRoute": "→ edit route <0>{{id}}</0> on the <1>Routes</1> tab",
+    "noStructuralChanges": "No structural changes — saving will only refresh the meta.lastEditedAt timestamp.",
+    "changeOne": "{{count}} change",
+    "changeMany": "{{count}} changes",
+    "added": "added:",
+    "removed": "removed:",
+    "modified": "modified:",
+    "invalidJson": "invalid JSON: {{message}}",
+    "savedMessage": "saved",
+    "reviewApply": "Review & apply",
+    "discardChanges": "Discard changes",
+    "confirmApply": "Confirm apply",
+    "applyHint": "Applying will re-render <0>haproxy.cfg</0>, validate it with <1>haproxy -c</1>, atomically swap, and reload HAProxy via the master socket. On reload failure the previous cfg is restored and a snapshot is written either way.",
+    "applying": "Applying…",
+    "apply": "Apply",
+    "section": {
+      "backends": "Backends",
+      "frontends": "Frontends",
+      "defaultsBlocks": "Defaults blocks",
+      "acls": "ACLs",
+      "authProviders": "Auth providers",
+      "acmeAccounts": "ACME accounts",
+      "tlsProviders": "TLS providers",
+      "certs": "Certificates",
+      "notificationChannels": "Notification channels",
+      "resolvers": "Resolvers",
+      "peers": "Peers",
+      "mailers": "Mailers",
+      "rings": "Rings",
+      "crtStores": "Cert stores",
+      "maps": "Maps",
+      "securityProfiles": "Security profiles",
+      "errorPagesSections": "Error pages sections",
+      "globalSettings": "Global settings",
+      "letsencrypt": "Let's Encrypt",
+      "geoip": "GeoIP"
+    }
+  },
+  "snapshot": {
+    "title": "Snapshots",
+    "description": "Every successful Apply writes a timestamped JSON snapshot of state to <0>/data/snapshots/</0>. Restore replays the snapshot through the normal validate → render → reload pipeline (with rollback on failure). Retention: last 50 + one per day for 30 days.",
+    "listFailed": "Failed to list snapshots: {{message}}",
+    "restoreFailed": "Restore failed: {{message}}",
+    "restoreSuccess": "Restored from <0>{{from}}</0> (taken {{takenAt}}). HAProxy reloaded.",
+    "col": {
+      "takenAt": "Taken at",
+      "sha": "SHA",
+      "size": "Size",
+      "actions": "Actions"
+    },
+    "empty": "No snapshots yet — they accumulate as you save state.",
+    "preview": "Preview",
+    "restore": "Restore",
+    "previewLabel": "Preview:",
+    "previewLoadFailed": "(failed to load snapshot: {{message}})",
+    "confirmTitle": "Restore from snapshot?",
+    "confirmBody": "This will replace the current state with the snapshot taken <0>{{takenAt}}</0> (<1>{{sha}}</1>) and reload HAProxy. The current state will itself be snapshotted on the next save, so the operation is reversible."
+  },
+  "diff": {
+    "noChanges": "No changes.",
+    "identical": "<0>{{leftLabel}}</0> and <1>{{rightLabel}}</1> are identical — clicking Apply wouldn't change the file.",
+    "noContent": "No content to compare.",
+    "comparing": "comparing: <0>{{leftLabel}}</0> → <1>{{rightLabel}}</1>",
+    "onDisk": "on-disk",
+    "fromState": "from state"
+  },
+  "rendered": {
+    "tab": {
+      "disk": "On-disk",
+      "state": "From state",
+      "diff": "Diff"
+    },
+    "tabTitle": {
+      "disk": "Currently-running config from disk",
+      "state": "Re-render from current state.json (does not apply)",
+      "diff": "Unified diff: on-disk vs from state (what would change if you Apply)"
+    },
+    "subtitle": {
+      "disk": "The configuration {{name}} is running right now, read from disk.",
+      "state": "A fresh render from the current state.json. Useful to preview what would be applied next time you save.",
+      "diff": "Unified diff: lines that would change if you click Apply (on-disk → from state)."
+    },
+    "errorSuffix": {
+      "notFound": " — {{name}} not found on disk.",
+      "notInitialized": " — state.json not initialized yet."
+    },
+    "copied": "Copied",
+    "applying": "Applying…",
+    "apply": "Apply",
+    "empty": "(empty)",
+    "applySuccess": "State re-applied: {{name}} re-rendered, validated, and reloaded.",
+    "applyFailed": "apply failed",
+    "applyTitle": "Re-render {{name}} from current state.json, validate, atomically write to disk, and reload {{daemon}}. Useful when state and on-disk cfg have drifted (e.g. after a manual /data/state.json edit).",
+    "title": "Rendered {{name}}",
+    "lineCount": "{{lines}} lines · {{bytes}} bytes",
+    "loadFailed": "Failed to load cfg: {{message}}"
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Last 200 recorded operations (state changes, cert renewals, manual reloads). Refreshes every 30 seconds.",
+    "col": {
+      "time": "Time",
+      "actor": "Actor",
+      "category": "Category",
+      "action": "Action",
+      "target": "Target",
+      "outcome": "Outcome",
+      "details": "Details"
+    }
+  }
+}

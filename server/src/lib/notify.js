@@ -1,3 +1,4 @@
+import { StateError, ValidationError } from './errors.js';
 import { log } from './logger.js';
 
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -15,12 +16,17 @@ const fetchWithTimeout = async (url, init, timeoutMs) => {
 const sendHaNotify = async (channel, event) => {
   const token = process.env.SUPERVISOR_TOKEN;
   if (!token) {
-    throw new Error('SUPERVISOR_TOKEN not set; HA notify channel only works inside an addon');
+    throw new StateError('notify.haNotify.tokenMissing', {
+      message: 'SUPERVISOR_TOKEN not set; HA notify channel only works inside an addon',
+    });
   }
   const service = channel.config?.service ?? 'persistent_notification.create';
   const [domain, name] = service.split('.');
   if (!domain || !name) {
-    throw new Error(`invalid HA notify service: ${service}`);
+    throw new ValidationError('notify.haNotify.invalidService', {
+      message: `invalid HA notify service: ${service}`,
+      replacements: { service },
+    });
   }
   const data = {
     title: event.title,
@@ -41,14 +47,19 @@ const sendHaNotify = async (channel, event) => {
   );
   if (!response.ok) {
     const body = await response.text().catch(() => '');
-    throw new Error(`HA notify failed: ${response.status} ${body.slice(0, 200)}`);
+    throw new StateError('notify.haNotify.failed', {
+      message: `HA notify failed: ${response.status} ${body.slice(0, 200)}`,
+      replacements: { status: response.status, body: body.slice(0, 200) },
+    });
   }
 };
 
 const sendWebhook = async (channel, event) => {
   const url = channel.config?.url;
   if (!url) {
-    throw new Error('webhook url missing');
+    throw new ValidationError('notify.webhook.urlMissing', {
+      message: 'webhook url missing',
+    });
   }
   const headers = { 'content-type': 'application/json', ...(channel.config?.headers ?? {}) };
   const body = JSON.stringify({
@@ -66,7 +77,10 @@ const sendWebhook = async (channel, event) => {
   );
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new Error(`webhook ${url} returned ${response.status}: ${text.slice(0, 200)}`);
+    throw new StateError('notify.webhook.failed', {
+      message: `webhook ${url} returned ${response.status}: ${text.slice(0, 200)}`,
+      replacements: { url, status: response.status, body: text.slice(0, 200) },
+    });
   }
 };
 
@@ -87,7 +101,9 @@ const NTFY_PRIORITIES = Object.freeze({
 const sendDiscord = async (channel, event) => {
   const url = channel.config?.webhookUrl;
   if (!url) {
-    throw new Error('discord webhookUrl missing');
+    throw new ValidationError('notify.discord.webhookUrlMissing', {
+      message: 'discord webhookUrl missing',
+    });
   }
   const color = DISCORD_COLORS[event.severity] ?? DISCORD_COLORS.info;
   const body = JSON.stringify({
@@ -108,7 +124,10 @@ const sendDiscord = async (channel, event) => {
   );
   if (!response.ok && response.status !== 204) {
     const text = await response.text().catch(() => '');
-    throw new Error(`discord ${response.status}: ${text.slice(0, 200)}`);
+    throw new StateError('notify.discord.failed', {
+      message: `discord ${response.status}: ${text.slice(0, 200)}`,
+      replacements: { status: response.status, body: text.slice(0, 200) },
+    });
   }
 };
 
@@ -116,7 +135,9 @@ const sendNtfy = async (channel, event) => {
   const baseUrl = channel.config?.url ?? 'https://ntfy.sh';
   const topic = channel.config?.topic;
   if (!topic) {
-    throw new Error('ntfy topic missing');
+    throw new ValidationError('notify.ntfy.topicMissing', {
+      message: 'ntfy topic missing',
+    });
   }
   const headers = {
     title: event.title,
@@ -135,14 +156,19 @@ const sendNtfy = async (channel, event) => {
   );
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new Error(`ntfy ${response.status}: ${text.slice(0, 200)}`);
+    throw new StateError('notify.ntfy.failed', {
+      message: `ntfy ${response.status}: ${text.slice(0, 200)}`,
+      replacements: { status: response.status, body: text.slice(0, 200) },
+    });
   }
 };
 
 const sendSlack = async (channel, event) => {
   const url = channel.config?.webhookUrl;
   if (!url) {
-    throw new Error('slack webhookUrl missing');
+    throw new ValidationError('notify.slack.webhookUrlMissing', {
+      message: 'slack webhookUrl missing',
+    });
   }
   const body = JSON.stringify({
     text: `*${event.title}*\n${event.message}`,
@@ -156,7 +182,10 @@ const sendSlack = async (channel, event) => {
   );
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new Error(`slack ${response.status}: ${text.slice(0, 200)}`);
+    throw new StateError('notify.slack.failed', {
+      message: `slack ${response.status}: ${text.slice(0, 200)}`,
+      replacements: { status: response.status, body: text.slice(0, 200) },
+    });
   }
 };
 
@@ -196,7 +225,10 @@ export const dispatchEvent = async (channels, event) => {
       .map(async c => {
         const provider = PROVIDERS[c.type];
         if (!provider) {
-          throw new Error(`unsupported channel type: ${c.type}`);
+          throw new ValidationError('notify.channel.unsupportedType', {
+            message: `unsupported channel type: ${c.type}`,
+            replacements: { type: c.type },
+          });
         }
         await provider(c, enriched);
         return c.id;
@@ -218,7 +250,10 @@ export const dispatchEvent = async (channels, event) => {
 export const testChannel = (channel, event) => {
   const provider = PROVIDERS[channel.type];
   if (!provider) {
-    throw new Error(`unsupported channel type: ${channel.type}`);
+    throw new ValidationError('notify.channel.unsupportedType', {
+      message: `unsupported channel type: ${channel.type}`,
+      replacements: { type: channel.type },
+    });
   }
   return provider(channel, {
     title: 'patchpanel test notification',

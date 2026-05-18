@@ -1,11 +1,13 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Badge, Button, Card, Col, Form, Row, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { ApiTokensManager } from '../components/ApiTokensManager.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 
 const ChangePasswordCard = ({ changePassword }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -18,7 +20,7 @@ const ChangePasswordCard = ({ changePassword }) => {
     setError(null);
     setSuccess(false);
     if (next !== confirm) {
-      setError('new passwords do not match');
+      setError(t('auth:changePassword.mismatch', 'new passwords do not match'));
       return;
     }
     setSubmitting(true);
@@ -29,7 +31,9 @@ const ChangePasswordCard = ({ changePassword }) => {
       setNext('');
       setConfirm('');
     } catch (err) {
-      setError(err.payload?.message ?? err.message ?? 'change failed');
+      setError(
+        err.payload?.message ?? err.message ?? t('auth:changePassword.failed', 'change failed')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -40,7 +44,7 @@ const ChangePasswordCard = ({ changePassword }) => {
       <Card.Body>
         <Card.Title>
           <i className="bi bi-shield-lock me-2" />
-          Change password
+          {t('auth:changePassword.title')}
         </Card.Title>
         {error ? (
           <Alert variant="danger" className="py-2 small mb-3">
@@ -49,12 +53,15 @@ const ChangePasswordCard = ({ changePassword }) => {
         ) : null}
         {success ? (
           <Alert variant="success" className="py-2 small mb-3">
-            Password updated. Other sessions for this user have been invalidated.
+            {t(
+              'auth:changePassword.successMessage',
+              'Password updated. Other sessions for this user have been invalidated.'
+            )}
           </Alert>
         ) : null}
         <Form onSubmit={submit}>
           <Form.Group className="mb-3">
-            <Form.Label>Current password</Form.Label>
+            <Form.Label>{t('auth:changePassword.current')}</Form.Label>
             <Form.Control
               type="password"
               value={current}
@@ -64,7 +71,7 @@ const ChangePasswordCard = ({ changePassword }) => {
             />
           </Form.Group>
           <Form.Group className="mb-3">
-            <Form.Label>New password</Form.Label>
+            <Form.Label>{t('auth:changePassword.new')}</Form.Label>
             <Form.Control
               type="password"
               value={next}
@@ -75,7 +82,7 @@ const ChangePasswordCard = ({ changePassword }) => {
             />
           </Form.Group>
           <Form.Group className="mb-3">
-            <Form.Label>Confirm new password</Form.Label>
+            <Form.Label>{t('auth:changePassword.confirm')}</Form.Label>
             <Form.Control
               type="password"
               value={confirm}
@@ -89,10 +96,10 @@ const ChangePasswordCard = ({ changePassword }) => {
             {submitting ? (
               <>
                 <Spinner as="span" animation="border" size="sm" className="me-2" />
-                Updating…
+                {t('auth:changePassword.updating', 'Updating…')}
               </>
             ) : (
-              'Update password'
+              t('auth:changePassword.updateSubmit', 'Update password')
             )}
           </Button>
         </Form>
@@ -106,6 +113,7 @@ ChangePasswordCard.propTypes = {
 };
 
 export const ProfilePage = () => {
+  const { t } = useTranslation(['auth', 'common']);
   const auth = useAuth();
 
   if (!auth.user) {
@@ -120,30 +128,32 @@ export const ProfilePage = () => {
         <Card.Body>
           <Card.Title>
             <i className="bi bi-person-circle me-2" />
-            Profile
+            {t('auth:profile.title', 'Profile')}
           </Card.Title>
           <Row className="g-2">
             <Col sm={4} className="text-muted">
-              Username
+              {t('auth:user.username')}
             </Col>
             <Col sm={8}>
               <code>{auth.user.username}</code>
             </Col>
             <Col sm={4} className="text-muted">
-              Role
+              {t('auth:user.role')}
             </Col>
             <Col sm={8}>
               <Badge bg="primary">{auth.user.role}</Badge>
             </Col>
             <Col sm={4} className="text-muted">
-              Session source
+              {t('auth:profile.sessionSource', 'Session source')}
             </Col>
             <Col sm={8}>
               <Badge bg={isIngress ? 'info' : 'success'}>{auth.source}</Badge>{' '}
               {isIngress ? (
                 <span className="text-muted small">
-                  Authenticated upstream by Home Assistant ingress — local password change and
-                  logout are not available in this mode.
+                  {t(
+                    'auth:profile.ingressNote',
+                    'Authenticated upstream by Home Assistant ingress — local password change and logout are not available in this mode.'
+                  )}
                 </span>
               ) : null}
             </Col>

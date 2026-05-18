@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Button, Form, InputGroup, OverlayTrigger, Table, Tooltip } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { useTableControls } from '../hooks/useTableControls.jsx';
 
@@ -92,6 +93,7 @@ const useDragReorder = ({ rows, canReorder, onReorder }) => {
 };
 
 const PositionCell = ({ index, total, canReorder, onMove, onJump, positionLabel }) => {
+  const { t } = useTranslation(['common']);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(index + 1));
   const inputRef = useRef(null);
@@ -121,8 +123,11 @@ const PositionCell = ({ index, total, canReorder, onMove, onJump, positionLabel 
             className="p-0 lh-1"
             disabled={index === 0}
             onClick={() => onMove(index, index - 1)}
-            aria-label={`Move up to ${positionLabel} ${index}`}
-            title="Move up"
+            aria-label={t('common:reorderTable.moveUpAria', 'Move up to {{label}} {{n}}', {
+              label: positionLabel,
+              n: index,
+            })}
+            title={t('common:reorderTable.moveUp', 'Move up')}
           >
             <i className="bi bi-caret-up-fill small" />
           </Button>
@@ -132,8 +137,11 @@ const PositionCell = ({ index, total, canReorder, onMove, onJump, positionLabel 
             className="p-0 lh-1"
             disabled={index === total - 1}
             onClick={() => onMove(index, index + 1)}
-            aria-label={`Move down to ${positionLabel} ${index + 2}`}
-            title="Move down"
+            aria-label={t('common:reorderTable.moveDownAria', 'Move down to {{label}} {{n}}', {
+              label: positionLabel,
+              n: index + 2,
+            })}
+            title={t('common:reorderTable.moveDown', 'Move down')}
           >
             <i className="bi bi-caret-down-fill small" />
           </Button>
@@ -166,7 +174,13 @@ const PositionCell = ({ index, total, canReorder, onMove, onJump, positionLabel 
           bg="secondary"
           className={canReorder ? 'cursor-pointer' : ''}
           style={canReorder ? { cursor: 'pointer' } : {}}
-          title={canReorder ? `Click to jump to a different ${positionLabel}` : ''}
+          title={
+            canReorder
+              ? t('common:reorderTable.jumpTitle', 'Click to jump to a different {{label}}', {
+                  label: positionLabel,
+                })
+              : ''
+          }
           onClick={() => {
             if (canReorder) {
               setEditing(true);
@@ -189,30 +203,40 @@ PositionCell.propTypes = {
   positionLabel: PropTypes.string.isRequired,
 };
 
-const PositionHeader = ({ positionLabel, canReorder, onClearSort, sortActive }) => (
-  <OverlayTrigger
-    placement="top"
-    overlay={
-      <Tooltip>
-        {canReorder
-          ? `Saved order — drag rows or use arrows to reorder. ${positionLabel} #1 is evaluated first.`
-          : `Sort is active — saved-order controls disabled. Click here to clear the sort and re-enable drag.`}
-      </Tooltip>
-    }
-  >
-    <th
-      style={{ cursor: sortActive ? 'pointer' : 'default', whiteSpace: 'nowrap' }}
-      onClick={() => {
-        if (sortActive) {
-          onClearSort();
-        }
-      }}
+const PositionHeader = ({ positionLabel, canReorder, onClearSort, sortActive }) => {
+  const { t } = useTranslation(['common']);
+  return (
+    <OverlayTrigger
+      placement="top"
+      overlay={
+        <Tooltip>
+          {canReorder
+            ? t(
+                'common:reorderTable.savedOrderTooltip',
+                'Saved order — drag rows or use arrows to reorder. {{label}} #1 is evaluated first.',
+                { label: positionLabel }
+              )
+            : t(
+                'common:reorderTable.sortActiveTooltip',
+                'Sort is active — saved-order controls disabled. Click here to clear the sort and re-enable drag.'
+              )}
+        </Tooltip>
+      }
     >
-      <i className="bi bi-list-ol me-1" />
-      {positionLabel}
-    </th>
-  </OverlayTrigger>
-);
+      <th
+        style={{ cursor: sortActive ? 'pointer' : 'default', whiteSpace: 'nowrap' }}
+        onClick={() => {
+          if (sortActive) {
+            onClearSort();
+          }
+        }}
+      >
+        <i className="bi bi-list-ol me-1" />
+        {positionLabel}
+      </th>
+    </OverlayTrigger>
+  );
+};
 
 PositionHeader.propTypes = {
   positionLabel: PropTypes.string.isRequired,
@@ -252,35 +276,40 @@ const TableHeadRow = ({
   controls,
   columns,
   hasActions,
-}) => (
-  <tr>
-    {showPosition ? (
-      <PositionHeader
-        positionLabel={positionLabel}
-        canReorder={canReorder}
-        sortActive={controls.sort !== null}
-        onClearSort={() => controls.toggleSort(controls.sort?.field)}
-      />
-    ) : null}
-    {columns.map(col =>
-      col.sortable ? (
-        <SortableHeader
-          key={col.key}
-          label={col.label}
-          field={col.accessor ?? col.key}
-          sort={controls.sort}
-          onToggle={controls.toggleSort}
-          className={col.className}
+}) => {
+  const { t } = useTranslation(['common']);
+  return (
+    <tr>
+      {showPosition ? (
+        <PositionHeader
+          positionLabel={positionLabel}
+          canReorder={canReorder}
+          sortActive={controls.sort !== null}
+          onClearSort={() => controls.toggleSort(controls.sort?.field)}
         />
-      ) : (
-        <th key={col.key} className={col.className}>
-          {col.label}
-        </th>
-      )
-    )}
-    {hasActions ? <th className="text-end">Actions</th> : null}
-  </tr>
-);
+      ) : null}
+      {columns.map(col =>
+        col.sortable ? (
+          <SortableHeader
+            key={col.key}
+            label={col.label}
+            field={col.accessor ?? col.key}
+            sort={controls.sort}
+            onToggle={controls.toggleSort}
+            className={col.className}
+          />
+        ) : (
+          <th key={col.key} className={col.className}>
+            {col.label}
+          </th>
+        )
+      )}
+      {hasActions ? (
+        <th className="text-end">{t('common:reorderTable.actions', 'Actions')}</th>
+      ) : null}
+    </tr>
+  );
+};
 
 TableHeadRow.propTypes = {
   showPosition: PropTypes.bool.isRequired,
@@ -291,11 +320,14 @@ TableHeadRow.propTypes = {
   hasActions: PropTypes.bool.isRequired,
 };
 
-const emptyMessage = (search, emptyState, emptyFilteredState) => {
+const emptyMessage = (search, emptyState, emptyFilteredState, t) => {
   if (search) {
-    return emptyFilteredState ?? 'No rows match the current filter.';
+    return (
+      emptyFilteredState ??
+      t('common:reorderTable.noRowsFiltered', 'No rows match the current filter.')
+    );
   }
-  return emptyState ?? 'No rows.';
+  return emptyState ?? t('common:reorderTable.noRows', 'No rows.');
 };
 
 const focusedRowStyle = isDragOver => {
@@ -382,18 +414,22 @@ export const ReorderableTable = ({
   columns,
   rowKey,
   searchFields = [],
-  filterPlaceholder = 'Filter…',
-  positionLabel = 'Position',
+  filterPlaceholder,
+  positionLabel,
   reorderable = false,
-  onReorder = null,
-  RowActions = null,
-  rowActionsContext = null,
-  renderRowExtra = null,
-  initialSort = null,
-  emptyState = null,
-  emptyFilteredState = null,
-  focusRowKey = null,
+  onReorder,
+  RowActions,
+  rowActionsContext,
+  renderRowExtra,
+  initialSort,
+  emptyState,
+  emptyFilteredState,
+  focusRowKey,
 }) => {
+  const { t } = useTranslation(['common']);
+  const resolvedFilterPlaceholder =
+    filterPlaceholder ?? t('common:reorderTable.filterPlaceholder', 'Filter…');
+  const resolvedPositionLabel = positionLabel ?? t('common:reorderTable.position', 'Position');
   const controls = useTableControls(rows, { searchFields, initialSort });
   const canReorder = reorderable && Boolean(onReorder) && controls.sort === null;
   const focusedRowRef = useRef(null);
@@ -436,22 +472,58 @@ export const ReorderableTable = ({
     return map;
   }, [rows, rowKey]);
 
-  const showPosition = reorderable && Boolean(onReorder);
+  const showPosition = Boolean(reorderable && onReorder);
   const hasActions = Boolean(RowActions);
-  const totalCols = (showPosition ? 1 : 0) + columns.length + (hasActions ? 1 : 0);
+  const totalCols = Number(showPosition) + columns.length + Number(hasActions);
+
+  const renderDataRows = () => {
+    if (controls.view.length === 0) {
+      return (
+        <tr>
+          <td colSpan={totalCols} className="text-center text-muted small py-3">
+            {emptyMessage(controls.search, emptyState, emptyFilteredState, t)}
+          </td>
+        </tr>
+      );
+    }
+    return controls.view.map(row => {
+      const key = rowKey(row);
+      const savedIndex = indexByKey.get(key);
+      const isFocused = focusRowKey !== undefined && focusRowKey !== null && key === focusRowKey;
+      return (
+        <DataRow
+          key={key}
+          row={row}
+          savedIndex={savedIndex}
+          rowsLength={rows.length}
+          canReorder={canReorder}
+          drag={drag}
+          showPosition={showPosition}
+          positionLabel={resolvedPositionLabel}
+          handleMove={handleMove}
+          handleJump={handleJump}
+          columns={columns}
+          RowActions={RowActions}
+          rowActionsContext={rowActionsContext}
+          isFocused={isFocused}
+          rowRef={isFocused ? focusedRowRef : null}
+        />
+      );
+    });
+  };
 
   return (
     <div>
       <FilterInput
         search={controls.search}
         setSearch={controls.setSearch}
-        placeholder={filterPlaceholder}
+        placeholder={resolvedFilterPlaceholder}
       />
       <Table striped bordered hover responsive size="sm">
         <thead>
           <TableHeadRow
             showPosition={showPosition}
-            positionLabel={positionLabel}
+            positionLabel={resolvedPositionLabel}
             canReorder={canReorder}
             controls={controls}
             columns={columns}
@@ -459,37 +531,7 @@ export const ReorderableTable = ({
           />
         </thead>
         <tbody>
-          {controls.view.length === 0 ? (
-            <tr>
-              <td colSpan={totalCols} className="text-center text-muted small py-3">
-                {emptyMessage(controls.search, emptyState, emptyFilteredState)}
-              </td>
-            </tr>
-          ) : null}
-          {controls.view.map(row => {
-            const key = rowKey(row);
-            const savedIndex = indexByKey.get(key);
-            const isFocused = focusRowKey !== null && key === focusRowKey;
-            return (
-              <DataRow
-                key={key}
-                row={row}
-                savedIndex={savedIndex}
-                rowsLength={rows.length}
-                canReorder={canReorder}
-                drag={drag}
-                showPosition={showPosition}
-                positionLabel={positionLabel}
-                handleMove={handleMove}
-                handleJump={handleJump}
-                columns={columns}
-                RowActions={RowActions}
-                rowActionsContext={rowActionsContext}
-                isFocused={isFocused}
-                rowRef={isFocused ? focusedRowRef : null}
-              />
-            );
-          })}
+          {renderDataRows()}
           {renderRowExtra ? renderRowExtra(controls.view) : null}
         </tbody>
       </Table>

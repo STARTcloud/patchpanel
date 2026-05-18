@@ -1,4 +1,5 @@
 import { Card } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { EntitySectionCard } from '../components/EntitySectionCard.jsx';
 import {
@@ -26,6 +27,7 @@ const SECTIONS = Object.freeze([
 ]);
 
 export const AdvancedPage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   if (!doc) {
     return null;
   }
@@ -33,14 +35,14 @@ export const AdvancedPage = ({ doc = null, onSave = null }) => {
     <div>
       <Card className="mb-3">
         <Card.Body>
-          <Card.Title>Advanced — HAProxy infrastructure</Card.Title>
+          <Card.Title>
+            {t('haproxy:advanced.page.title', 'Advanced — HAProxy infrastructure')}
+          </Card.Title>
           <Card.Text className="text-muted mb-0">
-            DNS resolvers, peer-sync stick-table groups, SMTP mailer groups for
-            <code> email-alert</code>, log-ring sinks, and reusable security policy registry (
-            <code>rate-limit</code> / <code>geo-block</code> / <code>bot-defense</code>).
-            Cert-related infrastructure lives on the <strong>Certificates</strong> tab; error-page
-            sections live on the <strong>Error pages</strong> tab; additional listeners live on the
-            new <strong>Frontends</strong> tab.
+            {t(
+              'haproxy:advanced.page.description',
+              'DNS resolvers, peer-sync stick-table groups, SMTP mailer groups for email-alert, log-ring sinks, and reusable security policy registry (rate-limit / geo-block / bot-defense). Cert-related infrastructure lives on the Certificates tab; error-page sections live on the Error pages tab; additional listeners live on the new Frontends tab.'
+            )}
           </Card.Text>
         </Card.Body>
       </Card>

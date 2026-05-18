@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import * as audit from '../lib/audit.js';
 import * as haproxyControl from '../lib/haproxy-control.js';
+import { errorResponse } from '../lib/api-response.js';
 import { fileExists, readText } from '../lib/files.js';
 import * as haproxyMaster from '../lib/haproxy-master.js';
 import { fetchSslCapabilities } from '../lib/haproxy-ssl-capabilities.js';
@@ -45,7 +46,7 @@ export const haproxyRouter = config => {
       if (source === 'state') {
         const state = await loadState(config.paths.state);
         if (!state) {
-          res.status(409).json({ error: 'state not initialized' });
+          res.status(409).json(errorResponse(req, 'haproxy.cfg.stateNotInitialized'));
           return;
         }
         const rendered = renderHaproxyConfig(state, {
@@ -60,7 +61,9 @@ export const haproxyRouter = config => {
         return;
       }
       if (!(await fileExists(config.paths.haproxyConfig))) {
-        res.status(404).json({ error: `cfg not found at ${config.paths.haproxyConfig}` });
+        res
+          .status(404)
+          .json(errorResponse(req, 'haproxy.cfg.notFound', { path: config.paths.haproxyConfig }));
         return;
       }
       const text = await readText(config.paths.haproxyConfig);
@@ -186,9 +189,7 @@ export const haproxyRouter = config => {
   router.post('/haproxy/stop', async (req, res, next) => {
     const actor = req.user?.id ?? null;
     if (req.body?.confirm !== true) {
-      res.status(400).json({
-        error: 'stop requires { "confirm": true } in body — this will drop all proxied connections',
-      });
+      res.status(400).json(errorResponse(req, 'haproxy.stop.confirmRequired'));
       return;
     }
     log.api.info('POST /haproxy/stop', { ip: req.ip, actor });
@@ -344,9 +345,11 @@ export const haproxyRouter = config => {
     const desiredState = req.body?.state;
     const actor = req.user?.id ?? null;
     if (!VALID_SERVER_STATES.includes(desiredState)) {
-      res.status(400).json({
-        error: `state must be one of: ${VALID_SERVER_STATES.join(', ')}`,
-      });
+      res.status(400).json(
+        errorResponse(req, 'haproxy.server.invalidState', {
+          allowed: VALID_SERVER_STATES.join(', '),
+        })
+      );
       return;
     }
     log.api.info('POST /haproxy/servers/:backend/:server/state', {
@@ -430,7 +433,7 @@ export const haproxyRouter = config => {
     const weight = Number(req.body?.weight);
     const actor = req.user?.id ?? null;
     if (!Number.isInteger(weight) || weight < 0 || weight > 256) {
-      res.status(400).json({ error: 'weight must be an integer between 0 and 256' });
+      res.status(400).json(errorResponse(req, 'haproxy.server.invalidWeight'));
       return;
     }
     log.api.info('POST /haproxy/servers/:backend/:server/weight', {

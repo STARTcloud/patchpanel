@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 
 import { Router } from 'express';
 
+import { errorResponse, localizeMessage } from '../lib/api-response.js';
 import * as audit from '../lib/audit.js';
 import { log } from '../lib/logger.js';
 import {
@@ -14,6 +15,9 @@ import {
   validateTrustedCrlPem,
   writeTrustedCrl,
 } from '../lib/trusted-crls.js';
+
+const localizeIssues = (req, issues) =>
+  (issues ?? []).map(issue => localizeMessage(req, issue.code, issue.replacements));
 
 // Trusted CRL endpoints mirror trusted-cas:
 //   GET    /trusted-crls              list the PEM files on disk
@@ -112,12 +116,16 @@ export const trustedCrlsRouter = config => {
     log.api.debug('GET /trusted-crls/:id', { ip: req.ip, id });
     const idError = validateTrustedCrlId(id);
     if (idError) {
-      res.status(400).json({ ok: false, error: idError });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, idError.code, idError.replacements) });
       return;
     }
     try {
       if (!(await trustedCrlFileExists(dir(), id))) {
-        res.status(404).json({ ok: false, error: 'not found' });
+        res
+          .status(404)
+          .json({ ok: false, ...errorResponse(req, 'cert.trustedCrl.notFound', { id }) });
         return;
       }
       const pem = await readTrustedCrl(dir(), id);
@@ -167,7 +175,11 @@ export const trustedCrlsRouter = config => {
   router.post('/trusted-crls/validate', (req, res) => {
     const { pem } = req.body ?? {};
     const result = validateTrustedCrlPem({ pem });
-    res.json(result);
+    res.json({
+      ...result,
+      errors: localizeIssues(req, result.errors),
+      warnings: localizeIssues(req, result.warnings),
+    });
   });
 
   /**
@@ -209,12 +221,14 @@ export const trustedCrlsRouter = config => {
     const { id, pem } = req.body ?? {};
     const idError = validateTrustedCrlId(id);
     if (idError) {
-      res.status(400).json({ ok: false, error: idError });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, idError.code, idError.replacements) });
       return;
     }
     const validation = validateTrustedCrlPem({ pem });
     if (!validation.ok) {
-      res.status(400).json({ ok: false, errors: validation.errors });
+      res.status(400).json({ ok: false, errors: localizeIssues(req, validation.errors) });
       return;
     }
     try {
@@ -265,7 +279,9 @@ export const trustedCrlsRouter = config => {
     const { id } = req.params;
     const idError = validateTrustedCrlId(id);
     if (idError) {
-      res.status(400).json({ ok: false, error: idError });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, idError.code, idError.replacements) });
       return;
     }
     try {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import * as audit from '../lib/audit.js';
+import { errorResponse } from '../lib/api-response.js';
 import * as haproxyStats from '../lib/haproxy-stats.js';
 import { log } from '../lib/logger.js';
 
@@ -244,7 +245,7 @@ export const runtimeRouter = config => {
     const actor = req.user?.id ?? null;
     const { value } = req.body ?? {};
     if (!value) {
-      res.status(400).json({ error: 'value is required' });
+      res.status(400).json(errorResponse(req, 'validation.fieldRequired', { field: 'value' }));
       return;
     }
     log.api.info('POST /runtime/acls/:ref/entries', { ip: req.ip, actor, ref: req.params.ref });
@@ -290,7 +291,7 @@ export const runtimeRouter = config => {
     const actor = req.user?.id ?? null;
     const { value } = req.query;
     if (typeof value !== 'string' || !value) {
-      res.status(400).json({ error: 'value query param required' });
+      res.status(400).json(errorResponse(req, 'validation.fieldRequired', { field: 'value' }));
       return;
     }
     log.api.info('DELETE /runtime/acls/:ref/entries', { ip: req.ip, actor, ref: req.params.ref });
@@ -387,7 +388,7 @@ export const runtimeRouter = config => {
     const actor = req.user?.id ?? null;
     const { key, value } = req.body ?? {};
     if (!key || typeof value !== 'string') {
-      res.status(400).json({ error: 'key and value are required' });
+      res.status(400).json(errorResponse(req, 'runtime.map.keyValueRequired'));
       return;
     }
     log.api.info('POST /runtime/maps/:ref/entries', {
@@ -437,7 +438,7 @@ export const runtimeRouter = config => {
     const actor = req.user?.id ?? null;
     const { key } = req.query;
     if (typeof key !== 'string' || !key) {
-      res.status(400).json({ error: 'key query param required' });
+      res.status(400).json(errorResponse(req, 'validation.fieldRequired', { field: 'key' }));
       return;
     }
     log.api.info('DELETE /runtime/maps/:ref/entries', { ip: req.ip, actor, ref: req.params.ref });
@@ -603,7 +604,7 @@ export const runtimeRouter = config => {
     const actor = req.user?.id ?? null;
     const max = Number(req.body?.max);
     if (!Number.isInteger(max) || max < 0) {
-      res.status(400).json({ error: 'max must be a non-negative integer' });
+      res.status(400).json(errorResponse(req, 'runtime.maxconn.invalid'));
       return;
     }
     log.api.info('POST /runtime/maxconn/frontend/:name', {
@@ -654,7 +655,7 @@ export const runtimeRouter = config => {
     const actor = req.user?.id ?? null;
     const max = Number(req.body?.max);
     if (!Number.isInteger(max) || max < 0) {
-      res.status(400).json({ error: 'max must be a non-negative integer' });
+      res.status(400).json(errorResponse(req, 'runtime.maxconn.invalid'));
       return;
     }
     log.api.info('POST /runtime/maxconn/global', { ip: req.ip, actor, max });

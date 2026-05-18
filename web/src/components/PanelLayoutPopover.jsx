@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { Button, Form, Modal } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { MAX_PANEL_WIDTH, MIN_PANEL_WIDTH } from '../hooks/useDashboardLayout.jsx';
 
@@ -16,6 +17,7 @@ const cellOpacity = (disallowed, occupied, hovered) => {
 };
 
 const GridCell = ({ row, col, occupied, disallowed, onPick }) => {
+  const { t } = useTranslation(['stats', 'common']);
   const baseOpacity = cellOpacity(disallowed, occupied, false);
   const hoverOpacity = cellOpacity(disallowed, occupied, true);
   return (
@@ -23,8 +25,11 @@ const GridCell = ({ row, col, occupied, disallowed, onPick }) => {
       type="button"
       onClick={() => (disallowed ? null : onPick({ col, row }))}
       disabled={disallowed}
-      aria-label={`Set width ${col + 1} rows ${row + 1}`}
-      title={disallowed ? 'Too small for this panel' : undefined}
+      aria-label={t('stats:panelLayout.cellAria', 'Set width {{w}} rows {{h}}', {
+        w: col + 1,
+        h: row + 1,
+      })}
+      title={disallowed ? t('stats:panelLayout.tooSmall', 'Too small for this panel') : undefined}
       style={{
         background: occupied ? 'var(--bs-primary)' : 'var(--bs-tertiary-bg)',
         border: 'none',
@@ -114,6 +119,7 @@ export const PanelLayoutModal = ({
   onHide,
   onClose,
 }) => {
+  const { t } = useTranslation(['stats', 'common']);
   const effectiveMinWidth = Math.max(MIN_PANEL_WIDTH, minWidth);
   const effectiveMinHeight = Math.max(1, minHeight);
 
@@ -137,19 +143,24 @@ export const PanelLayoutModal = ({
     }
   };
 
-  const sizeLabel = autoHeight ? `${width} × auto` : `${width} × ${heightRows}`;
+  const sizeLabel = autoHeight
+    ? t('stats:panelLayout.sizeAuto', '{{w}} × auto', { w: width })
+    : `${width} × ${heightRows}`;
   const fullWidthFallback = Math.max(effectiveMinWidth, 6);
 
   return (
     <Modal show={show} onHide={onClose} centered size="sm">
       <Modal.Header closeButton>
         <Modal.Title className="h6">
-          Panel layout {panelTitle ? <span className="text-muted">· {panelTitle}</span> : null}
+          {t('stats:panelLayout.title', 'Panel layout')}{' '}
+          {panelTitle ? <span className="text-muted">· {panelTitle}</span> : null}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <div className="d-flex justify-content-between align-items-center mb-2 small">
-          <span className="text-muted">Click a cell to size the panel</span>
+          <span className="text-muted">
+            {t('stats:panelLayout.clickHint', 'Click a cell to size the panel')}
+          </span>
           <span className="font-monospace">{sizeLabel}</span>
         </div>
         <GridPicker
@@ -162,7 +173,7 @@ export const PanelLayoutModal = ({
 
         <Form.Group className="mb-2">
           <div className="d-flex justify-content-between align-items-center">
-            <Form.Label className="mb-0 small">Width</Form.Label>
+            <Form.Label className="mb-0 small">{t('stats:panelLayout.width', 'Width')}</Form.Label>
             <span className="text-muted small font-monospace">
               {width} / {MAX_PANEL_WIDTH}
             </span>
@@ -177,9 +188,13 @@ export const PanelLayoutModal = ({
 
         <Form.Group className="mb-2">
           <div className="d-flex justify-content-between align-items-center">
-            <Form.Label className="mb-0 small">Height (rows)</Form.Label>
+            <Form.Label className="mb-0 small">
+              {t('stats:panelLayout.heightRows', 'Height (rows)')}
+            </Form.Label>
             <span className="text-muted small font-monospace">
-              {autoHeight ? 'auto' : `${heightRows} / ${MAX_PANEL_ROWS}`}
+              {autoHeight
+                ? t('stats:panelLayout.auto', 'auto')
+                : `${heightRows} / ${MAX_PANEL_ROWS}`}
             </span>
           </div>
           <Form.Range
@@ -199,7 +214,7 @@ export const PanelLayoutModal = ({
         <Form.Check
           type="switch"
           id="panel-layout-full-width"
-          label="Full width"
+          label={t('stats:panelLayout.fullWidth', 'Full width')}
           checked={width === MAX_PANEL_WIDTH}
           onChange={e => onWidth(e.target.checked ? MAX_PANEL_WIDTH : fullWidthFallback)}
           className="mb-2"
@@ -208,7 +223,7 @@ export const PanelLayoutModal = ({
         <Form.Check
           type="switch"
           id="panel-layout-auto-height"
-          label="Auto height (size to content)"
+          label={t('stats:panelLayout.autoHeight', 'Auto height (size to content)')}
           checked={autoHeight}
           onChange={e => handleAutoHeightToggle(e.target.checked)}
           className="mb-3"
@@ -218,12 +233,12 @@ export const PanelLayoutModal = ({
 
         <Button variant="outline-danger" size="sm" onClick={onHide} className="w-100">
           <i className="bi bi-eye-slash me-1" />
-          Hide this panel
+          {t('stats:panelLayout.hidePanel', 'Hide this panel')}
         </Button>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" size="sm" onClick={onClose}>
-          Done
+          {t('stats:panelLayout.done', 'Done')}
         </Button>
       </Modal.Footer>
     </Modal>

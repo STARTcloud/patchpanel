@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Container, Form, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useSearchParams } from 'react-router';
 
 import { apiGet } from '../api/client.js';
@@ -18,6 +19,7 @@ import { useAuth } from '../hooks/useAuth.jsx';
 // until the probe resolves to avoid a momentary flash of the login form.
 
 export const LoginPage = () => {
+  const { t } = useTranslation(['auth', 'common']);
   const auth = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -62,7 +64,7 @@ export const LoginPage = () => {
       const ret = params.get('return');
       navigate(ret || '/', { replace: true });
     } catch (err) {
-      setError(err.payload?.message ?? err.message ?? 'login failed');
+      setError(err.payload?.message ?? err.message ?? t('auth:login.failed', 'login failed'));
     } finally {
       setSubmitting(false);
     }
@@ -78,7 +80,7 @@ export const LoginPage = () => {
           <div className="d-flex flex-column align-items-center gap-2 mb-3">
             <LogoMark size={48} title="patchpanel" />
             <h4 className="mb-0">patchpanel</h4>
-            <small className="text-muted">Sign in</small>
+            <small className="text-muted">{t('auth:login.title')}</small>
           </div>
           {error ? (
             <Alert variant="danger" className="py-2 small mb-3">
@@ -87,7 +89,7 @@ export const LoginPage = () => {
           ) : null}
           <Form onSubmit={submit}>
             <Form.Group className="mb-3">
-              <Form.Label>Username</Form.Label>
+              <Form.Label>{t('auth:login.username')}</Form.Label>
               <Form.Control
                 type="text"
                 value={username}
@@ -97,7 +99,7 @@ export const LoginPage = () => {
               />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Password</Form.Label>
+              <Form.Label>{t('auth:login.password')}</Form.Label>
               <Form.Control
                 type="password"
                 value={password}
@@ -110,10 +112,10 @@ export const LoginPage = () => {
               {submitting ? (
                 <>
                   <Spinner as="span" animation="border" size="sm" className="me-2" />
-                  Signing in…
+                  {t('auth:login.signingIn')}
                 </>
               ) : (
-                'Sign in'
+                t('auth:login.submit')
               )}
             </Button>
           </Form>

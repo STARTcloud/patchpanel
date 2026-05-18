@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Button, Form, Modal } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 // Tactical fallback editor for v0.2.32-rc2 — every Phase 1 schema array
 // (resolvers / peers / mailers / rings / crtStores / securityProfiles /
@@ -19,6 +20,7 @@ export const JsonEntityEditModal = ({
   onSave,
   onCancel,
 }) => {
+  const { t } = useTranslation(['common']);
   const initialJson = indent(entity ?? emptyTemplate);
   const [text, setText] = useState(initialJson);
   const [error, setError] = useState(null);
@@ -29,15 +31,17 @@ export const JsonEntityEditModal = ({
     try {
       parsed = JSON.parse(text);
     } catch (err) {
-      setError(`Invalid JSON: ${err.message}`);
+      setError(
+        t('common:jsonEditor.invalidJson', 'Invalid JSON: {{message}}', { message: err.message })
+      );
       return;
     }
     if (!parsed || typeof parsed !== 'object') {
-      setError('Expected a JSON object');
+      setError(t('common:jsonEditor.expectedObject', 'Expected a JSON object'));
       return;
     }
     if (!parsed.id || typeof parsed.id !== 'string') {
-      setError('Entity must have a string `id` field');
+      setError(t('common:jsonEditor.idRequired', 'Entity must have a string `id` field'));
       return;
     }
     setError(null);
@@ -47,7 +51,11 @@ export const JsonEntityEditModal = ({
   return (
     <Modal show={show} onHide={onCancel} size="lg">
       <Modal.Header closeButton>
-        <Modal.Title>{isExisting ? `Edit ${label}: ${entity.id}` : `New ${label}`}</Modal.Title>
+        <Modal.Title>
+          {isExisting
+            ? t('common:jsonEditor.editTitle', 'Edit {{label}}: {{id}}', { label, id: entity.id })
+            : t('common:jsonEditor.newTitle', 'New {{label}}', { label })}
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {error ? <Alert variant="danger">{error}</Alert> : null}
@@ -60,17 +68,20 @@ export const JsonEntityEditModal = ({
           style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
         />
         <Form.Text className="text-muted">
-          Edit the JSON shape directly. Server-side schema validation runs on save and the
-          confirm-apply modal will show a section-level diff. Form-driven editors land in
-          v0.2.32-rc3.
+          {t(
+            'common:jsonEditor.hint',
+            'Edit the JSON shape directly. Server-side schema validation runs on save and the confirm-apply modal will show a section-level diff. Form-driven editors land in v0.2.32-rc3.'
+          )}
         </Form.Text>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <Button variant="primary" onClick={handleSave}>
-          {isExisting ? `Update ${label}` : `Add ${label}`}
+          {isExisting
+            ? t('common:jsonEditor.update', 'Update {{label}}', { label })
+            : t('common:jsonEditor.add', 'Add {{label}}', { label })}
         </Button>
       </Modal.Footer>
     </Modal>

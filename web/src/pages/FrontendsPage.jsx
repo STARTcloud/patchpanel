@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { FrontendEditModal } from '../components/FrontendEditModal.jsx';
@@ -46,37 +47,43 @@ ModeBadge.propTypes = {
   row: PropTypes.object.isRequired,
 };
 
-const FrontendRowActions = ({ row, ctx }) => (
-  <>
-    <Button
-      variant="outline-secondary"
-      size="sm"
-      className="me-1"
-      onClick={() => ctx.setEditing(row)}
-      disabled={ctx.saving || !ctx.onSave}
-    >
-      Edit
-    </Button>
-    <Button
-      variant="outline-info"
-      size="sm"
-      className="me-1"
-      onClick={() => ctx.handleClone(row)}
-      disabled={ctx.saving || !ctx.onSave}
-      title="Duplicate this frontend with a fresh id + section name"
-    >
-      Clone
-    </Button>
-    <Button
-      variant="outline-danger"
-      size="sm"
-      onClick={() => ctx.setDeleting(row)}
-      disabled={ctx.saving || !ctx.onSave}
-    >
-      Delete
-    </Button>
-  </>
-);
+const FrontendRowActions = ({ row, ctx }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      <Button
+        variant="outline-secondary"
+        size="sm"
+        className="me-1"
+        onClick={() => ctx.setEditing(row)}
+        disabled={ctx.saving || !ctx.onSave}
+      >
+        {t('common:buttons.edit', 'Edit')}
+      </Button>
+      <Button
+        variant="outline-info"
+        size="sm"
+        className="me-1"
+        onClick={() => ctx.handleClone(row)}
+        disabled={ctx.saving || !ctx.onSave}
+        title={t(
+          'haproxy:frontend.actions.cloneTitle',
+          'Duplicate this frontend with a fresh id + section name'
+        )}
+      >
+        {t('haproxy:frontend.actions.clone', 'Clone')}
+      </Button>
+      <Button
+        variant="outline-danger"
+        size="sm"
+        onClick={() => ctx.setDeleting(row)}
+        disabled={ctx.saving || !ctx.onSave}
+      >
+        {t('common:buttons.delete', 'Delete')}
+      </Button>
+    </>
+  );
+};
 
 FrontendRowActions.propTypes = {
   row: PropTypes.object.isRequired,
@@ -89,29 +96,29 @@ FrontendRowActions.propTypes = {
   }).isRequired,
 };
 
-const buildColumns = () => [
+const buildColumns = t => [
   {
     key: 'name',
-    label: 'Name',
+    label: t('haproxy:frontend.columns.name', 'Name'),
     sortable: true,
     accessor: row => row.name,
     render: row => <NameCell row={row} />,
   },
   {
     key: 'mode',
-    label: 'Mode',
+    label: t('haproxy:frontend.columns.mode', 'Mode'),
     sortable: true,
     accessor: row => row.mode,
     render: row => <ModeBadge row={row} />,
   },
   {
     key: 'bind',
-    label: 'Bind',
+    label: t('haproxy:frontend.columns.bind', 'Bind'),
     render: row => <BindSummary binds={row.binds} />,
   },
   {
     key: 'enabled',
-    label: 'Enabled',
+    label: t('haproxy:frontend.columns.enabled', 'Enabled'),
     sortable: true,
     accessor: row => row.enabled,
     render: row => (row.enabled ? '✓' : '✗'),
@@ -133,6 +140,7 @@ const uniqueIdFrom = (proposed, takenIds) => {
 };
 
 export const FrontendsPage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [editing, setEditing] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -202,22 +210,26 @@ export const FrontendsPage = ({ doc = null, onSave = null }) => {
   // shows Apply / Discard buttons until the user commits.
   const handleReorder = nextRows => {
     setPending({
-      label: 'Frontends reorder',
+      label: t('haproxy:frontend.pending.reorder', 'Frontends reorder'),
       doc: { ...effectiveDoc, frontends: nextRows },
     });
   };
 
-  const columns = buildColumns();
+  const columns = buildColumns(t);
 
   return (
     <Card>
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
           <div>
-            <Card.Title className="mb-1">Frontends</Card.Title>
+            <Card.Title className="mb-1">
+              {t('haproxy:frontend.page.title', 'Frontends')}
+            </Card.Title>
             <Card.Text className="text-muted small mb-0">
-              One row per HAProxy <code>frontend</code> section. Drag rows to reorder; HAProxy
-              parses sections top-to-bottom.
+              {t(
+                'haproxy:frontend.page.description',
+                'One row per HAProxy frontend section. Drag rows to reorder; HAProxy parses sections top-to-bottom.'
+              )}
             </Card.Text>
           </div>
           <Button
@@ -226,12 +238,12 @@ export const FrontendsPage = ({ doc = null, onSave = null }) => {
             onClick={() => setShowNew(true)}
             disabled={saving || !onSave}
           >
-            Add frontend
+            {t('haproxy:frontend.add', 'Add frontend')}
           </Button>
         </div>
         {saveError ? (
           <Alert variant="danger" onClose={() => setSaveError(null)} dismissible>
-            Save failed: {saveError.message}
+            {t('haproxy:common.saveFailed', 'Save failed')}: {saveError.message}
           </Alert>
         ) : null}
         <ReorderableTable
@@ -244,18 +256,23 @@ export const FrontendsPage = ({ doc = null, onSave = null }) => {
             'mode',
             row => (row.binds ?? []).map(b => b.address).join(' '),
           ]}
-          filterPlaceholder="Filter by name, id, mode, bind address…"
-          positionLabel="Order"
+          filterPlaceholder={t(
+            'haproxy:frontend.filterPlaceholder',
+            'Filter by name, id, mode, bind address…'
+          )}
+          positionLabel={t('haproxy:common.order', 'Order')}
           reorderable
           onReorder={onSave ? handleReorder : null}
           RowActions={FrontendRowActions}
           rowActionsContext={{ saving, onSave, setEditing, setDeleting, handleClone }}
-          emptyState={
-            <>
-              No frontends. Click <strong>Add frontend</strong> to create one.
-            </>
-          }
-          emptyFilteredState="No frontends match the current filter."
+          emptyState={t(
+            'haproxy:frontend.empty',
+            'No frontends. Click Add frontend to create one.'
+          )}
+          emptyFilteredState={t(
+            'haproxy:frontend.emptyFiltered',
+            'No frontends match the current filter.'
+          )}
         />
       </Card.Body>
       {showNew ? (
@@ -273,14 +290,15 @@ export const FrontendsPage = ({ doc = null, onSave = null }) => {
       {deleting ? (
         <ConfirmDialog
           show
-          title="Delete frontend?"
+          title={t('haproxy:frontend.deleteConfirm.title', 'Delete frontend?')}
           body={
             <>
-              Delete <code>{deleting.name}</code> (id <code>{deleting.id}</code>)? This change
-              applies immediately on save.
+              {t('haproxy:frontend.deleteConfirm.body', 'Delete')} <code>{deleting.name}</code> (
+              {t('haproxy:common.id', 'id')} <code>{deleting.id}</code>)?{' '}
+              {t('haproxy:frontend.deleteConfirm.note', 'This change applies immediately on save.')}
             </>
           }
-          confirmLabel="Delete"
+          confirmLabel={t('common:buttons.delete', 'Delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { errorResponse } from '../lib/api-response.js';
 import { log } from '../lib/logger.js';
 import { dispatchEvent, SUPPORTED_CHANNELS, testChannel } from '../lib/notify.js';
 import { loadState } from '../lib/state.js';
@@ -62,7 +63,7 @@ export const notificationsRouter = config => {
     const actor = req.user?.id ?? null;
     const channelId = req.body?.channelId;
     if (!channelId) {
-      res.status(400).json({ error: 'channelId required' });
+      res.status(400).json(errorResponse(req, 'validation.fieldRequired', { field: 'channelId' }));
       return;
     }
     log.api.info('POST /notifications/test', { ip: req.ip, actor, channelId });
@@ -70,7 +71,7 @@ export const notificationsRouter = config => {
       const state = await loadState(config.paths.state);
       const channel = state?.notifications?.channels?.find(c => c.id === channelId);
       if (!channel) {
-        res.status(404).json({ error: `channel not found: ${channelId}` });
+        res.status(404).json(errorResponse(req, 'notify.channel.notFound', { channelId }));
         return;
       }
       await testChannel(channel);

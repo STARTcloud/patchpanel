@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Badge, Button, Dropdown, Form, InputGroup, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { useSystemInterfaces } from '../hooks/useSystemInterfaces.jsx';
 
@@ -32,11 +33,31 @@ import { useSystemInterfaces } from '../hooks/useSystemInterfaces.jsx';
 // bare-IP option list.
 
 const COMMON_OPTIONS = Object.freeze([
-  { value: '*', subtitle: 'all interfaces (dual-stack)' },
-  { value: '0.0.0.0', subtitle: 'all IPv4 interfaces' },
-  { value: '[::]', subtitle: 'all IPv6 interfaces' },
-  { value: '127.0.0.1', subtitle: 'IPv4 loopback' },
-  { value: '::1', subtitle: 'IPv6 loopback' },
+  {
+    value: '*',
+    subtitleKey: 'haproxy:bindPicker.subtitle.all',
+    subtitleFallback: 'all interfaces (dual-stack)',
+  },
+  {
+    value: '0.0.0.0',
+    subtitleKey: 'haproxy:bindPicker.subtitle.allV4',
+    subtitleFallback: 'all IPv4 interfaces',
+  },
+  {
+    value: '[::]',
+    subtitleKey: 'haproxy:bindPicker.subtitle.allV6',
+    subtitleFallback: 'all IPv6 interfaces',
+  },
+  {
+    value: '127.0.0.1',
+    subtitleKey: 'haproxy:bindPicker.subtitle.loopbackV4',
+    subtitleFallback: 'IPv4 loopback',
+  },
+  {
+    value: '::1',
+    subtitleKey: 'haproxy:bindPicker.subtitle.loopbackV6',
+    subtitleFallback: 'IPv6 loopback',
+  },
 ]);
 
 const stripBrackets = s =>
@@ -201,51 +222,58 @@ const AddressWarnings = ({
   isUnreachableHere,
   isFloating,
   looksNodeLocal,
-}) => (
-  <>
-    {floatingIpInstanceId ? (
-      <Form.Text className="text-info d-block mt-1">
-        <i className="bi bi-link me-1" />
-        Associated with VIP <code>{floatingIpInstanceId}</code>.{' '}
-        <Button
-          variant="link"
-          size="sm"
-          className="p-0 align-baseline"
-          onClick={() => onChange({ address: value, floatingIpInstanceId: null })}
-        >
-          Disassociate
-        </Button>
-      </Form.Text>
-    ) : null}
+}) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      {floatingIpInstanceId ? (
+        <Form.Text className="text-info d-block mt-1">
+          <i className="bi bi-link me-1" />
+          {t('haproxy:bindPicker.warnings.associatedWithVip', 'Associated with VIP')}{' '}
+          <code>{floatingIpInstanceId}</code>.{' '}
+          <Button
+            variant="link"
+            size="sm"
+            className="p-0 align-baseline"
+            onClick={() => onChange({ address: value, floatingIpInstanceId: null })}
+          >
+            {t('haproxy:bindPicker.warnings.disassociate', 'Disassociate')}
+          </Button>
+        </Form.Text>
+      ) : null}
 
-    {isUnreachableHere ? (
-      <Form.Text className="text-warning d-block mt-1">
-        <i className="bi bi-exclamation-triangle me-1" />
-        This address isn&apos;t on any local interface and doesn&apos;t match any VIP. HAProxy will
-        fail to bind unless <code>transparent</code> is set in this bind&apos;s options and{' '}
-        <code>net.ipv4.ip_nonlocal_bind=1</code> is set on the host. patchpanel will{' '}
-        <strong>not</strong> configure either for you.
-      </Form.Text>
-    ) : null}
+      {isUnreachableHere ? (
+        <Form.Text className="text-warning d-block mt-1">
+          <i className="bi bi-exclamation-triangle me-1" />
+          {t(
+            'haproxy:bindPicker.warnings.unreachable',
+            "This address isn't on any local interface and doesn't match any VIP. HAProxy will fail to bind unless transparent is set in this bind's options and net.ipv4.ip_nonlocal_bind=1 is set on the host. patchpanel will not configure either for you."
+          )}
+        </Form.Text>
+      ) : null}
 
-    {isFloating ? (
-      <Form.Text className="text-warning d-block mt-1">
-        <i className="bi bi-exclamation-triangle me-1" />
-        This is a floating IP managed by keepalived. To make HAProxy start even when this node
-        isn&apos;t holding the VIP, add <code>transparent</code> to bindOptions and set{' '}
-        <code>net.ipv4.ip_nonlocal_bind=1</code> on the host. patchpanel will <strong>not</strong>{' '}
-        do either for you.
-      </Form.Text>
-    ) : null}
+      {isFloating ? (
+        <Form.Text className="text-warning d-block mt-1">
+          <i className="bi bi-exclamation-triangle me-1" />
+          {t(
+            'haproxy:bindPicker.warnings.floating',
+            "This is a floating IP managed by keepalived. To make HAProxy start even when this node isn't holding the VIP, add transparent to bindOptions and set net.ipv4.ip_nonlocal_bind=1 on the host. patchpanel will not do either for you."
+          )}
+        </Form.Text>
+      ) : null}
 
-    {looksNodeLocal && !isFloating ? (
-      <Form.Text className="text-muted d-block mt-1">
-        <i className="bi bi-info-circle me-1" />
-        This address only exists on this node — other cluster nodes will fail to bind it.
-      </Form.Text>
-    ) : null}
-  </>
-);
+      {looksNodeLocal && !isFloating ? (
+        <Form.Text className="text-muted d-block mt-1">
+          <i className="bi bi-info-circle me-1" />
+          {t(
+            'haproxy:bindPicker.warnings.nodeLocal',
+            'This address only exists on this node — other cluster nodes will fail to bind it.'
+          )}
+        </Form.Text>
+      ) : null}
+    </>
+  );
+};
 
 AddressWarnings.propTypes = {
   floatingIpInstanceId: PropTypes.string,
@@ -263,6 +291,7 @@ export const BindAddressPicker = ({
   floatingIps = [],
   savedAddresses = [],
 }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [showFiltered, setShowFiltered] = useState(false);
   const { groups, filtered, loading, error, refresh } = useSystemInterfaces({ showFiltered });
   const [filterText, setFilterText] = useState('');
@@ -289,7 +318,10 @@ export const BindAddressPicker = ({
 
   const handleCustom = () => {
     const v = promptOnce(
-      'Enter a bind address (hostname, IP, or HAProxy address form):',
+      t(
+        'haproxy:bindPicker.prompts.custom',
+        'Enter a bind address (hostname, IP, or HAProxy address form):'
+      ),
       value || ''
     );
     if (v !== null) {
@@ -298,24 +330,42 @@ export const BindAddressPicker = ({
   };
 
   const handleSocket = () => {
-    const v = promptOnce('Unix socket path:', '/var/run/haproxy.sock');
+    const v = promptOnce(
+      t('haproxy:bindPicker.prompts.socket', 'Unix socket path:'),
+      '/var/run/haproxy.sock'
+    );
     if (v !== null) {
       pickRaw(v);
     }
   };
 
   const handleAbns = () => {
-    const v = promptOnce('Abstract namespace socket name (abns@…):', '');
+    const v = promptOnce(
+      t('haproxy:bindPicker.prompts.abns', 'Abstract namespace socket name (abns@…):'),
+      ''
+    );
     if (v !== null) {
       pickRaw(`abns@${v}`);
     }
   };
 
   const handleFd = () => {
-    const v = promptOnce('Pre-opened fd number (fd@…):', '');
+    const v = promptOnce(t('haproxy:bindPicker.prompts.fd', 'Pre-opened fd number (fd@…):'), '');
     if (v !== null) {
       pickRaw(`fd@${v}`);
     }
+  };
+
+  const getFilteredLabel = () => {
+    if (showFiltered) {
+      return t('haproxy:bindPicker.showingFiltered', 'Showing filtered');
+    }
+    if (filtered > 0) {
+      return t('haproxy:bindPicker.showFilteredCount', 'Show filtered ({{count}})', {
+        count: filtered,
+      });
+    }
+    return t('haproxy:bindPicker.showFiltered', 'Show filtered');
   };
 
   return (
@@ -325,7 +375,7 @@ export const BindAddressPicker = ({
           type="text"
           value={value ?? ''}
           onChange={e => pickRaw(e.target.value)}
-          placeholder="e.g. *:443 or 172.17.1.55:443"
+          placeholder={t('haproxy:bindPicker.placeholder', 'e.g. *:443 or 172.17.1.55:443')}
         />
         <Dropdown align="end">
           <Dropdown.Toggle variant="outline-secondary" id="bind-addr-picker">
@@ -338,15 +388,20 @@ export const BindAddressPicker = ({
                 type="text"
                 value={filterText}
                 onChange={e => setFilterText(e.target.value)}
-                placeholder="Filter…"
+                placeholder={t('haproxy:bindPicker.filter', 'Filter…')}
                 // eslint-disable-next-line jsx-a11y/no-autofocus -- the operator just opened this dropdown; focusing the filter is the expected affordance.
                 autoFocus
               />
             </div>
 
-            <Dropdown.Header>Common</Dropdown.Header>
+            <Dropdown.Header>{t('haproxy:bindPicker.groups.common', 'Common')}</Dropdown.Header>
             {COMMON_OPTIONS.filter(o => matches(o.value, filterText)).map(o => (
-              <OptionRow key={o.value} value={o.value} subtitle={o.subtitle} onPick={pickAddress} />
+              <OptionRow
+                key={o.value}
+                value={o.value}
+                subtitle={t(o.subtitleKey, o.subtitleFallback)}
+                onPick={pickAddress}
+              />
             ))}
 
             {groups.length > 0
@@ -380,7 +435,9 @@ export const BindAddressPicker = ({
 
             {floatingIps.length > 0 ? (
               <>
-                <Dropdown.Header>Floating IPs (keepalived)</Dropdown.Header>
+                <Dropdown.Header>
+                  {t('haproxy:bindPicker.groups.floating', 'Floating IPs (keepalived)')}
+                </Dropdown.Header>
                 {floatingIps
                   .filter(
                     vi => matches(vi.vip ?? '', filterText) || matches(vi.id ?? '', filterText)
@@ -391,7 +448,7 @@ export const BindAddressPicker = ({
                       value={vi.vip}
                       badge={vi.id}
                       badgeBg="info"
-                      subtitle="floating"
+                      subtitle={t('haproxy:bindPicker.subtitle.floating', 'floating')}
                       onPick={host => pickFloatingIp(host, vi.id)}
                     />
                   ))}
@@ -400,7 +457,9 @@ export const BindAddressPicker = ({
 
             {savedAddresses.length > 0 ? (
               <>
-                <Dropdown.Header>Saved presets</Dropdown.Header>
+                <Dropdown.Header>
+                  {t('haproxy:bindPicker.groups.saved', 'Saved presets')}
+                </Dropdown.Header>
                 {savedAddresses
                   .filter(
                     s => matches(s.address ?? '', filterText) || matches(s.label ?? '', filterText)
@@ -417,22 +476,22 @@ export const BindAddressPicker = ({
             ) : null}
 
             <Dropdown.Divider />
-            <Dropdown.Header>Other</Dropdown.Header>
+            <Dropdown.Header>{t('haproxy:bindPicker.groups.other', 'Other')}</Dropdown.Header>
             <Dropdown.Item onClick={handleSocket}>
               <i className="bi bi-hdd me-2" />
-              Unix socket…
+              {t('haproxy:bindPicker.items.unixSocket', 'Unix socket…')}
             </Dropdown.Item>
             <Dropdown.Item onClick={handleAbns}>
               <i className="bi bi-link-45deg me-2" />
-              Abstract namespace (abns@…)
+              {t('haproxy:bindPicker.items.abns', 'Abstract namespace (abns@…)')}
             </Dropdown.Item>
             <Dropdown.Item onClick={handleFd}>
               <i className="bi bi-input-cursor me-2" />
-              Pre-opened fd (fd@…)
+              {t('haproxy:bindPicker.items.fd', 'Pre-opened fd (fd@…)')}
             </Dropdown.Item>
             <Dropdown.Item onClick={handleCustom}>
               <i className="bi bi-pencil me-2" />
-              Custom address…
+              {t('haproxy:bindPicker.items.custom', 'Custom address…')}
             </Dropdown.Item>
 
             <Dropdown.Divider />
@@ -440,11 +499,7 @@ export const BindAddressPicker = ({
               <Form.Check
                 type="switch"
                 id="bind-picker-show-filtered"
-                label={
-                  showFiltered
-                    ? 'Showing filtered'
-                    : `Show filtered${filtered > 0 ? ` (${filtered})` : ''}`
-                }
+                label={getFilteredLabel()}
                 checked={showFiltered}
                 onChange={e => setShowFiltered(e.target.checked)}
                 disabled={!showFiltered ? filtered === 0 : null}
@@ -455,21 +510,22 @@ export const BindAddressPicker = ({
                 className="text-decoration-none p-0"
                 onClick={refresh}
                 disabled={loading}
-                title="Re-fetch interface list"
+                title={t('haproxy:bindPicker.reloadTitle', 'Re-fetch interface list')}
               >
                 {loading ? (
                   <Spinner as="span" animation="border" size="sm" />
                 ) : (
                   <>
                     <i className="bi bi-arrow-clockwise me-1" />
-                    Reload
+                    {t('haproxy:bindPicker.reload', 'Reload')}
                   </>
                 )}
               </Button>
             </div>
             {error ? (
               <div className="px-2 small text-danger">
-                Interface list unavailable: {error.message}
+                {t('haproxy:bindPicker.interfacesUnavailable', 'Interface list unavailable')}:{' '}
+                {error.message}
               </div>
             ) : null}
           </Dropdown.Menu>

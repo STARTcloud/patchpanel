@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Alert, Button, Card, Form, Table } from 'react-bootstrap';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 import { genKey } from '../utils/keys.js';
@@ -61,6 +62,7 @@ PluginRow.propTypes = {
 };
 
 export const LuaPluginsCard = ({ doc, onSave }) => {
+  const { t } = useTranslation(['lua', 'common']);
   const [draft, setDraft] = useState(null);
   const [status, setStatus] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
@@ -96,7 +98,10 @@ export const LuaPluginsCard = ({ doc, onSave }) => {
   };
 
   const handleUploaded = ({ name, path }) => {
-    setStatus({ kind: 'success', message: `Uploaded ${name}. Click Save to apply.` });
+    setStatus({
+      kind: 'success',
+      message: t('lua:plugins.uploaded', 'Uploaded {{name}}. Click Save to apply.', { name }),
+    });
     setShowUpload(false);
     setDraft({
       keys: [...current.keys, genKey()],
@@ -112,7 +117,7 @@ export const LuaPluginsCard = ({ doc, onSave }) => {
       globalSettings: { ...doc.globalSettings, luaPlugins: cleanForSave(current.plugins) },
     })
       .then(() => {
-        setStatus({ kind: 'success', message: 'Saved.' });
+        setStatus({ kind: 'success', message: t('lua:plugins.saved', 'Saved.') });
         setDraft(null);
       })
       .catch(err => setStatus({ kind: 'danger', message: err.message }));
@@ -121,25 +126,36 @@ export const LuaPluginsCard = ({ doc, onSave }) => {
   return (
     <Card className="mb-3">
       <Card.Body>
-        <Card.Title>Lua plugins</Card.Title>
+        <Card.Title>{t('lua:plugins.title', 'Lua plugins')}</Card.Title>
         <Card.Text className="text-muted small">
-          Global <code>lua-load</code> + optional <code>lua-prepend-path</code> entries. Each plugin
-          renders as <code>lua-prepend-path PREPEND/?/http.lua</code> (when set) followed by{' '}
-          <code>lua-load PATH</code>. Plugins registered via this list expose their{' '}
-          <code>core.register_action</code> functions as <code>lua.&lt;name&gt;</code> usable from a
-          Rule&apos;s <code>lua</code> action.
+          <Trans
+            i18nKey="lua:plugins.description"
+            t={t}
+            defaults="Global <0>lua-load</0> + optional <1>lua-prepend-path</1> entries. Each plugin renders as <2>lua-prepend-path PREPEND/?/http.lua</2> (when set) followed by <3>lua-load PATH</3>. Plugins registered via this list expose their <4>core.register_action</4> functions as <5>lua.&lt;name&gt;</5> usable from a Rule's <6>lua</6> action."
+            components={[
+              <code key="0" />,
+              <code key="1" />,
+              <code key="2" />,
+              <code key="3" />,
+              <code key="4" />,
+              <code key="5" />,
+              <code key="6" />,
+            ]}
+          />
         </Card.Text>
         {status ? <Alert variant={status.kind}>{status.message}</Alert> : null}
         <Form onSubmit={submit}>
           {current.plugins.length === 0 ? (
-            <p className="text-muted small mb-2">No Lua plugins configured.</p>
+            <p className="text-muted small mb-2">
+              {t('lua:plugins.empty', 'No Lua plugins configured.')}
+            </p>
           ) : (
             <Table size="sm" bordered responsive className="mb-2">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Path</th>
-                  <th>Prepend path (optional)</th>
+                  <th>{t('lua:plugins.col.name', 'Name')}</th>
+                  <th>{t('lua:plugins.col.path', 'Path')}</th>
+                  <th>{t('lua:plugins.col.prepend', 'Prepend path (optional)')}</th>
                   <th className="text-end" />
                 </tr>
               </thead>
@@ -158,7 +174,7 @@ export const LuaPluginsCard = ({ doc, onSave }) => {
           <div className="d-flex gap-2 flex-wrap">
             <Button variant="outline-primary" size="sm" type="button" onClick={addRow}>
               <i className="bi bi-plus-lg me-1" />
-              Add Lua plugin
+              {t('lua:plugins.addPlugin', 'Add Lua plugin')}
             </Button>
             <Button
               variant="outline-secondary"
@@ -167,10 +183,10 @@ export const LuaPluginsCard = ({ doc, onSave }) => {
               onClick={() => setShowUpload(true)}
             >
               <i className="bi bi-cloud-upload me-1" />
-              Upload .lua file
+              {t('lua:plugins.uploadFile', 'Upload .lua file')}
             </Button>
             <Button type="submit" variant="primary" size="sm" disabled={!draft}>
-              Save Lua plugins
+              {t('lua:plugins.savePlugins', 'Save Lua plugins')}
             </Button>
           </div>
         </Form>

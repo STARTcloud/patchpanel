@@ -1,0 +1,486 @@
+{
+  "uploadedFiles": {
+    "title": "Uploaded certificate files (advanced)",
+    "description": "Files currently stored under the BYO cert directory. Each row corresponds to one folder on disk. Orphans (rows without a matching Certificate entry above) accumulate when you delete a Certificate entry without removing its PEM, or when files are dropped in by hand. Cleanup here removes the on-disk PEM only — Certificate entries in state are unaffected.",
+    "columns": {
+      "name": "Name",
+      "status": "Status",
+      "uploaded": "Uploaded",
+      "actions": "Actions"
+    },
+    "badge": {
+      "inUse": "in use",
+      "orphan": "orphan",
+      "incomplete": "incomplete"
+    },
+    "actions": {
+      "deleteFiles": "Delete files"
+    },
+    "confirmDelete": {
+      "title": "Delete uploaded files?",
+      "bodyPrefix": "Delete the PEM files for",
+      "bodySuffix": "from disk? Any Certificate entry pointing at this name will become un-loadable until you replace the files."
+    }
+  },
+  "status": {
+    "missing": "missing",
+    "expired": "expired",
+    "daysShort": "{{days}}d"
+  },
+  "sansList": {
+    "title": "{{count}} SAN on {{certName}}",
+    "filterPlaceholder": "Filter SANs…",
+    "count": {
+      "total": "{{count}} total",
+      "match": "{{visible}} of {{total}} match"
+    },
+    "noMatch": "No SANs match the filter."
+  },
+  "sansCell": {
+    "showAllTitle": "Show all {{count}} SANs on {{certName}}",
+    "moreBadge": "+{{count}} more"
+  },
+  "providerCell": {
+    "linkTitle": "Jump to this TLS provider on the Providers tab"
+  },
+  "settings": {
+    "acmeAccounts": "ACME accounts ({{count}})",
+    "trustedCas": "Trusted CAs ({{count}})",
+    "trustedCrls": "Trusted CRLs ({{count}})",
+    "renewal": "Renewal settings"
+  },
+  "renewalAlert": {
+    "singleLabel": "Single-cert renewal",
+    "allLabel": "Renewal",
+    "summary": "{{label}} completed. Loadable certificates: {{count}}.",
+    "reloadOk": "HAProxy reloaded.",
+    "reloadFail": "HAProxy reload skipped or failed.",
+    "itemOk": "success",
+    "itemFail": "failed — {{error}}"
+  },
+  "page": {
+    "title": "Certificates",
+    "addCertificate": "Add certificate",
+    "renewAll": "Renew all",
+    "renewingAll": "Renewing all…",
+    "forceRenewAll": "Force renew all",
+    "forceRenewAllTitle": "Renew all even if existing certs aren't near expiry (--force-renewal)",
+    "description": "Adding/editing/deleting certificates changes state but does not by itself issue or revoke anything. Use Renew (per cert or all) to invoke certbot. Renewal can take several minutes per certificate due to DNS propagation.",
+    "liveStatusUnavailable": "Live status unavailable: {{message}}",
+    "saveFailed": "Save failed: {{message}}",
+    "renewalRequestFailed": "Renewal request failed: {{message}}",
+    "columns": {
+      "name": "Name",
+      "sans": "SANs",
+      "provider": "Provider",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "action": {
+      "issue": "Issue",
+      "renew": "Renew",
+      "force": "Force",
+      "clone": "Clone"
+    },
+    "actionTitle": "{{action}} {{name}}",
+    "forceIssueTitle": "Force issue {{name}}, ignoring certbot's renewal interval",
+    "forceRenewTitle": "Force renew {{name}}, ignoring certbot's renewal interval",
+    "uploadedBadge": "uploaded",
+    "uploadedTitle": "Uploaded — not managed by certbot",
+    "idLabel": "id",
+    "sanCount": "{{count}} SAN",
+    "cloneTitle": "Duplicate this certificate entry with a new id/certName. Useful for splitting one cert into per-host certs, or for staging a renewal against a fresh certName. Edit the SAN list before issuing.",
+    "confirmDelete": {
+      "title": "Delete certificate?",
+      "prefix": "Delete",
+      "suffix": "from state? The PEM files on disk remain until pruned by the next render pass (or removed manually from the Uploaded files panel below)."
+    }
+  },
+  "tlsProviders": {
+    "title": "TLS / ACME providers",
+    "add": "Add provider",
+    "description": "Certbot challenge providers (DNS-01 per registrar, HTTP-01, BYO). Certificates pick one of these to satisfy the ACME challenge. Credentials are stored as mode-600 files in patchpanel's credentials directory — the per-provider form below collects them.",
+    "saveFailed": "Save failed: {{message}}",
+    "columns": {
+      "id": "ID",
+      "type": "Type",
+      "credentials": "Credentials",
+      "usedBy": "Used by",
+      "actions": "Actions"
+    },
+    "referencedTitle": "Referenced by at least one certificate.",
+    "confirmDelete": {
+      "title": "Delete TLS provider?",
+      "prefix": "Delete",
+      "suffix": "? The stored credentials file (if any) is also removed from disk."
+    },
+    "credentials": {
+      "stored": "stored",
+      "missing": "missing",
+      "na": "n/a"
+    }
+  },
+  "providersPage": {
+    "usage": {
+      "unused": "unused",
+      "popoverHeader": "Used by {{count}} {{kind}}",
+      "noDetails": "(no details)",
+      "badge": "{{count}} {{kind}}"
+    },
+    "testResult": {
+      "summary": "{{kind}} test for {{id}}: {{status}}",
+      "ok": "OK",
+      "failed": "FAILED",
+      "showRaw": "Show raw response"
+    }
+  },
+  "acmeAccount": {
+    "modal": {
+      "editTitle": "Edit ACME account: {{id}}",
+      "newTitle": "New ACME account"
+    },
+    "field": {
+      "id": "ID",
+      "idPlaceholder": "e.g. default or work-zerossl",
+      "idHelp": "Stable identifier. Certs reference accounts by id.",
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "What this account is for",
+      "email": "Account email",
+      "server": "ACME server",
+      "directoryUrl": "Directory URL",
+      "eabKid": "EAB Key ID",
+      "eabHmac": "EAB HMAC Key",
+      "required": "required",
+      "fromCaDashboard": "from CA dashboard",
+      "optional": "optional"
+    },
+    "eabHint": "{{server}} requires External Account Binding. Generate the key ID + HMAC pair in the CA dashboard and paste them above before saving.",
+    "section": {
+      "title": "ACME accounts",
+      "description": "Each account = an email registered with one ACME CA. Multiple accounts let you split certs across CAs, separate rate-limit pools, or run staging + prod side-by-side."
+    },
+    "addButton": "Add account",
+    "emptyState": "No ACME accounts defined. Every non-BYO cert needs one — add at least one before issuing.",
+    "column": {
+      "id": "ID",
+      "email": "Email",
+      "server": "Server",
+      "eab": "EAB",
+      "usedBy": "Used by",
+      "actions": "Actions"
+    },
+    "eabSet": "set",
+    "certCount": "{{count}} cert(s)",
+    "stillRefTitle": "{{count}} cert(s) still reference this account",
+    "cannotDelete": "Cannot delete: {{count}} cert(s) still reference this account",
+    "validate": {
+      "idFormat": "id must match a-z, 0-9, _, - (starting with a letter)",
+      "idTaken": "id \"{{id}}\" is already used",
+      "emailRequired": "email is required and must be valid",
+      "unknownServer": "unknown server",
+      "directoryUrlRequired": "directoryUrl is required when server is \"custom\"",
+      "eabRequired": "{{server}} requires External Account Binding — set both eabKid and eabHmacKey",
+      "eabPair": "eabKid and eabHmacKey must be set together (or both empty)",
+      "tupleTaken": "another account already uses email \"{{email}}\" on server \"{{server}}\""
+    }
+  },
+  "certEdit": {
+    "header": {
+      "edit": "Edit certificate: {{name}}",
+      "addByo": "Add certificate (upload PEM)",
+      "new": "New certificate"
+    },
+    "primary": {
+      "uploading": "Uploading…"
+    },
+    "validate": "Validate",
+    "pickProviderHint": "Pick a TLS provider above to continue.",
+    "providerSelect": {
+      "label": "TLS provider",
+      "choose": "— choose —",
+      "byoOption": "Upload my own cert (BYO)",
+      "locked": "Provider is locked once a cert is created."
+    },
+    "acme": {
+      "id": "ID",
+      "idPlaceholder": "e.g. example-com",
+      "certName": "certName (used as Let's Encrypt cert name)",
+      "certNamePlaceholder": "e.g. example.com",
+      "domains": "Domains (SANs)",
+      "domainsPlaceholder": "e.g. www.example.com or *.example.com",
+      "invalidDomain": "invalid domain",
+      "domainsHelp": "The first entry becomes the certificate's Common Name. Wildcards are permitted (DNS-01 only).",
+      "account": "ACME account",
+      "choose": "— choose —",
+      "keyType": "Key type",
+      "rsaKeySize": "RSA key size",
+      "expanding": "Allow expanding existing lineage with new SANs (--expand)"
+    },
+    "pem": {
+      "fullchainLabel": "Fullchain PEM (leaf + intermediates)",
+      "privkeyLabel": "Private key PEM (matching private key)",
+      "requestFailed": "Request failed: {{message}}"
+    },
+    "validation": {
+      "success": "PEM validated successfully.",
+      "ready": "ready",
+      "cn": "CN:",
+      "none": "(none)",
+      "sans": "SANs:",
+      "valid": "Valid:",
+      "chainLength": "Chain length:",
+      "certCount": "{{count}} cert",
+      "failed": "Validation failed."
+    },
+    "validate": {
+      "idFormat": "id must match a-z, 0-9, _, - (starting with a letter)",
+      "certNameInvalid": "certName must be a valid filesystem-safe certificate name",
+      "domainRequired": "at least one domain is required",
+      "providerRequired": "provider is required",
+      "acmeAccountRequired": "ACME account is required",
+      "rsaKeySize": "rsaKeySize must be 2048, 3072, 4096, or 8192"
+    },
+    "error": {
+      "validationFailed": "validation request failed",
+      "uploadFailed": "upload request failed"
+    }
+  },
+  "byo": {
+    "new": {
+      "hint": "Paste in your fullchain + private key, give it a name, click Validate then Upload. patchpanel writes the PEM files to disk and adds the matching Certificate entry — no need to wire up a TLS provider separately.",
+      "name": "Name",
+      "namePlaceholder": "auto-filled from the cert's first SAN",
+      "nameHelp": "Used as the on-disk folder name and the entry name in the certificates list. Filesystem-safe characters only. Auto-filled from the cert's first SAN after validation; override before uploading if you want."
+    },
+    "edit": {
+      "certNameLabel": "certName:",
+      "sansLabel": "SANs:",
+      "lineageLabel": "Lineage on disk:",
+      "validPrefix": "valid",
+      "noPem": "no PEM loaded",
+      "downloadFullchain": "Download fullchain.pem",
+      "downloadPrivkey": "Download privkey.pem",
+      "replaceSummary": "Replace PEM",
+      "replaceWarning": "Paste new fullchain + private key below, click Validate, then Replace. The old PEM is overwritten on disk; if the new cert has different SANs the cert entry's domains are updated to match.",
+      "validate": "Validate",
+      "replacing": "Replacing…",
+      "replaceButton": "Replace PEM",
+      "replaceFailed": "replace failed",
+      "replaceSuccess": "PEM replaced and state applied.",
+      "replaceRequestFailed": "replace request failed",
+      "metadataSummary": "Metadata",
+      "certNameField": "certName",
+      "certNameHelp": "The folder name on disk. Renaming after upload is not recommended — the existing PEM files stay under the original name.",
+      "domainsField": "Domains (SANs)",
+      "domainsPlaceholder": "e.g. www.example.com",
+      "invalidDomain": "invalid domain",
+      "domainsHelp": "Auto-derived from the cert's SANs at upload time. Edits here only change what HAProxy advertises for SNI; they don't change the actual PEM bytes."
+    }
+  },
+  "renewal": {
+    "title": "Certificate renewal troubleshooter",
+    "steps": {
+      "pickCert": "Pick cert",
+      "preflight": "Pre-flight",
+      "action": "Action",
+      "run": "Run"
+    },
+    "pickCert": {
+      "label": "Which certificate are you troubleshooting?",
+      "choose": "— choose —",
+      "option": "{{certName}} ({{id}}) · {{count}} SAN · provider {{providerId}}",
+      "empty": "No certificates in state yet. Use the cert wizard first."
+    },
+    "preflight": {
+      "goBack": "Go back and pick a cert.",
+      "certName": "certName",
+      "domains": "Domains",
+      "tlsProvider": "TLS provider",
+      "creds": "creds {{ref}}",
+      "missingProvider": "missing provider {{id}}"
+    },
+    "providerTest": {
+      "testing": "Testing provider credentials…",
+      "label": "Provider test",
+      "pass": "PASS",
+      "check": "CHECK",
+      "failed": "provider test failed"
+    },
+    "action": {
+      "label": "What do you want to do?",
+      "renew": {
+        "title": "Renew if needed.",
+        "desc": "Standard renewal — certbot decides based on remaining lifetime."
+      },
+      "force": {
+        "title": "Force renew.",
+        "desc": "Re-issues even if the current cert isn't close to expiry. Use after switching staging↔prod or after credentials changed."
+      },
+      "skip": {
+        "title": "Skip renewal.",
+        "desc": "Close the wizard without changing anything."
+      }
+    },
+    "run": {
+      "skipPrefix": "Nothing to do — click",
+      "finish": "Finish",
+      "skipSuffix": "to close the wizard.",
+      "inProgress": "Renewal in progress. DNS-01 propagation can take a couple minutes per cert — leave the wizard open.",
+      "clickStart": "Click",
+      "startButton": "Run renewal",
+      "toStart": "to start.",
+      "finished": "Renewal pipeline finished.",
+      "reloadFailed": "Renewal completed but HAProxy reload failed.",
+      "loadable": "Loadable PEMs now: {{count}}."
+    },
+    "testingShort": "Testing…",
+    "rerunProviderTest": "Re-run provider test"
+  },
+  "letsencrypt": {
+    "saved": "Saved.",
+    "description": "Global renewal settings. Account identity (email + ACME server) lives per-account in the ACME accounts card above. Each certificate picks which account it uses.",
+    "dnsPropagation": "DNS propagation (s)",
+    "renewalSchedule": "Renewal schedule (cron)",
+    "skipRenewal": "Skip renewal entirely",
+    "forceRenewal": "Force renewal on next run"
+  },
+  "credentials": {
+    "loading": "Loading existing credentials…",
+    "secret": "secret",
+    "preservedHint": "Existing value preserved on save. Clear and retype to replace."
+  },
+  "tlsProviderEdit": {
+    "editTitle": "Edit TLS provider: {{id}}",
+    "newTitle": "New TLS provider",
+    "templateUnavailable": "Credentials template unavailable: {{message}}. You can still save the provider; add credentials later via Edit.",
+    "saveFailed": "save failed",
+    "idLabel": "ID",
+    "idPlaceholder": "e.g. cloudflare",
+    "idHelp": "Lowercase a-z, digits, _ or -. Used as the on-disk credentials filename.",
+    "typeLabel": "Type",
+    "typeHelp": "Type cannot change after creation. Delete and recreate to switch.",
+    "noCredentials": "This provider type does not use a credentials file.",
+    "credentialsHeading": "Credentials",
+    "badge": {
+      "stored": "stored",
+      "notWritten": "not yet written"
+    },
+    "validate": {
+      "idFormat": "id must match a-z, 0-9, _, - (starting with a letter)",
+      "unknownType": "unknown TLS provider type: {{type}}"
+    }
+  },
+  "trustedCa": {
+    "upload": {
+      "title": "Upload trusted CA bundle",
+      "pemLabel": "CA bundle PEM",
+      "pemHelpPrefix": "Paste or drop a PEM bundle. Multiple",
+      "pemHelpSuffix": "blocks (root + intermediates) are fine.",
+      "validated": "Validated.",
+      "readyToSave": "ready to save",
+      "subject": "Subject:",
+      "none": "(none)",
+      "fingerprint": "Fingerprint (SHA-256):",
+      "earliestNotAfter": "Earliest notAfter:",
+      "chainLength": "Chain length:",
+      "certCount": "{{count}} cert",
+      "warnings": "Warnings:",
+      "validationFailed": "Validation failed.",
+      "validationFailedReq": "validation request failed",
+      "uploadFailedReq": "upload request failed",
+      "descPrefix": "A trusted CA is a PEM bundle (root + optional intermediates) that HAProxy uses to verify peer certificates. Use it on a",
+      "frontendBind": "frontend bind",
+      "descMiddle": "for mTLS client cert validation, or on a",
+      "backendServer": "backend server",
+      "descSuffix": "to validate an upstream's TLS chain.",
+      "requestFailed": "Request failed: {{message}}",
+      "friendlyName": "Friendly name",
+      "namePlaceholder": "e.g. Corporate-Root-2026",
+      "nameHelpPrefix": "Display name. Letters/digits/",
+      "nameHelpSuffix": ", starting with a letter.",
+      "nameTaken": "name already used",
+      "idLabel": "ID",
+      "idPlaceholder": "auto-derived from name",
+      "idHelpPrefix": "Stable identifier; used in state refs and as the on-disk filename. Lowercase a-z, 0-9,",
+      "idHelpSuffix": ", starting with a letter.",
+      "idTaken": "id already used",
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "What this CA is for",
+      "validate": "Validate",
+      "uploading": "Uploading…"
+    },
+    "list": {
+      "title": "Trusted CAs",
+      "descPrefix": "CA bundles used by HAProxy to verify peer certificates. Referenced from frontend bind",
+      "descMiddle": "(mTLS client auth) and backend",
+      "descSuffix": "lines (upstream TLS verification).",
+      "upload": "Upload CA bundle",
+      "empty": "No trusted CAs uploaded yet. Add one to enable mTLS client validation on binds or upstream TLS verification on backend servers.",
+      "columns": {
+        "id": "ID",
+        "name": "Name",
+        "subject": "Subject",
+        "fingerprint": "Fingerprint",
+        "expires": "Expires",
+        "usedBy": "Used by",
+        "actions": "Actions"
+      },
+      "chainCount": "chain ×{{count}}",
+      "expired": "expired",
+      "daysShort": "{{days}}d",
+      "usageBadge": "{{binds}} bind · {{servers}} server",
+      "cannotDelete": "Cannot delete: still referenced by {{binds}} bind(s) and {{servers}} server(s)",
+      "stillReferencedTitle": "Still referenced by {{binds}} bind(s) and {{servers}} server(s)"
+    }
+  },
+  "trustedCrl": {
+    "upload": {
+      "title": "Upload trusted CRL",
+      "pemLabel": "CRL PEM",
+      "pemHelpPrefix": "Paste or drop a PEM-encoded X.509 Certificate Revocation List. HAProxy validates the file contents at",
+      "pemHelpSuffix": "time; patchpanel only checks the PEM envelope here.",
+      "envelopeOk": "PEM envelope OK.",
+      "readyToSave": "ready to save",
+      "fingerprint": "Fingerprint (SHA-256):",
+      "validationFailed": "Validation failed.",
+      "validationFailedReq": "validation request failed",
+      "uploadFailedReq": "upload request failed",
+      "descPrefix": "A Certificate Revocation List is a signed list of certificates that have been revoked by their issuing CA. HAProxy uses it on a",
+      "frontendBind": "frontend bind",
+      "descMiddle": "alongside",
+      "descSuffix": "+ a Trusted CA to reject revoked client certs at the TLS handshake.",
+      "requestFailed": "Request failed: {{message}}",
+      "friendlyName": "Friendly name",
+      "namePlaceholder": "e.g. CorpCA-2026-Q2",
+      "nameHelpPrefix": "Display name. Letters/digits/",
+      "nameHelpSuffix": ", starting with a letter.",
+      "nameTaken": "name already used",
+      "idLabel": "ID",
+      "idPlaceholder": "auto-derived from name",
+      "idHelpPrefix": "Stable id; on-disk filename. Lowercase a-z, 0-9,",
+      "idHelpSuffix": ", start with letter.",
+      "idTaken": "id already used",
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "What this CRL covers",
+      "validate": "Validate",
+      "uploading": "Uploading…"
+    },
+    "list": {
+      "title": "Trusted CRLs",
+      "descPrefix": "X.509 Certificate Revocation Lists. Referenced from frontend bind",
+      "descSuffix": "when doing mTLS client cert validation — HAProxy uses the CRL to reject revoked client certs at the TLS handshake.",
+      "upload": "Upload CRL",
+      "empty": "No trusted CRLs uploaded yet. Upload one to gate mTLS access via revocation status.",
+      "columns": {
+        "id": "ID",
+        "name": "Name",
+        "fingerprint": "Fingerprint",
+        "usedBy": "Used by",
+        "actions": "Actions"
+      },
+      "bindCount": "{{count}} bind",
+      "cannotDelete": "Cannot delete: still referenced by {{count}} bind(s)",
+      "stillReferencedTitle": "Still referenced by {{count}} bind(s)"
+    }
+  }
+}

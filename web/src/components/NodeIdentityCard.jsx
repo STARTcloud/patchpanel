@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Form, Spinner, Table } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiGet, apiPut } from '../api/client.js';
 import { useSystemInterfaces } from '../hooks/useSystemInterfaces.jsx';
@@ -39,74 +40,80 @@ const collectInterfaceNames = groups => {
   return [...names].sort();
 };
 
-const OverrideRow = ({ instance, override, onChange, onRemove, interfaceNames }) => (
-  <tr>
-    <td>
-      <code>{instance.id}</code>
-      <div className="text-muted small">
-        {instance.vip}
-        {instance.prefix ? `/${instance.prefix}` : ''} · VRID {instance.virtualRouterId}
-      </div>
-    </td>
-    <td style={{ width: '7rem' }}>
-      <Form.Control
-        type="number"
-        min={1}
-        max={254}
-        value={override.priority ?? ''}
-        onChange={e => {
-          const raw = e.target.value;
-          const n = raw === '' ? null : Number.parseInt(raw, 10);
-          onChange({ ...override, priority: Number.isInteger(n) ? n : null });
-        }}
-      />
-    </td>
-    <td style={{ width: '9rem' }}>
-      <Form.Select
-        value={override.state ?? 'BACKUP'}
-        onChange={e => onChange({ ...override, state: e.target.value })}
-      >
-        {VRRP_STATES.map(s => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </Form.Select>
-    </td>
-    <td style={{ width: '10rem' }}>
-      {interfaceNames.length > 0 ? (
+const OverrideRow = ({ instance, override, onChange, onRemove, interfaceNames }) => {
+  const { t } = useTranslation(['cluster']);
+  return (
+    <tr>
+      <td>
+        <code>{instance.id}</code>
+        <div className="text-muted small">
+          {instance.vip}
+          {instance.prefix ? `/${instance.prefix}` : ''} · VRID {instance.virtualRouterId}
+        </div>
+      </td>
+      <td style={{ width: '7rem' }}>
+        <Form.Control
+          type="number"
+          min={1}
+          max={254}
+          value={override.priority ?? ''}
+          onChange={e => {
+            const raw = e.target.value;
+            const n = raw === '' ? null : Number.parseInt(raw, 10);
+            onChange({ ...override, priority: Number.isInteger(n) ? n : null });
+          }}
+        />
+      </td>
+      <td style={{ width: '9rem' }}>
         <Form.Select
-          value={override.interface ?? ''}
-          onChange={e => onChange({ ...override, interface: e.target.value })}
+          value={override.state ?? 'BACKUP'}
+          onChange={e => onChange({ ...override, state: e.target.value })}
         >
-          <option value="">(unset)</option>
-          {interfaceNames.map(name => (
-            <option key={name} value={name}>
-              {name}
+          {VRRP_STATES.map(s => (
+            <option key={s} value={s}>
+              {s}
             </option>
           ))}
         </Form.Select>
-      ) : (
-        <Form.Control
-          type="text"
-          value={override.interface ?? ''}
-          placeholder="eth0"
-          onChange={e => onChange({ ...override, interface: e.target.value })}
-        />
-      )}
-    </td>
-    <td className="text-end">
-      <Button
-        variant="outline-danger"
-        size="sm"
-        onClick={onRemove}
-        title="This node won't participate in this VIP"
-      >
-        ×
-      </Button>
-    </td>
-  </tr>
-);
+      </td>
+      <td style={{ width: '10rem' }}>
+        {interfaceNames.length > 0 ? (
+          <Form.Select
+            value={override.interface ?? ''}
+            onChange={e => onChange({ ...override, interface: e.target.value })}
+          >
+            <option value="">{t('cluster:node.identity.interfaceUnset', '(unset)')}</option>
+            {interfaceNames.map(name => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </Form.Select>
+        ) : (
+          <Form.Control
+            type="text"
+            value={override.interface ?? ''}
+            placeholder="eth0"
+            onChange={e => onChange({ ...override, interface: e.target.value })}
+          />
+        )}
+      </td>
+      <td className="text-end">
+        <Button
+          variant="outline-danger"
+          size="sm"
+          onClick={onRemove}
+          title={t(
+            'cluster:node.identity.removeVipTitle',
+            "This node won't participate in this VIP"
+          )}
+        >
+          ×
+        </Button>
+      </td>
+    </tr>
+  );
+};
 
 OverrideRow.propTypes = {
   instance: PropTypes.shape({
@@ -121,27 +128,33 @@ OverrideRow.propTypes = {
   interfaceNames: PropTypes.arrayOf(PropTypes.string).isRequired,
 };
 
-const MissingRow = ({ instance, onAdd }) => (
-  <tr>
-    <td>
-      <code>{instance.id}</code>
-      <div className="text-muted small">
-        {instance.vip}
-        {instance.prefix ? `/${instance.prefix}` : ''} · VRID {instance.virtualRouterId}
-      </div>
-    </td>
-    <td colSpan={3} className="text-muted small">
-      <i className="bi bi-info-circle me-1" />
-      This node won&apos;t participate in this VIP until you add a per-node priority/state.
-    </td>
-    <td className="text-end">
-      <Button variant="outline-primary" size="sm" onClick={onAdd}>
-        <i className="bi bi-plus-lg me-1" />
-        Add this VIP
-      </Button>
-    </td>
-  </tr>
-);
+const MissingRow = ({ instance, onAdd }) => {
+  const { t } = useTranslation(['cluster']);
+  return (
+    <tr>
+      <td>
+        <code>{instance.id}</code>
+        <div className="text-muted small">
+          {instance.vip}
+          {instance.prefix ? `/${instance.prefix}` : ''} · VRID {instance.virtualRouterId}
+        </div>
+      </td>
+      <td colSpan={3} className="text-muted small">
+        <i className="bi bi-info-circle me-1" />
+        {t(
+          'cluster:node.identity.missingHint',
+          "This node won't participate in this VIP until you add a per-node priority/state."
+        )}
+      </td>
+      <td className="text-end">
+        <Button variant="outline-primary" size="sm" onClick={onAdd}>
+          <i className="bi bi-plus-lg me-1" />
+          {t('cluster:node.identity.addVip', 'Add this VIP')}
+        </Button>
+      </td>
+    </tr>
+  );
+};
 
 MissingRow.propTypes = {
   instance: PropTypes.shape({
@@ -154,10 +167,12 @@ MissingRow.propTypes = {
 };
 
 export const NodeIdentityCard = ({ instances }) => {
+  const { t } = useTranslation(['cluster', 'common']);
   const { groups } = useSystemInterfaces();
   const interfaceNames = collectInterfaceNames(groups);
 
   const [nodeId, setNodeId] = useState('');
+  const [renewalLeader, setRenewalLeader] = useState(true);
   const [vrrp, setVrrp] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -173,6 +188,7 @@ export const NodeIdentityCard = ({ instances }) => {
           return;
         }
         setNodeId(payload?.nodeId ?? '');
+        setRenewalLeader(payload?.renewalLeader !== false);
         setVrrp(payload?.vrrp ?? {});
         setLoadError(null);
         setLoading(false);
@@ -213,7 +229,7 @@ export const NodeIdentityCard = ({ instances }) => {
     setSaveError(null);
     setSaved(false);
     try {
-      await apiPut('api/node-config', { nodeId, vrrp });
+      await apiPut('api/node-config', { nodeId, renewalLeader, vrrp });
       setSaved(true);
     } catch (err) {
       setSaveError(err);
@@ -235,20 +251,25 @@ export const NodeIdentityCard = ({ instances }) => {
   return (
     <Card className="mb-3">
       <Card.Body>
-        <Card.Title className="mb-1">This node&apos;s identity</Card.Title>
+        <Card.Title className="mb-1">
+          {t('cluster:node.identity.title', "This node's identity")}
+        </Card.Title>
         <Card.Text className="text-muted small">
-          Edits <code>/etc/patchpanel/node.yaml</code>. These values are local to this node and
-          never sync to peers. Saving triggers a keepalived reload.
+          {t(
+            'cluster:node.identity.description',
+            'Edits /etc/patchpanel/node.yaml. These values are local to this node and never sync to peers. Saving triggers a keepalived reload.'
+          )}
         </Card.Text>
 
         {loadError ? (
           <Alert variant="danger" className="py-2 small">
-            Failed to load node config: {loadError.message}
+            {t('cluster:node.identity.loadFailed', 'Failed to load node config:')}{' '}
+            {loadError.message}
           </Alert>
         ) : null}
 
         <Form.Group className="mb-3">
-          <Form.Label>Node ID</Form.Label>
+          <Form.Label>{t('cluster:node.identity.nodeIdLabel', 'Node ID')}</Form.Label>
           <Form.Control
             type="text"
             value={nodeId}
@@ -259,26 +280,55 @@ export const NodeIdentityCard = ({ instances }) => {
             placeholder="haproxy-s2-n1"
           />
           <Form.Text className="text-muted">
-            Human label for this node — surfaces in the peers list on other nodes and in audit
-            entries.
+            {t(
+              'cluster:node.identity.nodeIdHint',
+              'Human label for this node — surfaces in the peers list on other nodes and in audit entries.'
+            )}
+          </Form.Text>
+        </Form.Group>
+
+        <Form.Group className="mb-3">
+          <Form.Check
+            type="switch"
+            id="node-config-renewal-leader"
+            checked={renewalLeader}
+            onChange={e => {
+              setSaved(false);
+              setRenewalLeader(e.target.checked);
+            }}
+            label={t(
+              'cluster:node.identity.renewalLeaderLabel',
+              'Run certbot renewals on this node (renewal leader)'
+            )}
+          />
+          <Form.Text className="text-muted">
+            {t(
+              'cluster:node.identity.renewalLeaderHint',
+              'Exactly one node in the cluster should be the renewal leader. The leader runs certbot, then pushes the renewed certs to peers via the peer-sync API. Non-leaders skip their cron renewal pass and receive certs from the leader instead.'
+            )}
           </Form.Text>
         </Form.Group>
 
         <div className="mb-2">
-          <strong className="small text-muted text-uppercase">Per-VIP overrides</strong>
+          <strong className="small text-muted text-uppercase">
+            {t('cluster:node.identity.overridesHeading', 'Per-VIP overrides')}
+          </strong>
         </div>
         {instances.length === 0 ? (
           <Alert variant="light" className="border small mb-0">
-            No VRRP instances defined yet. Add one in the table above.
+            {t(
+              'cluster:node.identity.noInstances',
+              'No VRRP instances defined yet. Add one in the table above.'
+            )}
           </Alert>
         ) : (
           <Table size="sm" className="mb-3">
             <thead>
               <tr>
-                <th>VIP id</th>
-                <th>priority</th>
-                <th>state</th>
-                <th>interface</th>
+                <th>{t('cluster:node.identity.col.vipId', 'VIP id')}</th>
+                <th>{t('cluster:node.identity.col.priority', 'priority')}</th>
+                <th>{t('cluster:node.identity.col.state', 'state')}</th>
+                <th>{t('cluster:node.identity.col.interface', 'interface')}</th>
                 <th />
               </tr>
             </thead>
@@ -311,12 +361,12 @@ export const NodeIdentityCard = ({ instances }) => {
 
         {saveError ? (
           <Alert variant="danger" className="py-2 small">
-            Save failed: {saveError.message}
+            {t('cluster:node.identity.saveFailed', 'Save failed:')} {saveError.message}
           </Alert>
         ) : null}
         {saved ? (
           <Alert variant="success" className="py-2 small">
-            Saved. keepalived has been reloaded.
+            {t('cluster:node.identity.savedReloaded', 'Saved. keepalived has been reloaded.')}
           </Alert>
         ) : null}
 
@@ -324,10 +374,10 @@ export const NodeIdentityCard = ({ instances }) => {
           {saving ? (
             <>
               <Spinner as="span" animation="border" size="sm" className="me-2" />
-              Saving…
+              {t('common:status.saving', 'Saving…')}
             </>
           ) : (
-            'Save node config'
+            t('cluster:node.identity.saveButton', 'Save node config')
           )}
         </Button>
       </Card.Body>

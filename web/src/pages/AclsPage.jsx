@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card, OverlayTrigger, Popover } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { AclEditModal } from '../components/AclEditModal.jsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
@@ -45,17 +46,18 @@ const collectAclRefcounts = doc => {
 };
 
 const RefcountBadge = ({ count, references }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   if (count === 0) {
     return (
       <Badge bg="secondary" className="bg-opacity-25 text-body-secondary border">
-        unused
+        {t('haproxy:acl.refs.unused', 'unused')}
       </Badge>
     );
   }
   const popover = (
     <Popover>
       <Popover.Header as="h6">
-        Referenced by {count} rule{count === 1 ? '' : 's'}
+        {t('haproxy:acl.refs.referencedBy', 'Referenced by {{count}} rule', { count })}
       </Popover.Header>
       <Popover.Body className="small">
         <ul className="mb-0 ps-3">
@@ -69,7 +71,7 @@ const RefcountBadge = ({ count, references }) => {
   return (
     <OverlayTrigger placement="left" overlay={popover} trigger={['hover', 'focus']}>
       <Badge bg="info" style={{ cursor: 'help' }}>
-        {count} rule{count === 1 ? '' : 's'}
+        {t('haproxy:acl.refs.ruleCount', '{{count}} rule', { count })}
       </Badge>
     </OverlayTrigger>
   );
@@ -101,6 +103,7 @@ const renderExprSummary = acl => {
 };
 
 const RowActions = ({ row, ctx }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const refCount = ctx.refcounts.counts.get(row.name) ?? 0;
   return (
     <>
@@ -111,16 +114,26 @@ const RowActions = ({ row, ctx }) => {
         onClick={() => ctx.setEditing(row)}
         disabled={ctx.saving || !ctx.onSave}
       >
-        Edit
+        {t('common:buttons.edit', 'Edit')}
       </Button>
       <Button
         variant="outline-danger"
         size="sm"
         onClick={() => ctx.setDeleting(row)}
         disabled={ctx.saving || !ctx.onSave || refCount > 0}
-        title={refCount > 0 ? `Referenced by ${refCount} rule(s); detach them first.` : ''}
+        title={
+          refCount > 0
+            ? t(
+                'haproxy:acl.actions.deleteBlocked',
+                'Referenced by {{count}} rule(s); detach them first.',
+                {
+                  count: refCount,
+                }
+              )
+            : ''
+        }
       >
-        Delete
+        {t('common:buttons.delete', 'Delete')}
       </Button>
     </>
   );
@@ -132,6 +145,7 @@ RowActions.propTypes = {
 };
 
 export const AclsPage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [editing, setEditing] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -176,7 +190,7 @@ export const AclsPage = ({ doc = null, onSave = null }) => {
   const columns = [
     {
       key: 'name',
-      label: 'Name',
+      label: t('haproxy:acl.columns.name', 'Name'),
       sortable: true,
       accessor: r => r.name,
       render: r => (
@@ -188,12 +202,12 @@ export const AclsPage = ({ doc = null, onSave = null }) => {
     },
     {
       key: 'expression',
-      label: 'Expression',
+      label: t('haproxy:acl.columns.expression', 'Expression'),
       render: r => <code className="small">{renderExprSummary(r)}</code>,
     },
     {
       key: 'refs',
-      label: 'Used by',
+      label: t('haproxy:acl.columns.usedBy', 'Used by'),
       sortable: true,
       accessor: r => refcounts.counts.get(r.name) ?? 0,
       render: r => (
@@ -211,10 +225,12 @@ export const AclsPage = ({ doc = null, onSave = null }) => {
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
           <div>
-            <Card.Title className="mb-1">ACLs</Card.Title>
+            <Card.Title className="mb-1">{t('haproxy:acl.page.title', 'ACLs')}</Card.Title>
             <Card.Text className="text-muted small mb-0">
-              Reusable named matchers. Reference them by name from any rule condition; the renderer
-              emits an <code>acl NAME …</code> line at the top of every frontend body that uses it.
+              {t(
+                'haproxy:acl.page.description',
+                'Reusable named matchers. Reference them by name from any rule condition; the renderer emits an acl NAME … line at the top of every frontend body that uses it.'
+              )}
             </Card.Text>
           </div>
           <Button
@@ -223,12 +239,12 @@ export const AclsPage = ({ doc = null, onSave = null }) => {
             onClick={() => setShowNew(true)}
             disabled={saving || !onSave}
           >
-            Add ACL
+            {t('haproxy:acl.add', 'Add ACL')}
           </Button>
         </div>
         {saveError ? (
           <Alert variant="danger" onClose={() => setSaveError(null)} dismissible>
-            Save failed: {saveError.message}
+            {t('haproxy:common.saveFailed', 'Save failed')}: {saveError.message}
           </Alert>
         ) : null}
         <ReorderableTable
@@ -236,11 +252,17 @@ export const AclsPage = ({ doc = null, onSave = null }) => {
           rowKey={r => r.id}
           columns={columns}
           searchFields={['name', 'id', 'field', 'fieldArg', 'description']}
-          filterPlaceholder="Filter by name, field, description…"
+          filterPlaceholder={t(
+            'haproxy:acl.filterPlaceholder',
+            'Filter by name, field, description…'
+          )}
           RowActions={RowActions}
           rowActionsContext={{ saving, onSave, setEditing, setDeleting, refcounts }}
-          emptyState="No ACLs yet. Add one before referencing it from a rule."
-          emptyFilteredState="No ACLs match the current filter."
+          emptyState={t(
+            'haproxy:acl.empty',
+            'No ACLs yet. Add one before referencing it from a rule.'
+          )}
+          emptyFilteredState={t('haproxy:acl.emptyFiltered', 'No ACLs match the current filter.')}
         />
       </Card.Body>
       {showNew ? <AclEditModal show onSave={handleAdd} onCancel={() => setShowNew(false)} /> : null}
@@ -250,13 +272,13 @@ export const AclsPage = ({ doc = null, onSave = null }) => {
       {deleting ? (
         <ConfirmDialog
           show
-          title="Delete ACL?"
+          title={t('haproxy:acl.deleteConfirm.title', 'Delete ACL?')}
           body={
             <>
-              Delete ACL <code>{deleting.name}</code>?
+              {t('haproxy:acl.deleteConfirm.body', 'Delete ACL')} <code>{deleting.name}</code>?
             </>
           }
-          confirmLabel="Delete"
+          confirmLabel={t('common:buttons.delete', 'Delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />

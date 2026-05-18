@@ -4,6 +4,7 @@ import { MapsChart } from '@highcharts/react/Maps';
 import PropTypes from 'prop-types';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Badge, Card, ProgressBar, Table } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { apiGet } from '../api/client.js';
@@ -49,14 +50,16 @@ const formatRate = rate => {
 
 // ---------------- Active alerts ----------------
 
-const backendDownAlerts = rows =>
+const backendDownAlerts = (rows, t) =>
   rows
     .filter(r => r.svname === 'BACKEND' && r.status && r.status.startsWith('DOWN'))
     .map(be => ({
       severity: 'error',
       icon: 'exclamation-triangle-fill',
-      title: `Backend ${be.pxname} is DOWN`,
-      detail: `${be.status} — no healthy servers`,
+      title: t('stats:alerts.backendDown', 'Backend {{name}} is DOWN', { name: be.pxname }),
+      detail: t('stats:alerts.backendDownDetail', '{{status}} — no healthy servers', {
+        status: be.status,
+      }),
       to: `/backends?focus=${encodeURIComponent(be.pxname)}`,
     }));
 
@@ -75,7 +78,7 @@ const groupServersDown = rows => {
   return out;
 };
 
-const serverDownAlerts = (rows, downBackendNames) => {
+const serverDownAlerts = (rows, downBackendNames, t) => {
   const grouped = groupServersDown(rows);
   const alerts = [];
   for (const [pxname, svnames] of grouped) {
@@ -85,7 +88,10 @@ const serverDownAlerts = (rows, downBackendNames) => {
     alerts.push({
       severity: 'warning',
       icon: 'exclamation-circle',
-      title: `${svnames.length} server${svnames.length === 1 ? '' : 's'} down in ${pxname}`,
+      title: t('stats:alerts.serversDown', '{{count}} server(s) down in {{pxname}}', {
+        count: svnames.length,
+        pxname,
+      }),
       detail: svnames.slice(0, 3).join(', ') + (svnames.length > 3 ? ', …' : ''),
       to: `/backends?focus=${encodeURIComponent(pxname)}`,
     });
@@ -93,13 +99,18 @@ const serverDownAlerts = (rows, downBackendNames) => {
   return alerts;
 };
 
-const certAlertFor = cert => {
+const certAlertFor = (cert, t) => {
   if (!cert.newest?.notAfter) {
     return {
       severity: 'warning',
       icon: 'shield-exclamation',
-      title: `Cert ${cert.certName} has no lineage on disk`,
-      detail: "No PEM loaded — HAProxy can't serve TLS for this cert yet",
+      title: t('stats:alerts.certNoLineage', 'Cert {{name}} has no lineage on disk', {
+        name: cert.certName,
+      }),
+      detail: t(
+        'stats:alerts.certNoLineageDetail',
+        "No PEM loaded — HAProxy can't serve TLS for this cert yet"
+      ),
       to: `/certificates?focus=${encodeURIComponent(cert.id)}`,
     };
   }
@@ -110,8 +121,13 @@ const certAlertFor = cert => {
     return {
       severity: 'error',
       icon: 'shield-slash',
-      title: `Cert ${cert.certName} expired ${-days}d ago`,
-      detail: `notAfter ${new Date(cert.newest.notAfter).toLocaleDateString()}`,
+      title: t('stats:alerts.certExpired', 'Cert {{name}} expired {{days}}d ago', {
+        name: cert.certName,
+        days: -days,
+      }),
+      detail: t('stats:alerts.certExpiredDetail', 'notAfter {{date}}', {
+        date: new Date(cert.newest.notAfter).toLocaleDateString(),
+      }),
       to: `/certificates?focus=${encodeURIComponent(cert.id)}`,
     };
   }
@@ -119,17 +135,21 @@ const certAlertFor = cert => {
     return {
       severity: 'warning',
       icon: 'shield-exclamation',
-      title: `Cert ${cert.certName} expires in ${days}d`,
-      detail: 'Renewal recommended',
+      title: t('stats:alerts.certExpiring', 'Cert {{name}} expires in {{days}}d', {
+        name: cert.certName,
+        days,
+      }),
+      detail: t('stats:alerts.renewalRecommended', 'Renewal recommended'),
       to: `/certificates?focus=${encodeURIComponent(cert.id)}`,
     };
   }
   return null;
 };
 
-const certAlerts = liveCerts => (liveCerts?.certs ?? []).map(certAlertFor).filter(Boolean);
+const certAlerts = (liveCerts, t) =>
+  (liveCerts?.certs ?? []).map(c => certAlertFor(c, t)).filter(Boolean);
 
-const uncoveredRouteAlert = doc => {
+const uncoveredRouteAlert = (doc, t) => {
   if (!doc) {
     return null;
   }
@@ -143,7 +163,9 @@ const uncoveredRouteAlert = doc => {
   return {
     severity: 'warning',
     icon: 'patch-exclamation',
-    title: `${uncovered.length} route${uncovered.length === 1 ? '' : 's'} without a covering cert`,
+    title: t('stats:alerts.routesNoCert', '{{count}} route(s) without a covering cert', {
+      count: uncovered.length,
+    }),
     detail:
       uncovered
         .slice(0, 3)
@@ -155,16 +177,16 @@ const uncoveredRouteAlert = doc => {
 
 const SEVERITY_ORDER = Object.freeze({ error: 0, warning: 1, info: 2 });
 
-const buildAlerts = ({ doc, rows, liveCerts }) => {
-  const downBackends = backendDownAlerts(rows);
+const buildAlerts = ({ doc, rows, liveCerts, t }) => {
+  const downBackends = backendDownAlerts(rows, t);
   const downBackendNames = new Set(
     rows.filter(r => r.svname === 'BACKEND' && r.status?.startsWith('DOWN')).map(r => r.pxname)
   );
   const alerts = [
     ...downBackends,
-    ...serverDownAlerts(rows, downBackendNames),
-    ...certAlerts(liveCerts),
-    uncoveredRouteAlert(doc),
+    ...serverDownAlerts(rows, downBackendNames, t),
+    ...certAlerts(liveCerts, t),
+    uncoveredRouteAlert(doc, t),
   ].filter(Boolean);
   alerts.sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9));
   return alerts;
@@ -177,6 +199,7 @@ const SEVERITY_VARIANTS = Object.freeze({
 });
 
 export const AlertsPanel = ({ doc, ctx }) => {
+  const { t } = useTranslation(['stats']);
   const [liveCerts, setLiveCerts] = useState(null);
   useEffect(() => {
     let active = true;
@@ -197,8 +220,8 @@ export const AlertsPanel = ({ doc, ctx }) => {
   }, []);
 
   const alerts = useMemo(
-    () => buildAlerts({ doc, rows: ctx.rows ?? [], liveCerts }),
-    [doc, ctx.rows, liveCerts]
+    () => buildAlerts({ doc, rows: ctx.rows ?? [], liveCerts, t }),
+    [doc, ctx.rows, liveCerts, t]
   );
 
   return (
@@ -206,7 +229,7 @@ export const AlertsPanel = ({ doc, ctx }) => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-bell me-2" />
-          Active alerts
+          {t('stats:alerts.title', 'Active alerts')}
           {alerts.length > 0 ? (
             <Badge bg={SEVERITY_VARIANTS[alerts[0].severity] ?? 'secondary'} className="ms-2">
               {alerts.length}
@@ -220,7 +243,10 @@ export const AlertsPanel = ({ doc, ctx }) => {
         {alerts.length === 0 ? (
           <p className="text-muted small mb-0">
             <i className="bi bi-check-circle text-success me-1" />
-            All systems nominal — no degraded backends, no expiring certs, every route is covered.
+            {t(
+              'stats:alerts.allNominal',
+              'All systems nominal — no degraded backends, no expiring certs, every route is covered.'
+            )}
           </p>
         ) : (
           <ul className="list-unstyled mb-0">
@@ -252,7 +278,11 @@ export const AlertsPanel = ({ doc, ctx }) => {
               );
             })}
             {alerts.length > 8 ? (
-              <li className="small text-muted mt-1">+ {alerts.length - 8} more…</li>
+              <li className="small text-muted mt-1">
+                {t('stats:alerts.moreCount', '+ {{count}} more…', {
+                  count: alerts.length - 8,
+                })}
+              </li>
             ) : null}
           </ul>
         )}
@@ -279,6 +309,7 @@ const connPoolVariant = pct => {
 };
 
 export const ConnectionPoolPanel = ({ ctx }) => {
+  const { t } = useTranslation(['stats']);
   const info = ctx.info ?? {};
   const cur = Number(info.CurrConns) || 0;
   const max = Number(info.Maxconn) || Number(info.MaxConn) || 1;
@@ -290,7 +321,7 @@ export const ConnectionPoolPanel = ({ ctx }) => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-arrows-collapse-vertical me-2" />
-          Connection pool
+          {t('stats:connectionPool.title', 'Connection pool')}
         </Card.Title>
         <div className="d-flex justify-content-between align-items-end mb-1 gap-2">
           <span className="fs-3 fw-semibold text-truncate" title={cur.toLocaleString()}>
@@ -300,8 +331,12 @@ export const ConnectionPoolPanel = ({ ctx }) => {
         </div>
         <ProgressBar variant={variant} now={pct} className="mb-1" style={{ height: '0.5rem' }} />
         <div className="d-flex justify-content-between small text-muted gap-2">
-          <span className="text-truncate">active sessions</span>
-          <span className="text-nowrap">{pct}% of cap</span>
+          <span className="text-truncate">
+            {t('stats:connectionPool.activeSessions', 'active sessions')}
+          </span>
+          <span className="text-nowrap">
+            {t('stats:connectionPool.pctOfCap', '{{pct}}% of cap', { pct })}
+          </span>
         </div>
       </Card.Body>
     </Card>
@@ -340,13 +375,13 @@ const aggregateReqRateSeries = history => {
 };
 
 export const LiveRatePanel = ({ ctx }) => {
+  const { t } = useTranslation(['stats']);
   const stats = useStatsHistory();
   const total = sumLatestReqRate(stats.history);
   const aggregated = aggregateReqRateSeries(stats.history);
 
   const options = createChartOptions({
     title: '',
-    height: '100%',
     theme: ctx.theme,
     yAxisTitle: '',
     yAxisAllowDecimals: false,
@@ -369,11 +404,13 @@ export const LiveRatePanel = ({ ctx }) => {
       <Card.Body className="d-flex flex-column" style={{ minHeight: 0 }}>
         <Card.Title className="mb-2">
           <i className="bi bi-lightning-charge me-2" />
-          Live request rate
+          {t('stats:liveRate.title', 'Live request rate')}
         </Card.Title>
         <div className="d-flex justify-content-between align-items-baseline mb-1 flex-shrink-0">
           <span className="fs-3 fw-semibold text-truncate">{formatRate(total)}</span>
-          <span className="text-muted small text-truncate ms-2">req/s · all frontends</span>
+          <span className="text-muted small text-truncate ms-2">
+            {t('stats:liveRate.subtitle', 'req/s · all frontends')}
+          </span>
         </div>
         <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
           {aggregated.length > 1 ? (
@@ -382,7 +419,7 @@ export const LiveRatePanel = ({ ctx }) => {
               containerProps={{ style: { width: '100%', height: '100%' } }}
             />
           ) : (
-            <div className="text-muted small">Sampling… (5s ticks)</div>
+            <div className="text-muted small">{t('stats:sampling', 'Sampling… (5s ticks)')}</div>
           )}
         </div>
       </Card.Body>
@@ -407,6 +444,7 @@ const errorRateVariant = pct => {
 };
 
 export const ErrorRatePanel = () => {
+  const { t } = useTranslation(['stats']);
   const [totals, setTotals] = useState(null);
   useEffect(() => {
     let active = true;
@@ -432,9 +470,9 @@ export const ErrorRatePanel = () => {
         <Card.Body>
           <Card.Title className="mb-2">
             <i className="bi bi-exclamation-octagon me-2" />
-            Error rate
+            {t('stats:errorRate.title', 'Error rate')}
           </Card.Title>
-          <div className="text-muted small">Sampling…</div>
+          <div className="text-muted small">{t('stats:samplingShort', 'Sampling…')}</div>
         </Card.Body>
       </Card>
     );
@@ -450,7 +488,7 @@ export const ErrorRatePanel = () => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-exclamation-octagon me-2" />
-          Error rate
+          {t('stats:errorRate.title', 'Error rate')}
         </Card.Title>
         <div className="d-flex justify-content-between align-items-baseline mb-1 gap-2">
           <span className={`fs-3 fw-semibold text-${variant} text-truncate`}>
@@ -466,7 +504,9 @@ export const ErrorRatePanel = () => {
           className="mb-1"
           style={{ height: '0.4rem' }}
         />
-        <div className="small text-muted">4xx + 5xx over the sampled hour</div>
+        <div className="small text-muted">
+          {t('stats:errorRate.summary', '4xx + 5xx over the sampled hour')}
+        </div>
       </Card.Body>
     </Card>
   );
@@ -538,6 +578,7 @@ const computeTlsCoverage = (doc, liveCerts) => {
 };
 
 export const TlsCoveragePanel = ({ doc, ctx }) => {
+  const { t } = useTranslation(['stats']);
   const [liveCerts, setLiveCerts] = useState(null);
   useEffect(() => {
     let active = true;
@@ -566,10 +607,13 @@ export const TlsCoveragePanel = ({ doc, ctx }) => {
         <Card.Body>
           <Card.Title className="mb-2">
             <i className="bi bi-shield-check me-2" />
-            TLS coverage
+            {t('stats:tlsCoverage.title', 'TLS coverage')}
           </Card.Title>
           <p className="text-muted small mb-0">
-            No enabled routes yet. Add a route on the Routes tab to start.
+            {t(
+              'stats:tlsCoverage.empty',
+              'No enabled routes yet. Add a route on the Routes tab to start.'
+            )}
           </p>
         </Card.Body>
       </Card>
@@ -577,20 +621,36 @@ export const TlsCoveragePanel = ({ doc, ctx }) => {
   }
 
   const data = [
-    { name: 'Valid (≥14d)', y: buckets.valid, color: TLS_COLORS.valid },
-    { name: 'Expiring (<14d)', y: buckets.expiring, color: TLS_COLORS.expiring },
-    { name: 'Expired', y: buckets.expired, color: TLS_COLORS.expired },
-    { name: 'No cert', y: buckets.missing, color: TLS_COLORS.missing },
+    {
+      name: t('stats:tlsCoverage.valid', 'Valid (≥14d)'),
+      y: buckets.valid,
+      color: TLS_COLORS.valid,
+    },
+    {
+      name: t('stats:tlsCoverage.expiring', 'Expiring (<14d)'),
+      y: buckets.expiring,
+      color: TLS_COLORS.expiring,
+    },
+    {
+      name: t('stats:tlsCoverage.expired', 'Expired'),
+      y: buckets.expired,
+      color: TLS_COLORS.expired,
+    },
+    {
+      name: t('stats:tlsCoverage.missing', 'No cert'),
+      y: buckets.missing,
+      color: TLS_COLORS.missing,
+    },
   ].filter(d => d.y > 0);
 
-  const base = createChartOptions({ title: '', height: '100%', theme: ctx.theme, series: [] });
+  const base = createChartOptions({ title: '', theme: ctx.theme, series: [] });
   const options = {
     ...base,
     chart: { ...base.chart, type: 'pie' },
     plotOptions: {
       pie: { innerSize: '60%', dataLabels: { enabled: false } },
     },
-    series: [{ name: 'routes', data }],
+    series: [{ name: t('stats:tlsCoverage.seriesName', 'routes'), data }],
     legend: {
       enabled: true,
       align: 'right',
@@ -605,13 +665,15 @@ export const TlsCoveragePanel = ({ doc, ctx }) => {
       <Card.Body className="d-flex flex-column" style={{ minHeight: 0 }}>
         <Card.Title className="mb-2">
           <i className="bi bi-shield-check me-2" />
-          TLS coverage
+          {t('stats:tlsCoverage.title', 'TLS coverage')}
         </Card.Title>
         <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
           <Chart options={options} containerProps={{ style: { width: '100%', height: '100%' } }} />
         </div>
         <div className="text-muted small text-center flex-shrink-0">
-          {total} enabled route{total === 1 ? '' : 's'}
+          {t('stats:tlsCoverage.enabledRouteCount', '{{count}} enabled route(s)', {
+            count: total,
+          })}
         </div>
       </Card.Body>
     </Card>
@@ -628,6 +690,7 @@ TlsCoveragePanel.propTypes = {
 const TOP_HOSTS_LIMIT = 10;
 
 export const TopHostsPanel = ({ doc }) => {
+  const { t } = useTranslation(['stats']);
   const stats = useStatsHistory();
 
   // Aggregate the latest reqRate by backend, then resolve backend → route
@@ -674,9 +737,11 @@ export const TopHostsPanel = ({ doc }) => {
         <Card.Body>
           <Card.Title className="mb-2">
             <i className="bi bi-bar-chart me-2" />
-            Top hosts (req/s)
+            {t('stats:topHosts.title', 'Top hosts (req/s)')}
           </Card.Title>
-          <p className="text-muted small mb-0">No traffic in the sampled window yet.</p>
+          <p className="text-muted small mb-0">
+            {t('stats:topHosts.noTraffic', 'No traffic in the sampled window yet.')}
+          </p>
         </Card.Body>
       </Card>
     );
@@ -688,7 +753,7 @@ export const TopHostsPanel = ({ doc }) => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-bar-chart me-2" />
-          Top hosts (req/s)
+          {t('stats:topHosts.title', 'Top hosts (req/s)')}
         </Card.Title>
         <Table size="sm" responsive className="mb-0">
           <tbody>
@@ -757,6 +822,7 @@ const formatRelative = iso => {
 };
 
 export const SnapshotTimelinePanel = () => {
+  const { t } = useTranslation(['stats']);
   const [snapshots, setSnapshots] = useState([]);
   const [error, setError] = useState(null);
   useEffect(() => {
@@ -787,16 +853,16 @@ export const SnapshotTimelinePanel = () => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-clock-history me-2" />
-          Snapshot timeline
+          {t('stats:snapshots.title', 'Snapshot timeline')}
         </Card.Title>
         {error ? (
           <Alert variant="warning" className="small mb-0">
-            Snapshots unavailable: {error.message}
+            {t('stats:snapshots.unavailable', 'Snapshots unavailable:')} {error.message}
           </Alert>
         ) : null}
         {!error && recent.length === 0 ? (
           <p className="text-muted small mb-0">
-            No snapshots yet. They accumulate as you save state.
+            {t('stats:snapshots.empty', 'No snapshots yet. They accumulate as you save state.')}
           </p>
         ) : null}
         {recent.length > 0 ? (
@@ -848,27 +914,41 @@ const computeGeoBreakdown = sessions => {
   return { resolved, privateLan, unresolved, totalClients };
 };
 
-const geoEmptyStateBody = (geoStatus, breakdown) => {
+const geoEmptyStateBody = (geoStatus, breakdown, t) => {
   if (!geoStatus) {
-    return <span className="text-muted small">Checking GeoIP status…</span>;
+    return (
+      <span className="text-muted small">{t('stats:geo.checking', 'Checking GeoIP status…')}</span>
+    );
   }
   if (!geoStatus.enabled) {
     return (
       <>
-        GeoIP enrichment is <strong>off</strong>. Turn it on under{' '}
-        <Link to="/geoip">Settings → GeoIP</Link> to start resolving client IPs to countries.
+        {t('stats:geo.enrichmentPrefix', 'GeoIP enrichment is')}{' '}
+        <strong>{t('stats:geo.off', 'off')}</strong>.{' '}
+        {t('stats:geo.turnOnPrefix', 'Turn it on under')}{' '}
+        <Link to="/geoip">{t('stats:geo.settingsLink', 'Settings → GeoIP')}</Link>{' '}
+        {t('stats:geo.turnOnSuffix', 'to start resolving client IPs to countries.')}
       </>
     );
   }
   if (breakdown.totalClients === 0) {
-    return <>No active sessions yet. Origins aggregate here once public-IP traffic comes in.</>;
+    return (
+      <>
+        {t(
+          'stats:geo.noActive',
+          'No active sessions yet. Origins aggregate here once public-IP traffic comes in.'
+        )}
+      </>
+    );
   }
   if (breakdown.privateLan > 0 && breakdown.resolved === 0 && breakdown.unresolved === 0) {
     return (
       <>
-        Only LAN / private-IP traffic right now ({breakdown.privateLan} session
-        {breakdown.privateLan === 1 ? '' : 's'}). Private addresses don&apos;t resolve to a country.
-        Public-IP sessions will show up here when they arrive.
+        {t(
+          'stats:geo.lanOnly',
+          "Only LAN / private-IP traffic right now ({{count}} session(s)). Private addresses don't resolve to a country. Public-IP sessions will show up here when they arrive.",
+          { count: breakdown.privateLan }
+        )}
       </>
     );
   }
@@ -876,19 +956,30 @@ const geoEmptyStateBody = (geoStatus, breakdown) => {
     const usingOnlineOnly = geoStatus.localDbSource === 'none';
     return (
       <>
-        GeoIP is enabled but {breakdown.unresolved} public-IP session
-        {breakdown.unresolved === 1 ? '' : 's'} couldn&apos;t be resolved.{' '}
+        {t(
+          'stats:geo.unresolvedPrefix',
+          "GeoIP is enabled but {{count}} public-IP session(s) couldn't be resolved.",
+          { count: breakdown.unresolved }
+        )}{' '}
         {usingOnlineOnly ? (
           <>
-            You&apos;re using online-only fallback ({geoStatus.fallbackProvider}); check the addon
-            logs for &apos;online geoip lookup failed&apos; to see why the provider is rejecting
-            requests (rate limit / bad token / network).
+            {t(
+              'stats:geo.onlineFallbackPrefix',
+              "You're using online-only fallback ({{provider}}); check the addon logs for 'online geoip lookup failed' to see why the provider is rejecting requests (rate limit / bad token / network).",
+              { provider: geoStatus.fallbackProvider }
+            )}
           </>
         ) : (
           <>
-            Local DB source is <code>{geoStatus.localDbSource}</code> but the DB is{' '}
-            {geoStatus.dbExists ? 'present' : 'missing'}. Click <strong>Download now</strong> under{' '}
-            <Link to="/geoip">Settings → GeoIP</Link>.
+            {t('stats:geo.localDbSourcePrefix', 'Local DB source is')}{' '}
+            <code>{geoStatus.localDbSource}</code> {t('stats:geo.butDb', 'but the DB is')}{' '}
+            {geoStatus.dbExists
+              ? t('stats:geo.present', 'present')
+              : t('stats:geo.missing', 'missing')}
+            . {t('stats:geo.clickPrefix', 'Click')}{' '}
+            <strong>{t('stats:geo.downloadNow', 'Download now')}</strong>{' '}
+            {t('stats:geo.under', 'under')}{' '}
+            <Link to="/geoip">{t('stats:geo.settingsLink', 'Settings → GeoIP')}</Link>.
           </>
         )}
       </>
@@ -896,13 +987,17 @@ const geoEmptyStateBody = (geoStatus, breakdown) => {
   }
   return (
     <>
-      No country-resolved sessions yet ({breakdown.privateLan} private, {breakdown.unresolved}{' '}
-      unresolved).
+      {t(
+        'stats:geo.noCountryResolved',
+        'No country-resolved sessions yet ({{priv}} private, {{unres}} unresolved).',
+        { priv: breakdown.privateLan, unres: breakdown.unresolved }
+      )}
     </>
   );
 };
 
 export const GeoOriginsPanel = () => {
+  const { t } = useTranslation(['stats']);
   const [sessions, setSessions] = useState(null);
   const [geoStatus, setGeoStatus] = useState(null);
   const [error, setError] = useState(null);
@@ -941,7 +1036,7 @@ export const GeoOriginsPanel = () => {
     const byCountry = new Map();
     for (const client of sessions?.topClients ?? []) {
       const cc = client.geo?.country ?? null;
-      const label = client.geo?.countryName ?? cc ?? 'Unknown';
+      const label = client.geo?.countryName ?? cc ?? t('stats:geo.unknown', 'Unknown');
       if (!cc) {
         continue;
       }
@@ -950,7 +1045,7 @@ export const GeoOriginsPanel = () => {
       byCountry.set(cc, entry);
     }
     return [...byCountry.values()].sort((a, b) => b.count - a.count).slice(0, 8);
-  }, [sessions]);
+  }, [sessions, t]);
 
   const breakdown = useMemo(() => computeGeoBreakdown(sessions), [sessions]);
 
@@ -959,13 +1054,15 @@ export const GeoOriginsPanel = () => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-globe-americas me-2" />
-          Top countries
+          {t('stats:geo.title', 'Top countries')}
         </Card.Title>
         {error ? (
-          <p className="text-muted small mb-0">Live sessions unavailable: {error.message}</p>
+          <p className="text-muted small mb-0">
+            {t('stats:geo.liveUnavailable', 'Live sessions unavailable:')} {error.message}
+          </p>
         ) : null}
         {!error && countries.length === 0 ? (
-          <p className="text-muted small mb-0">{geoEmptyStateBody(geoStatus, breakdown)}</p>
+          <p className="text-muted small mb-0">{geoEmptyStateBody(geoStatus, breakdown, t)}</p>
         ) : null}
         {countries.length > 0 ? (
           <Table size="sm" responsive className="mb-0">
@@ -1007,6 +1104,7 @@ export const GeoOriginsPanel = () => {
 // like every other panel. Default width 12 cols, one row tall.
 
 export const LiveTotalsPanel = ({ ctx }) => {
+  const { t } = useTranslation(['stats']);
   const stats = useStatsHistory();
   const reqRate = sumLatestReqRate(stats.history);
   let bandwidth = 0;
@@ -1036,19 +1134,19 @@ export const LiveTotalsPanel = ({ ctx }) => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-activity me-2" />
-          Live totals
+          {t('stats:liveTotals.title', 'Live totals')}
         </Card.Title>
         <div className="d-flex flex-wrap gap-4">
-          {stat('Request rate', `${formatRate(reqRate)} req/s`)}
-          {stat('Bandwidth', formatBps(bandwidth))}
+          {stat(t('stats:liveTotals.requestRate', 'Request rate'), `${formatRate(reqRate)} req/s`)}
+          {stat(t('stats:liveTotals.bandwidth', 'Bandwidth'), formatBps(bandwidth))}
           {stat(
-            'Sessions',
+            t('stats:liveTotals.sessions', 'Sessions'),
             <>
               {cur.toLocaleString()}{' '}
               <span className="text-muted fs-6">/ {max.toLocaleString()}</span>
             </>
           )}
-          {stat('CPU idle', idle)}
+          {stat(t('stats:liveTotals.cpuIdle', 'CPU idle'), idle)}
         </div>
       </Card.Body>
     </Card>
@@ -1065,12 +1163,11 @@ LiveTotalsPanel.propTypes = {
 // resolved to it. Uses Highcharts Maps + the world topojson from
 // @highcharts/map-collection. Joins by hc-key (lowercase ISO 3166-1 alpha-2).
 
-const buildOriginMapOptions = (byCountry, theme) => ({
+const buildOriginMapOptions = (byCountry, theme, t) => ({
   chart: {
     map: worldMap,
     spacing: [4, 4, 4, 4],
     backgroundColor: 'transparent',
-    height: '100%',
   },
   title: { text: null },
   credits: { enabled: false },
@@ -1083,13 +1180,13 @@ const buildOriginMapOptions = (byCountry, theme) => ({
   },
   tooltip: {
     headerFormat: '',
-    pointFormat: '<b>{point.name}</b>: {point.value} session(s)',
+    pointFormat: t('stats:originMap.pointFormat', '<b>{point.name}</b>: {point.value} session(s)'),
   },
   series: [
     {
       type: 'map',
       data: [...byCountry.entries()].map(([k, v]) => ({ 'hc-key': k, value: v })),
-      name: 'Sessions',
+      name: t('stats:originMap.seriesName', 'Sessions'),
       states: { hover: { color: '#a4edba' } },
       nullColor: theme === 'dark' ? '#22262a' : '#fafafa',
       borderColor: theme === 'dark' ? '#3a3f44' : '#dee2e6',
@@ -1099,6 +1196,7 @@ const buildOriginMapOptions = (byCountry, theme) => ({
 });
 
 export const WorldOriginMapPanel = ({ ctx }) => {
+  const { t } = useTranslation(['stats']);
   const [sessions, setSessions] = useState(null);
   useEffect(() => {
     let active = true;
@@ -1134,16 +1232,19 @@ export const WorldOriginMapPanel = ({ ctx }) => {
       <Card.Body className="d-flex flex-column" style={{ minHeight: 0 }}>
         <Card.Title className="mb-2">
           <i className="bi bi-globe me-2" />
-          Origin map
+          {t('stats:originMap.title', 'Origin map')}
         </Card.Title>
         {byCountry.size === 0 ? (
           <p className="text-muted small mb-0">
-            No country-resolved sessions yet. Map populates as GeoIP resolves public-IP clients.
+            {t(
+              'stats:originMap.empty',
+              'No country-resolved sessions yet. Map populates as GeoIP resolves public-IP clients.'
+            )}
           </p>
         ) : (
           <div style={{ flex: '1 1 auto', minHeight: 0, position: 'relative' }}>
             <MapsChart
-              options={buildOriginMapOptions(byCountry, ctx?.theme ?? 'light')}
+              options={buildOriginMapOptions(byCountry, ctx?.theme ?? 'light', t)}
               containerProps={{ style: { width: '100%', height: '100%' } }}
             />
           </div>
@@ -1182,20 +1283,26 @@ const formatClientLocation = geo => {
   return parts.length > 0 ? parts.join(', ') : '—';
 };
 
-const clientSourceBadge = geo => {
+const ClientSourceBadge = ({ geo }) => {
+  const { t } = useTranslation(['stats']);
   if (!geo) {
     return null;
   }
   if (geo.source === 'home') {
-    return <Badge bg="info">home</Badge>;
+    return <Badge bg="info">{t('stats:clients.home', 'home')}</Badge>;
   }
   if (geo.source === 'private') {
-    return <Badge bg="secondary">LAN</Badge>;
+    return <Badge bg="secondary">{t('stats:clients.lan', 'LAN')}</Badge>;
   }
   return null;
 };
 
+ClientSourceBadge.propTypes = {
+  geo: PropTypes.object,
+};
+
 export const TopClientsPanel = () => {
+  const { t } = useTranslation(['stats']);
   const [sessions, setSessions] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
@@ -1231,34 +1338,38 @@ export const TopClientsPanel = () => {
       <Card.Body>
         <Card.Title className="mb-2">
           <i className="bi bi-people me-2" />
-          Top clients
+          {t('stats:clients.title', 'Top clients')}
         </Card.Title>
         {error ? (
-          <p className="text-muted small mb-0">Live sessions unavailable: {error.message}</p>
+          <p className="text-muted small mb-0">
+            {t('stats:geo.liveUnavailable', 'Live sessions unavailable:')} {error.message}
+          </p>
         ) : null}
         {!error && rows.length === 0 ? (
           <p className="text-muted small mb-0">
-            No active sessions yet. Clients aggregate here once traffic comes in.
+            {t(
+              'stats:clients.empty',
+              'No active sessions yet. Clients aggregate here once traffic comes in.'
+            )}
           </p>
         ) : null}
         {rows.length > 0 ? (
           <Table size="sm" responsive className="mb-0">
             <thead>
               <tr>
-                <th>IP</th>
-                <th>Country</th>
-                <th>Location</th>
-                <th className="text-end">Sessions</th>
+                <th>{t('stats:clients.col.ip', 'IP')}</th>
+                <th>{t('stats:clients.col.country', 'Country')}</th>
+                <th>{t('stats:clients.col.location', 'Location')}</th>
+                <th className="text-end">{t('stats:clients.col.sessions', 'Sessions')}</th>
               </tr>
             </thead>
             <tbody>
               {rows.map(c => {
                 const cc = c.geo?.country ?? null;
-                const sourceBadge = clientSourceBadge(c.geo);
                 return (
                   <tr key={c.key}>
                     <td>
-                      <code className="small">{c.key}</code> {sourceBadge}
+                      <code className="small">{c.key}</code> <ClientSourceBadge geo={c.geo} />
                     </td>
                     <td>
                       {cc ? (

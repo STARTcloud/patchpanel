@@ -1,12 +1,13 @@
 import PropTypes from 'prop-types';
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Button, Card, Col, Form, Row, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { buildUrl } from '../api/client.js';
 import { ConfigFieldRenderer } from '../components/ConfigFieldRenderer.jsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { useConfigDoc } from '../hooks/useConfigDoc.jsx';
-import { evaluateConditional, processConfig, t, validateField } from '../lib/config-form.js';
+import { evaluateConditional, processConfig, validateField } from '../lib/config-form.js';
 
 // After the operator clicks "Restart now", the server takes some seconds to
 // die and come back up under systemd / the HA addon supervisor. Polling
@@ -80,6 +81,7 @@ FieldsRow.propTypes = {
 };
 
 const SubsectionBlock = ({ subsection, getCurrent, allValues, onChange, errors }) => {
+  const { t } = useTranslation(['config']);
   const visible = subsection.fields.filter(f => evaluateConditional(f, allValues));
   if (visible.length === 0) {
     return null;
@@ -87,7 +89,7 @@ const SubsectionBlock = ({ subsection, getCurrent, allValues, onChange, errors }
   return (
     <div className="border rounded p-3 mb-3">
       <h6 className="text-uppercase text-muted small mb-3">
-        {t(`config.subsection.${subsection.key}`, subsection.label)}
+        {t(`config:subsection.${subsection.key}`, subsection.label)}
       </h6>
       <FieldsRow
         fields={subsection.fields}
@@ -109,6 +111,7 @@ SubsectionBlock.propTypes = {
 };
 
 const SectionCard = ({ section, getCurrent, allValues, onChange, errors }) => {
+  const { t } = useTranslation(['config']);
   const orderedSubs = Object.values(section.subsections).sort(
     (a, b) => (a.order || 0) - (b.order || 0)
   );
@@ -117,11 +120,11 @@ const SectionCard = ({ section, getCurrent, allValues, onChange, errors }) => {
       <Card.Body>
         <Card.Title>
           {section.icon ? <i className={`bi ${section.icon} me-2`} /> : null}
-          {t(`config.section.${section.key}`, section.label)}
+          {t(`config:section.${section.key}`, section.label)}
         </Card.Title>
         {section.description ? (
           <Card.Text className="text-muted small">
-            {t(`config.section.${section.key}.description`, section.description)}
+            {t(`config:section.${section.key}.description`, section.description)}
           </Card.Text>
         ) : null}
         <FieldsRow
@@ -184,46 +187,49 @@ const validateAll = (draft, fieldsByPath) => {
   return errors;
 };
 
-const SettingsHeader = ({ hasDraft, saving, restarting, onSave, onAskRestart }) => (
-  <Card className="mb-3">
-    <Card.Body className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <div>
-        <Card.Title className="mb-1">{t('config.page.title', 'Settings')}</Card.Title>
-        <Card.Text className="text-muted small mb-0">
-          {t(
-            'config.page.subtitle',
-            'Operator configuration (/etc/patchpanel/config.yaml). Saves persist immediately but most fields require a process restart to take effect.'
-          )}
-        </Card.Text>
-      </div>
-      <div className="d-flex gap-2">
-        <Button variant="primary" onClick={onSave} disabled={!hasDraft || saving || restarting}>
-          {saving ? (
-            <>
-              <Spinner as="span" animation="border" size="sm" className="me-1" />
-              {t('config.page.saving', 'Saving…')}
-            </>
-          ) : (
-            t('config.page.save', 'Save')
-          )}
-        </Button>
-        <Button variant="warning" onClick={onAskRestart} disabled={restarting}>
-          {restarting ? (
-            <>
-              <Spinner as="span" animation="border" size="sm" className="me-1" />
-              {t('config.page.restarting', 'Restarting…')}
-            </>
-          ) : (
-            <>
-              <i className="bi bi-arrow-clockwise me-1" />
-              {t('config.page.restart', 'Restart now')}
-            </>
-          )}
-        </Button>
-      </div>
-    </Card.Body>
-  </Card>
-);
+const SettingsHeader = ({ hasDraft, saving, restarting, onSave, onAskRestart }) => {
+  const { t } = useTranslation(['config', 'common']);
+  return (
+    <Card className="mb-3">
+      <Card.Body className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <Card.Title className="mb-1">{t('config:page.title', 'Settings')}</Card.Title>
+          <Card.Text className="text-muted small mb-0">
+            {t(
+              'config:page.subtitle',
+              'Operator configuration (/etc/patchpanel/config.yaml). Saves persist immediately but most fields require a process restart to take effect.'
+            )}
+          </Card.Text>
+        </div>
+        <div className="d-flex gap-2">
+          <Button variant="primary" onClick={onSave} disabled={!hasDraft || saving || restarting}>
+            {saving ? (
+              <>
+                <Spinner as="span" animation="border" size="sm" className="me-1" />
+                {t('common:status.saving', 'Saving…')}
+              </>
+            ) : (
+              t('common:buttons.save', 'Save')
+            )}
+          </Button>
+          <Button variant="warning" onClick={onAskRestart} disabled={restarting}>
+            {restarting ? (
+              <>
+                <Spinner as="span" animation="border" size="sm" className="me-1" />
+                {t('config:page.restarting', 'Restarting…')}
+              </>
+            ) : (
+              <>
+                <i className="bi bi-arrow-clockwise me-1" />
+                {t('config:page.restart', 'Restart now')}
+              </>
+            )}
+          </Button>
+        </div>
+      </Card.Body>
+    </Card>
+  );
+};
 
 SettingsHeader.propTypes = {
   hasDraft: PropTypes.bool.isRequired,
@@ -234,6 +240,7 @@ SettingsHeader.propTypes = {
 };
 
 export const ConfigPage = () => {
+  const { t } = useTranslation(['config', 'common']);
   const { raw, loading, error, saving, save, restart } = useConfigDoc();
   const [draft, setDraft] = useState({});
   const [savedNote, setSavedNote] = useState(false);
@@ -276,7 +283,7 @@ export const ConfigPage = () => {
       <Alert variant="danger">
         {error.payload?.error ??
           error.message ??
-          t('config.page.loadFailed', 'failed to load config')}
+          t('config:page.loadFailed', 'failed to load config')}
       </Alert>
     );
   }
@@ -343,7 +350,7 @@ export const ConfigPage = () => {
       {savedNote ? (
         <Alert variant="info" onClose={() => setSavedNote(false)} dismissible>
           {t(
-            'config.page.saved',
+            'config:page.saved',
             'Saved to disk. Click Restart now to apply, or restart manually later.'
           )}
         </Alert>
@@ -370,21 +377,21 @@ export const ConfigPage = () => {
       {restartConfirm ? (
         <ConfirmDialog
           show
-          title={t('config.restart.title', 'Restart patchpanel?')}
+          title={t('config:restart.title', 'Restart patchpanel?')}
           body={
             <>
               <p>
                 {t(
-                  'config.restart.body',
+                  'config:restart.body',
                   'This exits the process. systemd (or the HA addon supervisor) restarts it within seconds.'
                 )}
               </p>
               <p className="mb-0 small text-muted">
-                {t('config.restart.note', 'The browser tab will auto-reload after a few seconds.')}
+                {t('config:restart.note', 'The browser tab will auto-reload after a few seconds.')}
               </p>
             </>
           }
-          confirmLabel={t('config.restart.confirm', 'Restart')}
+          confirmLabel={t('config:restart.confirm', 'Restart')}
           confirmVariant="warning"
           onConfirm={handleRestart}
           onCancel={() => setRestartConfirm(false)}

@@ -33,6 +33,7 @@ import { ProfilePage } from './pages/ProfilePage.jsx';
 import { ProvidersPage } from './pages/ProvidersPage.jsx';
 import { RawStatePage } from './pages/RawStatePage.jsx';
 import { RenderedCfgPage } from './pages/RenderedCfgPage.jsx';
+import { RenderedKeepalivedPage } from './pages/RenderedKeepalivedPage.jsx';
 import { RoutesPage } from './pages/RoutesPage.jsx';
 import { RulesPage } from './pages/RulesPage.jsx';
 import { RuntimePage } from './pages/RuntimePage.jsx';
@@ -169,6 +170,10 @@ const AppContent = () => {
             element={wrap(<ErrorPagesPage doc={stateDoc.doc} onSave={stateDoc.save} />)}
           />
           <Route path="rendered-cfg" element={wrap(<RenderedCfgPage onSave={stateDoc.save} />)} />
+          <Route
+            path="rendered-keepalived-cfg"
+            element={wrap(<RenderedKeepalivedPage onSave={stateDoc.save} />)}
+          />
           <Route path="snapshots" element={wrap(<SnapshotsPage />)} />
           <Route
             path="geoip"

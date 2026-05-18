@@ -87,7 +87,7 @@ export const stateRouter = config => {
   router.put('/state', async (req, res) => {
     const parsed = StateSchema.safeParse(req.body);
     if (!parsed.success) {
-      throw new ValidationError('state failed schema validation', parsed.error.issues);
+      throw new ValidationError('state.schema.invalid', { issues: parsed.error.issues });
     }
     log.api.info('PUT /state', { ip: req.ip, actor: req.user?.id ?? null });
     const next = await applyState(config, parsed.data, { editor: req.user?.id ?? null });

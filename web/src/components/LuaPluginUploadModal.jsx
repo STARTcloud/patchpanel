@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { apiGet, apiPost } from '../api/client.js';
 
@@ -22,6 +23,7 @@ const readFileAsText = file =>
   });
 
 export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
+  const { t } = useTranslation(['lua', 'common']);
   const [dirs, setDirs] = useState([]);
   const [dir, setDir] = useState('');
   const [name, setName] = useState('');
@@ -43,8 +45,12 @@ export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
         setDirsError(null);
         setError(null);
       })
-      .catch(err => setDirsError(err.message ?? 'failed to load upload-target list'));
-  }, [show]);
+      .catch(err =>
+        setDirsError(
+          err.message ?? t('lua:upload.dirsLoadFailed', 'failed to load upload-target list')
+        )
+      );
+  }, [show, t]);
 
   const handleFile = async e => {
     const file = e.target.files?.[0];
@@ -64,7 +70,7 @@ export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
         }
       }
     } catch {
-      setError('Could not read selected file. Paste source manually.');
+      setError(t('lua:upload.readFailed', 'Could not read selected file. Paste source manually.'));
     }
   };
 
@@ -81,7 +87,7 @@ export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
     try {
       const result = await apiPost('api/lua-plugins/upload', { dir, name, source });
       if (!result?.ok) {
-        setError(result?.error ?? 'upload failed');
+        setError(result?.error ?? t('lua:upload.failed', 'upload failed'));
         return;
       }
       onUploaded({ name, dir, path: result.path, sizeBytes: result.sizeBytes });
@@ -89,7 +95,7 @@ export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
       setSource('');
       setFileInputBump(n => n + 1);
     } catch (err) {
-      setError(err.message ?? 'upload request failed');
+      setError(err.message ?? t('lua:upload.requestFailed', 'upload request failed'));
     } finally {
       setUploading(false);
     }
@@ -100,29 +106,35 @@ export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
       <Modal.Header closeButton>
         <Modal.Title>
           <i className="bi bi-cloud-upload me-2" />
-          Upload Lua plugin
+          {t('lua:upload.title', 'Upload Lua plugin')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Alert variant="info" className="small mb-3">
-          Pick an upload-target directory, name the plugin, pick a <code>.lua</code> file or paste
-          source. The plugin lands at <code>&lt;dir&gt;/&lt;name&gt;.lua</code>; a new row is added
-          to the Lua plugins table with that path pre-filled so you only need to hit{' '}
-          <strong>Save Lua plugins</strong> to wire it in.
+          <Trans
+            i18nKey="lua:upload.intro"
+            t={t}
+            defaults="Pick an upload-target directory, name the plugin, pick a <0>.lua</0> file or paste source. The plugin lands at <1>&lt;dir&gt;/&lt;name&gt;.lua</1>; a new row is added to the Lua plugins table with that path pre-filled so you only need to hit <2>Save Lua plugins</2> to wire it in."
+            components={[<code key="0" />, <code key="1" />, <strong key="2" />]}
+          />
         </Alert>
         {dirsError ? (
           <Alert variant="danger" className="small">
-            Could not load upload-target list: {dirsError}
+            {t('lua:upload.dirsLoadError', 'Could not load upload-target list: {{message}}', {
+              message: dirsError,
+            })}
           </Alert>
         ) : null}
         <Form.Group className="mb-3">
-          <Form.Label>Upload-target directory</Form.Label>
+          <Form.Label>{t('lua:upload.dirLabel', 'Upload-target directory')}</Form.Label>
           <Form.Select
             value={dir}
             onChange={e => setDir(e.target.value)}
             disabled={dirs.length === 0 || uploading}
           >
-            {dirs.length === 0 ? <option value="">(no dirs configured)</option> : null}
+            {dirs.length === 0 ? (
+              <option value="">{t('lua:upload.noDirs', '(no dirs configured)')}</option>
+            ) : null}
             {dirs.map(d => (
               <option key={d} value={d}>
                 {d}
@@ -130,11 +142,16 @@ export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
             ))}
           </Form.Select>
           <Form.Text className="text-muted">
-            Configured via <code>paths.luaPluginsDirs</code> in <code>config.yaml</code>.
+            <Trans
+              i18nKey="lua:upload.dirHint"
+              t={t}
+              defaults="Configured via <0>paths.luaPluginsDirs</0> in <1>config.yaml</1>."
+              components={[<code key="0" />, <code key="1" />]}
+            />
           </Form.Text>
         </Form.Group>
         <Form.Group className="mb-3">
-          <Form.Label>Plugin name</Form.Label>
+          <Form.Label>{t('lua:upload.nameLabel', 'Plugin name')}</Form.Label>
           <Form.Control
             type="text"
             value={name}
@@ -144,13 +161,17 @@ export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
             disabled={uploading}
           />
           <Form.Text className="text-muted">
-            Lowercase letters, digits, <code>_</code>, <code>-</code>. 1–63 chars, must start with a
-            letter. Used as the filename (<code>&lt;name&gt;.lua</code>).
+            <Trans
+              i18nKey="lua:upload.nameHint"
+              t={t}
+              defaults="Lowercase letters, digits, <0>_</0>, <1>-</1>. 1–63 chars, must start with a letter. Used as the filename (<2>&lt;name&gt;.lua</2>)."
+              components={[<code key="0" />, <code key="1" />, <code key="2" />]}
+            />
           </Form.Text>
         </Form.Group>
         <Form.Group className="mb-2">
           <div className="d-flex justify-content-between align-items-center mb-1">
-            <Form.Label className="mb-0">Lua source</Form.Label>
+            <Form.Label className="mb-0">{t('lua:upload.sourceLabel', 'Lua source')}</Form.Label>
             <Form.Control
               key={`file-${fileInputBump}`}
               type="file"
@@ -166,17 +187,25 @@ export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
             rows={12}
             value={source}
             onChange={e => setSource(e.target.value)}
-            placeholder="-- paste Lua source here, or pick a .lua file above"
+            placeholder={t(
+              'lua:upload.sourcePlaceholder',
+              '-- paste Lua source here, or pick a .lua file above'
+            )}
             spellCheck={false}
             style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}
             disabled={uploading}
           />
           <div className="d-flex justify-content-between mt-1 small text-muted">
             <span>
-              {source.length.toLocaleString()} / {MAX_SOURCE_BYTES.toLocaleString()} bytes
+              {t('lua:upload.bytesUsed', '{{used}} / {{limit}} bytes', {
+                used: source.length.toLocaleString(),
+                limit: MAX_SOURCE_BYTES.toLocaleString(),
+              })}
             </span>
             {!sourceWithinLimit ? (
-              <span className="text-danger">source exceeds the size limit</span>
+              <span className="text-danger">
+                {t('lua:upload.sizeExceeded', 'source exceeds the size limit')}
+              </span>
             ) : null}
           </div>
         </Form.Group>
@@ -188,15 +217,16 @@ export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel} disabled={uploading}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <Button variant="primary" onClick={handleUpload} disabled={!canSubmit}>
           {uploading ? (
             <>
-              <Spinner as="span" animation="border" size="sm" /> Uploading…
+              <Spinner as="span" animation="border" size="sm" />{' '}
+              <span>{t('lua:upload.uploading', 'Uploading…')}</span>
             </>
           ) : (
-            'Upload'
+            t('common:buttons.upload', 'Upload')
           )}
         </Button>
       </Modal.Footer>

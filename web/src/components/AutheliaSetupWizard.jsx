@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Col, Form, Row } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { stateDocShape } from '../prop-shapes.js';
 
@@ -11,7 +12,12 @@ const ACL_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$/u;
 const HOSTNAME_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}$/u;
 const ADDR_PORT_REGEX = /^(?:\[[0-9a-fA-F:]+\]|[A-Za-z0-9.-]+):\d{1,5}$/u;
 
-const STEP_LABELS = Object.freeze(['Authelia upstream', 'Portal routing', 'Names', 'Review']);
+const STEP_LABEL_KEYS = Object.freeze([
+  { key: 'auth:autheliaWizard.steps.upstream', fallback: 'Authelia upstream' },
+  { key: 'auth:autheliaWizard.steps.routing', fallback: 'Portal routing' },
+  { key: 'auth:autheliaWizard.steps.names', fallback: 'Names' },
+  { key: 'auth:autheliaWizard.steps.review', fallback: 'Review' },
+]);
 
 const slugifyId = source =>
   source
@@ -77,6 +83,7 @@ const initialDraft = doc => {
 };
 
 const AutheliaUpstreamStep = ({ draft, update }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const onFlavorChange = nextFlavor => {
     const isLegacy = nextFlavor === 'legacy';
     const defaultPath = isLegacy ? '/api/verify' : '/api/authz/forward-auth';
@@ -91,52 +98,68 @@ const AutheliaUpstreamStep = ({ draft, update }) => {
     <Row className="g-3">
       <Col xs={12}>
         <Alert variant="info" className="mb-0 small">
-          This wizard creates 4 state entities in one shot: a <strong>Backend</strong> pointing at
-          your Authelia server, an <strong>ACL</strong> matching the portal hostname, a{' '}
-          <strong>use-backend Rule</strong> on the chosen HTTPS frontend that routes browser portal
-          traffic to that backend, and the <strong>AuthProvider</strong> entity itself (referencing
-          the new backend by id). It also registers the bundled <code>auth-request.lua</code> plugin
-          under <code>globalSettings.luaPlugins</code> if it isn&apos;t already there. All editable
-          later as first-class state.
+          {t(
+            'auth:autheliaWizard.upstream.intro',
+            "This wizard creates 4 state entities in one shot: a Backend pointing at your Authelia server, an ACL matching the portal hostname, a use-backend Rule on the chosen HTTPS frontend that routes browser portal traffic to that backend, and the AuthProvider entity itself (referencing the new backend by id). It also registers the bundled auth-request.lua plugin under globalSettings.luaPlugins if it isn't already there. All editable later as first-class state."
+          )}
         </Alert>
       </Col>
       <Col md={6}>
         <Form.Group>
-          <Form.Label>Authelia version</Form.Label>
+          <Form.Label>
+            {t('auth:autheliaWizard.upstream.versionLabel', 'Authelia version')}
+          </Form.Label>
           <Form.Select value={draft.endpointFlavor} onChange={e => onFlavorChange(e.target.value)}>
-            <option value="forward-auth">4.38+ (/api/authz/forward-auth)</option>
-            <option value="legacy">≤ 4.37 (/api/verify)</option>
+            <option value="forward-auth">
+              {t(
+                'auth:autheliaWizard.upstream.versionForwardAuth',
+                '4.38+ (/api/authz/forward-auth)'
+              )}
+            </option>
+            <option value="legacy">
+              {t('auth:autheliaWizard.upstream.versionLegacy', '≤ 4.37 (/api/verify)')}
+            </option>
           </Form.Select>
           <Form.Text className="text-muted">
-            Modern emits <code>X-Forwarded-*</code> before the auth probe; legacy emits a single{' '}
-            <code>X-Original-URL</code>. Auto-fills the path + redirect template below.
+            {t(
+              'auth:autheliaWizard.upstream.versionHelp',
+              'Modern emits X-Forwarded-* before the auth probe; legacy emits a single X-Original-URL. Auto-fills the path + redirect template below.'
+            )}
           </Form.Text>
         </Form.Group>
       </Col>
       <Col md={6}>
         <Form.Group>
-          <Form.Label>Authelia server address</Form.Label>
+          <Form.Label>
+            {t('auth:autheliaWizard.upstream.serverAddressLabel', 'Authelia server address')}
+          </Form.Label>
           <Form.Control
             value={draft.backendServerAddress}
             onChange={e => update({ backendServerAddress: e.target.value })}
             placeholder="assistant.example.com:9091"
           />
           <Form.Text className="text-muted">
-            host:port of your Authelia instance. Same backend serves both the lua auth probe and the
-            browser portal.
+            {t(
+              'auth:autheliaWizard.upstream.serverAddressHelp',
+              'host:port of your Authelia instance. Same backend serves both the lua auth probe and the browser portal.'
+            )}
           </Form.Text>
         </Form.Group>
       </Col>
       <Col md={12}>
         <Form.Group>
-          <Form.Label>Authz endpoint path</Form.Label>
+          <Form.Label>
+            {t('auth:autheliaWizard.upstream.endpointPathLabel', 'Authz endpoint path')}
+          </Form.Label>
           <Form.Control
             value={draft.apiVerifyPath}
             onChange={e => update({ apiVerifyPath: e.target.value })}
           />
           <Form.Text className="text-muted">
-            Auto-filled from the version selector; override only if your Authelia is reverse-mounted
-            at a non-default path.
+            {t(
+              'auth:autheliaWizard.upstream.endpointPathHelp',
+              'Auto-filled from the version selector; override only if your Authelia is reverse-mounted at a non-default path.'
+            )}
           </Form.Text>
         </Form.Group>
       </Col>
@@ -150,6 +173,7 @@ AutheliaUpstreamStep.propTypes = {
 };
 
 const PortalRoutingStep = ({ draft, update, doc }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const httpsFrontends = (doc.frontends ?? []).filter(
     f => f.mode === 'http' && f.binds?.some(b => b.ssl?.enabled)
   );
@@ -157,26 +181,30 @@ const PortalRoutingStep = ({ draft, update, doc }) => {
     <Row className="g-3">
       <Col md={6}>
         <Form.Group>
-          <Form.Label>Portal hostname</Form.Label>
+          <Form.Label>{t('auth:autheliaWizard.routing.hostLabel', 'Portal hostname')}</Form.Label>
           <Form.Control
             value={draft.portalHost}
             onChange={e => update({ portalHost: e.target.value })}
             placeholder="auth.example.com"
           />
           <Form.Text className="text-muted">
-            The hostname users hit to reach the Authelia web portal. Make sure it&apos;s on the
-            covering certificate&apos;s SAN list.
+            {t(
+              'auth:autheliaWizard.routing.hostHelp',
+              "The hostname users hit to reach the Authelia web portal. Make sure it's on the covering certificate's SAN list."
+            )}
           </Form.Text>
         </Form.Group>
       </Col>
       <Col md={6}>
         <Form.Group>
-          <Form.Label>HTTPS frontend hosting the portal</Form.Label>
+          <Form.Label>
+            {t('auth:autheliaWizard.routing.frontendLabel', 'HTTPS frontend hosting the portal')}
+          </Form.Label>
           <Form.Select
             value={draft.portalFrontendId}
             onChange={e => update({ portalFrontendId: e.target.value })}
           >
-            <option value="">— choose —</option>
+            <option value="">{t('auth:autheliaWizard.routing.choosePrompt', '— choose —')}</option>
             {httpsFrontends.map(f => (
               <option key={f.id} value={f.id}>
                 {f.name} ({f.binds?.[0]?.address ?? '?'})
@@ -184,9 +212,10 @@ const PortalRoutingStep = ({ draft, update, doc }) => {
             ))}
           </Form.Select>
           <Form.Text className="text-muted">
-            The use-backend rule is inserted at the top of this frontend&apos;s
-            <code> rulePhases.httpRequest</code>, so portal traffic matches before any other route
-            on that hostname.
+            {t(
+              'auth:autheliaWizard.routing.frontendHelp',
+              "The use-backend rule is inserted at the top of this frontend's rulePhases.httpRequest, so portal traffic matches before any other route on that hostname."
+            )}
           </Form.Text>
         </Form.Group>
       </Col>
@@ -200,58 +229,65 @@ PortalRoutingStep.propTypes = {
   doc: PropTypes.object.isRequired,
 };
 
-const NamesStep = ({ draft, update }) => (
-  <Row className="g-3">
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>AuthProvider id</Form.Label>
-        <Form.Control
-          value={draft.providerId}
-          onChange={e => update({ providerId: e.target.value })}
-        />
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Backend id</Form.Label>
-        <Form.Control
-          value={draft.backendId}
-          onChange={e => update({ backendId: e.target.value })}
-        />
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Backend name (HAProxy section name)</Form.Label>
-        <Form.Control
-          value={draft.backendName}
-          onChange={e => update({ backendName: e.target.value })}
-        />
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>ACL id</Form.Label>
-        <Form.Control value={draft.aclId} onChange={e => update({ aclId: e.target.value })} />
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>ACL name (HAProxy identifier)</Form.Label>
-        <Form.Control value={draft.aclName} onChange={e => update({ aclName: e.target.value })} />
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Rule id</Form.Label>
-        <Form.Control
-          value={draft.routeRuleId}
-          onChange={e => update({ routeRuleId: e.target.value })}
-        />
-      </Form.Group>
-    </Col>
-  </Row>
-);
+const NamesStep = ({ draft, update }) => {
+  const { t } = useTranslation(['auth', 'common']);
+  return (
+    <Row className="g-3">
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('auth:autheliaWizard.names.providerId', 'AuthProvider id')}</Form.Label>
+          <Form.Control
+            value={draft.providerId}
+            onChange={e => update({ providerId: e.target.value })}
+          />
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('auth:autheliaWizard.names.backendId', 'Backend id')}</Form.Label>
+          <Form.Control
+            value={draft.backendId}
+            onChange={e => update({ backendId: e.target.value })}
+          />
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>
+            {t('auth:autheliaWizard.names.backendName', 'Backend name (HAProxy section name)')}
+          </Form.Label>
+          <Form.Control
+            value={draft.backendName}
+            onChange={e => update({ backendName: e.target.value })}
+          />
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('auth:autheliaWizard.names.aclId', 'ACL id')}</Form.Label>
+          <Form.Control value={draft.aclId} onChange={e => update({ aclId: e.target.value })} />
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>
+            {t('auth:autheliaWizard.names.aclName', 'ACL name (HAProxy identifier)')}
+          </Form.Label>
+          <Form.Control value={draft.aclName} onChange={e => update({ aclName: e.target.value })} />
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('auth:autheliaWizard.names.ruleId', 'Rule id')}</Form.Label>
+          <Form.Control
+            value={draft.routeRuleId}
+            onChange={e => update({ routeRuleId: e.target.value })}
+          />
+        </Form.Group>
+      </Col>
+    </Row>
+  );
+};
 
 NamesStep.propTypes = {
   draft: PropTypes.object.isRequired,
@@ -264,6 +300,7 @@ const buildRedirectUrlTemplate = (portalHost, flavor) => {
 };
 
 const ReviewStep = ({ draft, doc }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const frontend = (doc.frontends ?? []).find(f => f.id === draft.portalFrontendId);
   const redirectUrlTemplate = buildRedirectUrlTemplate(draft.portalHost, draft.endpointFlavor);
   const hasAuthRequestLua = (doc.globalSettings?.luaPlugins ?? []).some(
@@ -271,60 +308,80 @@ const ReviewStep = ({ draft, doc }) => {
   );
   return (
     <div className="small">
-      <h6 className="mb-3">Will create:</h6>
+      <h6 className="mb-3">{t('auth:autheliaWizard.review.willCreate', 'Will create:')}</h6>
       <dl className="row mb-2">
-        <dt className="col-sm-4">Authelia version</dt>
+        <dt className="col-sm-4">
+          {t('auth:autheliaWizard.review.versionRow', 'Authelia version')}
+        </dt>
         <dd className="col-sm-8">
           <Badge bg={draft.endpointFlavor === 'legacy' ? 'warning' : 'success'} text="dark">
             {draft.endpointFlavor === 'legacy'
-              ? '≤ 4.37 (legacy /api/verify)'
-              : '4.38+ (forward-auth)'}
+              ? t('auth:autheliaWizard.review.versionLegacy', '≤ 4.37 (legacy /api/verify)')
+              : t('auth:autheliaWizard.review.versionForwardAuth', '4.38+ (forward-auth)')}
           </Badge>
         </dd>
-        <dt className="col-sm-4">Lua plugin</dt>
+        <dt className="col-sm-4">{t('auth:autheliaWizard.review.luaPluginRow', 'Lua plugin')}</dt>
         <dd className="col-sm-8">
           {hasAuthRequestLua ? (
             <span className="text-muted">
-              <code>{AUTH_REQUEST_LUA_PATH}</code> already registered — no change
+              <code>{AUTH_REQUEST_LUA_PATH}</code>{' '}
+              {t('auth:autheliaWizard.review.luaAlready', 'already registered — no change')}
             </span>
           ) : (
             <>
-              will register <code>{AUTH_REQUEST_LUA_PATH}</code> under{' '}
+              {t('auth:autheliaWizard.review.luaWillRegisterPrefix', 'will register')}{' '}
+              <code>{AUTH_REQUEST_LUA_PATH}</code>{' '}
+              {t('auth:autheliaWizard.review.luaWillRegisterSuffix', 'under')}{' '}
               <code>globalSettings.luaPlugins</code>
             </>
           )}
         </dd>
-        <dt className="col-sm-4">AuthProvider</dt>
+        <dt className="col-sm-4">
+          {t('auth:autheliaWizard.review.authProviderRow', 'AuthProvider')}
+        </dt>
         <dd className="col-sm-8">
           <code>{draft.providerId}</code> (type=authelia) →{' '}
           <code>authRequestBackendId: {draft.backendId}</code>
         </dd>
-        <dt className="col-sm-4">Backend</dt>
+        <dt className="col-sm-4">{t('auth:autheliaWizard.review.backendRow', 'Backend')}</dt>
         <dd className="col-sm-8">
           <code>{draft.backendName}</code> ({draft.backendId}) →{' '}
           <code>{draft.backendServerAddress}</code>
         </dd>
-        <dt className="col-sm-4">ACL</dt>
+        <dt className="col-sm-4">{t('auth:autheliaWizard.review.aclRow', 'ACL')}</dt>
         <dd className="col-sm-8">
           <code>{draft.aclName}</code> ({draft.aclId}) →{' '}
           <code>hdr(host) -m str -i {draft.portalHost}</code>
         </dd>
-        <dt className="col-sm-4">Use-backend rule</dt>
+        <dt className="col-sm-4">
+          {t('auth:autheliaWizard.review.useBackendRuleRow', 'Use-backend rule')}
+        </dt>
         <dd className="col-sm-8">
-          on frontend <Badge bg="primary">{frontend?.name ?? '?'}</Badge> →{' '}
+          {t('auth:autheliaWizard.review.onFrontend', 'on frontend')}{' '}
+          <Badge bg="primary">{frontend?.name ?? '?'}</Badge> →{' '}
           <code>
             use_backend {draft.backendName} if {draft.aclName}
           </code>
         </dd>
-        <dt className="col-sm-4">redirect template</dt>
+        <dt className="col-sm-4">
+          {t('auth:autheliaWizard.review.redirectTemplateRow', 'redirect template')}
+        </dt>
         <dd className="col-sm-8">
           <code className="small">{redirectUrlTemplate}</code>
         </dd>
       </dl>
       <Alert variant="info" className="small mb-0">
-        After save, gating other routes is one more step: add an <code>apply-auth-provider</code>{' '}
-        rule on the gated frontend with <code>providerId: {draft.providerId}</code> and a condition
-        matching the host you want protected. Do that from the Rules tab.
+        {t(
+          'auth:autheliaWizard.review.gatingHintPrefix',
+          'After save, gating other routes is one more step: add an'
+        )}{' '}
+        <code>apply-auth-provider</code>{' '}
+        {t('auth:autheliaWizard.review.gatingHintMiddle', 'rule on the gated frontend with')}{' '}
+        <code>providerId: {draft.providerId}</code>{' '}
+        {t(
+          'auth:autheliaWizard.review.gatingHintSuffix',
+          'and a condition matching the host you want protected. Do that from the Rules tab.'
+        )}
       </Alert>
     </div>
   );
@@ -479,6 +536,7 @@ const collisionFreeDraft = (draft, doc) => {
 };
 
 export const AutheliaSetupWizard = ({ show, doc, onComplete, onCancel }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -503,19 +561,20 @@ export const AutheliaSetupWizard = ({ show, doc, onComplete, onCancel }) => {
   };
 
   const canAdvance = validateStep(step, draft, doc);
+  const stepLabels = STEP_LABEL_KEYS.map(entry => t(entry.key, entry.fallback));
 
   return (
     <WizardShell
       show={show}
-      title="Authelia setup"
-      stepLabels={STEP_LABELS}
+      title={t('auth:autheliaWizard.title', 'Authelia setup')}
+      stepLabels={stepLabels}
       currentStep={step}
       canAdvance={canAdvance}
       saving={saving}
       error={error}
-      finishLabel="Create everything"
+      finishLabel={t('auth:autheliaWizard.finishLabel', 'Create everything')}
       onPrev={step > 0 ? () => setStep(s => s - 1) : null}
-      onNext={step < STEP_LABELS.length - 1 ? () => setStep(s => s + 1) : null}
+      onNext={step < STEP_LABEL_KEYS.length - 1 ? () => setStep(s => s + 1) : null}
       onFinish={handleFinish}
       onCancel={onCancel}
     >

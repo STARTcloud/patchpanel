@@ -1,6 +1,7 @@
 import { createHash, X509Certificate } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 
+import { ValidationError } from './errors.js';
 import { ensureDir, fileExists, removeIfExists, safePathUnder, writeAtomic } from './files.js';
 import { findCertificatePemBlocks } from './pem.js';
 
@@ -16,9 +17,10 @@ import { findCertificatePemBlocks } from './pem.js';
 
 const TRUSTED_CA_ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
 
+// Returns null when id valid, otherwise `{ code, replacements }`.
 export const validateTrustedCaId = id => {
   if (typeof id !== 'string' || !TRUSTED_CA_ID_REGEX.test(id)) {
-    return 'id must match a-z, 0-9, _, - (1-63 chars, letter-start)';
+    return { code: 'cert.trustedCa.idInvalid', replacements: {} };
   }
   return null;
 };
@@ -50,17 +52,26 @@ const extractSubjectSummary = x509 => {
 // reject when no cert in the chain has CA:TRUE — let the user decide.
 const hasAnyCaCert = chain => chain.some(x => x.ca === true);
 
+// Errors / warnings emitted as `{ code, replacements }` objects so the route
+// layer can localize them via localizeMessage(). Keeps lib pure — no i18n
+// imports here.
 const parseChain = pemText => {
   const blocks = splitPemChain(pemText);
   if (blocks.length === 0) {
-    return { ok: false, error: 'no CERTIFICATE blocks found' };
+    return { ok: false, error: { code: 'cert.trustedCa.noCertBlocks', replacements: {} } };
   }
   const certs = [];
   for (let i = 0; i < blocks.length; i += 1) {
     try {
       certs.push(new X509Certificate(blocks[i]));
     } catch (err) {
-      return { ok: false, error: `cert #${i + 1} parse failed: ${err.message}` };
+      return {
+        ok: false,
+        error: {
+          code: 'cert.trustedCa.certParseFailed',
+          replacements: { index: i + 1, reason: err.message },
+        },
+      };
     }
   }
   return { ok: true, certs };
@@ -69,10 +80,11 @@ const parseChain = pemText => {
 // `info` is the metadata shape persisted into state alongside the upload.
 // `warnings[]` surfaces things like "no CA:TRUE cert in chain" or "earliest
 // notAfter is < 30d away" so the UI can flag them without rejecting the
-// upload outright.
+// upload outright. Both `errors[]` and `warnings[]` contain
+// `{ code, replacements }` — route maps to localized strings.
 export const validateTrustedCaPem = ({ pem }) => {
   if (typeof pem !== 'string' || pem.trim().length === 0) {
-    return { ok: false, errors: ['pem is required'] };
+    return { ok: false, errors: [{ code: 'cert.trustedCa.pemRequired', replacements: {} }] };
   }
   const parsed = parseChain(pem);
   if (!parsed.ok) {
@@ -88,19 +100,27 @@ export const validateTrustedCaPem = ({ pem }) => {
     const notBefore = x.validFromDate;
     const notAfter = x.validToDate;
     if (notAfter && notAfter.getTime() < now) {
-      errors.push(`cert #${i + 1} (${extractSubjectSummary(x)}) expired ${notAfter.toISOString()}`);
+      errors.push({
+        code: 'cert.trustedCa.certExpired',
+        replacements: {
+          index: i + 1,
+          subject: extractSubjectSummary(x),
+          notAfter: notAfter.toISOString(),
+        },
+      });
     }
     if (notBefore && notBefore.getTime() > now) {
-      warnings.push(`cert #${i + 1} not yet valid (notBefore ${notBefore.toISOString()})`);
+      warnings.push({
+        code: 'cert.trustedCa.certNotYetValid',
+        replacements: { index: i + 1, notBefore: notBefore.toISOString() },
+      });
     }
     if (notAfter && (earliestNotAfter === null || notAfter < earliestNotAfter)) {
       earliestNotAfter = notAfter;
     }
   }
   if (!hasAnyCaCert(certs)) {
-    warnings.push(
-      'no certificate in the bundle has BasicConstraints CA:TRUE — this is unusual for a trusted CA file'
-    );
+    warnings.push({ code: 'cert.trustedCa.noCaTrueCert', replacements: {} });
   }
   if (errors.length > 0) {
     return { ok: false, errors, warnings };
@@ -128,7 +148,7 @@ export const validateTrustedCaPem = ({ pem }) => {
 const sanitizeTrustedCaPath = (trustedCasDir, id) => {
   const idError = validateTrustedCaId(id);
   if (idError) {
-    throw new Error(idError);
+    throw new ValidationError(idError.code, { replacements: idError.replacements });
   }
   return safePathUnder(trustedCasDir, `${id}.pem`);
 };

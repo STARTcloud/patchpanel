@@ -2,7 +2,28 @@ import PropTypes from 'prop-types';
 import { Component } from 'react';
 import { Alert, Button, Card } from 'react-bootstrap';
 
+import i18n from '../i18n/index.js';
 import { log } from '../utils/Logger.js';
+
+// Translate safely. ErrorBoundary catches render errors; i18n may not be
+// ready yet when the boundary fires. Wrap every lookup in try/catch and
+// fall back to the English literal if anything goes sideways.
+const tr = (key, fallback, vars) => {
+  try {
+    if (i18n?.isInitialized && typeof i18n.t === 'function') {
+      return i18n.t(key, { defaultValue: fallback, ...vars });
+    }
+  } catch {
+    // i18n unavailable — fall through.
+  }
+  if (vars) {
+    return Object.entries(vars).reduce(
+      (acc, [k, v]) => acc.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'gu'), String(v)),
+      fallback
+    );
+  }
+  return fallback;
+};
 
 // Hand-picked subset of React's official codes.json. Templates use %s for
 // positional args, matching React's invariant() convention. Source:
@@ -58,7 +79,7 @@ const MinifiedErrorAlert = ({ parsed, originalMessage }) => {
   return (
     <Alert variant="danger" className="mb-3">
       <Alert.Heading as="h6" className="mb-2">
-        React error #{parsed.code}
+        {tr('common:errors.reactError', 'React error #{{code}}', { code: parsed.code })}
       </Alert.Heading>
       {friendly ? (
         <p className="mb-2" style={{ whiteSpace: 'pre-wrap' }}>
@@ -66,7 +87,10 @@ const MinifiedErrorAlert = ({ parsed, originalMessage }) => {
         </p>
       ) : (
         <p className="mb-2">
-          No inline template for this code. Open the official description:{' '}
+          {tr(
+            'common:errors.noInlineTemplate',
+            'No inline template for this code. Open the official description:'
+          )}{' '}
           <Alert.Link href={parsed.url} target="_blank" rel="noopener noreferrer">
             {parsed.url}
           </Alert.Link>
@@ -75,12 +99,14 @@ const MinifiedErrorAlert = ({ parsed, originalMessage }) => {
       {friendly ? (
         <div className="small">
           <Alert.Link href={parsed.url} target="_blank" rel="noopener noreferrer">
-            Open full description on react.dev
+            {tr('common:errors.openOnReactDev', 'Open full description on react.dev')}
           </Alert.Link>
         </div>
       ) : null}
       <details className="mt-2">
-        <summary className="small text-muted">Original minified message</summary>
+        <summary className="small text-muted">
+          {tr('common:errors.originalMessage', 'Original minified message')}
+        </summary>
         <pre className="small mt-2 mb-0 p-2 bg-body-tertiary" style={{ whiteSpace: 'pre-wrap' }}>
           {originalMessage}
         </pre>
@@ -148,7 +174,9 @@ export class ErrorBoundary extends Component {
     return (
       <Card className="m-3">
         <Card.Body>
-          <Card.Title className="text-danger">Something went wrong</Card.Title>
+          <Card.Title className="text-danger">
+            {tr('common:errors.somethingWentWrong', 'Something went wrong')}
+          </Card.Title>
           {parsed ? (
             <MinifiedErrorAlert parsed={parsed} originalMessage={error.message} />
           ) : (
@@ -156,7 +184,9 @@ export class ErrorBoundary extends Component {
           )}
           {info?.componentStack ? (
             <details>
-              <summary className="text-muted small">Component stack</summary>
+              <summary className="text-muted small">
+                {tr('common:errors.componentStack', 'Component stack')}
+              </summary>
               <pre className="small mt-2 p-2 bg-body-tertiary" style={{ whiteSpace: 'pre-wrap' }}>
                 {info.componentStack}
               </pre>
@@ -164,7 +194,7 @@ export class ErrorBoundary extends Component {
           ) : null}
           <div className="d-flex gap-2 mt-3">
             <Button variant="primary" onClick={this.reset}>
-              Try again
+              {tr('common:errors.tryAgain', 'Try again')}
             </Button>
             <Button
               variant="secondary"
@@ -174,7 +204,7 @@ export class ErrorBoundary extends Component {
                 }
               }}
             >
-              Reload page
+              {tr('common:errors.reloadPage', 'Reload page')}
             </Button>
           </div>
         </Card.Body>

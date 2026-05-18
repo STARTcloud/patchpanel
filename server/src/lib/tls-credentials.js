@@ -1,5 +1,6 @@
 import { promises as fs } from 'node:fs';
 
+import { ValidationError } from './errors.js';
 import { ensureDir, fileExists, removeIfExists, safePathUnder, writeAtomic } from './files.js';
 
 // Disk side of the DNS-provider credential lifecycle. The TLSProviderSchema
@@ -14,9 +15,11 @@ import { ensureDir, fileExists, removeIfExists, safePathUnder, writeAtomic } fro
 
 const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
 
+// Returns null when id valid, otherwise `{ code, replacements }` so the
+// caller can hand off straight to errorResponse / localizeMessage.
 export const validateProviderIdForCredentials = id => {
   if (typeof id !== 'string' || !ID_REGEX.test(id)) {
-    return 'id must match a-z, 0-9, _, - (1-63 chars, letter-start)';
+    return { code: 'cert.provider.idInvalid', replacements: {} };
   }
   return null;
 };
@@ -24,7 +27,7 @@ export const validateProviderIdForCredentials = id => {
 const sanitizeCredentialPath = (credentialsDir, id) => {
   const idError = validateProviderIdForCredentials(id);
   if (idError) {
-    throw new Error(idError);
+    throw new ValidationError(idError.code, { replacements: idError.replacements });
   }
   return safePathUnder(credentialsDir, `${id}.ini`);
 };

@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { NavDropdown, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiPost } from '../api/client.js';
 import { useConfirmation } from '../hooks/useConfirmation.jsx';
@@ -24,12 +25,13 @@ import { useKeepalivedLive } from '../hooks/useKeepalivedLive.jsx';
 // status indicator (operator manages keepalived externally).
 
 const StatusIcon = ({ alive, title }) => {
+  const { t } = useTranslation(['cluster']);
   if (alive === null) {
     return (
       <i
         className="bi bi-broadcast-pin text-muted"
-        title={title ?? 'Checking keepalived status…'}
-        aria-label="keepalived status checking"
+        title={title ?? t('cluster:keepalived.power.statusChecking', 'Checking keepalived status…')}
+        aria-label={t('cluster:keepalived.power.ariaChecking', 'keepalived status checking')}
       />
     );
   }
@@ -37,16 +39,16 @@ const StatusIcon = ({ alive, title }) => {
     return (
       <i
         className="bi bi-broadcast-pin text-success"
-        title={title ?? 'keepalived is running'}
-        aria-label="keepalived running"
+        title={title ?? t('cluster:keepalived.power.statusRunning', 'keepalived is running')}
+        aria-label={t('cluster:keepalived.power.ariaRunning', 'keepalived running')}
       />
     );
   }
   return (
     <i
       className="bi bi-broadcast-pin text-danger"
-      title={title ?? 'keepalived is stopped'}
-      aria-label="keepalived stopped"
+      title={title ?? t('cluster:keepalived.power.statusStopped', 'keepalived is stopped')}
+      aria-label={t('cluster:keepalived.power.ariaStopped', 'keepalived stopped')}
     />
   );
 };
@@ -87,40 +89,61 @@ PowerMenuItem.propTypes = {
   title: PropTypes.string,
 };
 
-const STOP_CONFIRM_BODY = (
-  <>
-    <p className="mb-2">
-      This will <strong>stop keepalived</strong>. Any VIPs currently held by this node will fail
-      over to a peer (if one exists with a higher priority). If this is the only node, the VIPs will
-      become unreachable.
-    </p>
-    <p className="mb-0 small text-muted">
-      Bring keepalived back up via Start (or your supervisor) once you&apos;re ready.
-    </p>
-  </>
-);
-
-const aliveLabel = alive => {
-  if (alive === null) {
-    return 'checking…';
-  }
-  return alive ? 'running' : 'stopped';
-};
-
-const toggleTitle = (alive, strategy) => {
-  const stratLabel = strategy ? ` · strategy: ${strategy}` : '';
-  return `keepalived ${aliveLabel(alive)}${stratLabel}`;
-};
-
 export const KeepalivedPowerControl = () => {
-  const { alive, strategy, refresh } = useKeepalivedLive();
+  const { t } = useTranslation(['cluster', 'common']);
+  const { alive, strategy, installed, refresh } = useKeepalivedLive();
   const { confirm, ConfirmationDialog } = useConfirmation();
   const [busy, setBusy] = useState(null);
+
+  // Hide the badge entirely when the keepalived binary isn't present at
+  // paths.keepalivedBin. The server reports `installed: false` for those
+  // deployments (typical for HA addons that don't ship keepalived).
+  // Returning null here keeps the navbar clean instead of showing a
+  // permanent "checking…" spinner the operator can't act on.
+  if (installed === false) {
+    return null;
+  }
 
   const isRunning = alive === true;
   const isStopped = alive === false;
   const directStart = strategy === 'direct';
   const managedExternally = strategy === 'none';
+
+  const aliveLabel = a => {
+    if (a === null) {
+      return t('cluster:keepalived.power.aliveChecking', 'checking…');
+    }
+    return a
+      ? t('cluster:keepalived.power.aliveRunning', 'running')
+      : t('cluster:keepalived.power.aliveStopped', 'stopped');
+  };
+
+  const toggleTitle = (a, s) => {
+    const stratLabel = s
+      ? t('cluster:keepalived.power.strategyLabel', ' · strategy: {{strategy}}', { strategy: s })
+      : '';
+    return t('cluster:keepalived.power.toggleTitle', 'keepalived {{state}}{{strategy}}', {
+      state: aliveLabel(a),
+      strategy: stratLabel,
+    });
+  };
+
+  const stopConfirmBody = (
+    <>
+      <p className="mb-2">
+        {t(
+          'cluster:keepalived.power.stopConfirm.body1',
+          'This will stop keepalived. Any VIPs currently held by this node will fail over to a peer (if one exists with a higher priority). If this is the only node, the VIPs will become unreachable.'
+        )}
+      </p>
+      <p className="mb-0 small text-muted">
+        {t(
+          'cluster:keepalived.power.stopConfirm.body2',
+          "Bring keepalived back up via Start (or your supervisor) once you're ready."
+        )}
+      </p>
+    </>
+  );
 
   const run = async (kind, path) => {
     setBusy(kind);
@@ -138,9 +161,9 @@ export const KeepalivedPowerControl = () => {
   const handleStart = () => run('start', 'api/keepalived/start');
   const handleStop = async () => {
     const ok = await confirm({
-      title: 'Stop keepalived?',
-      body: STOP_CONFIRM_BODY,
-      confirmLabel: 'Stop keepalived',
+      title: t('cluster:keepalived.power.stopConfirm.title', 'Stop keepalived?'),
+      body: stopConfirmBody,
+      confirmLabel: t('cluster:keepalived.power.stopConfirm.confirmLabel', 'Stop keepalived'),
       confirmVariant: 'danger',
     });
     if (ok) {
@@ -161,48 +184,64 @@ export const KeepalivedPowerControl = () => {
       >
         {managedExternally ? (
           <NavDropdown.ItemText className="small text-muted">
-            Strategy <code>none</code> — keepalived is managed outside patchpanel.
+            {t(
+              'cluster:keepalived.power.managedExternally',
+              'Strategy `none` — keepalived is managed outside patchpanel.'
+            )}
           </NavDropdown.ItemText>
         ) : null}
         {!managedExternally && isRunning ? (
           <>
             <PowerMenuItem
               icon="arrow-clockwise"
-              label="Reload"
-              busyLabel="Reloading…"
+              label={t('common:buttons.reload', 'Reload')}
+              busyLabel={t('cluster:keepalived.power.reloading', 'Reloading…')}
               busy={busy === 'reload'}
               onSelect={handleReload}
-              title="Re-read keepalived.conf via SIGHUP. Existing VRRP state is preserved."
+              title={t(
+                'cluster:keepalived.power.reloadTitle',
+                'Re-read keepalived.conf via SIGHUP. Existing VRRP state is preserved.'
+              )}
             />
             <PowerMenuItem
               icon="stop-circle"
-              label="Stop"
-              busyLabel="Stopping…"
+              label={t('common:buttons.stop', 'Stop')}
+              busyLabel={t('cluster:keepalived.power.stopping', 'Stopping…')}
               busy={busy === 'stop'}
               danger
               onSelect={handleStop}
-              title="Stop keepalived. VIPs held by this node will fail over (or vanish). Requires confirmation."
+              title={t(
+                'cluster:keepalived.power.stopTitle',
+                'Stop keepalived. VIPs held by this node will fail over (or vanish). Requires confirmation.'
+              )}
             />
           </>
         ) : null}
         {!managedExternally && isStopped ? (
           <PowerMenuItem
             icon="play-circle"
-            label="Start"
-            busyLabel="Starting…"
+            label={t('common:buttons.start', 'Start')}
+            busyLabel={t('cluster:keepalived.power.starting', 'Starting…')}
             busy={busy === 'start'}
             disabled={directStart}
             onSelect={handleStart}
             title={
               directStart
-                ? 'Direct strategy cannot start keepalived — no supervisor configured.'
-                : 'Start keepalived via the configured supervisor.'
+                ? t(
+                    'cluster:keepalived.power.startDirectTitle',
+                    'Direct strategy cannot start keepalived — no supervisor configured.'
+                  )
+                : t(
+                    'cluster:keepalived.power.startTitle',
+                    'Start keepalived via the configured supervisor.'
+                  )
             }
           />
         ) : null}
         {alive === null ? (
           <NavDropdown.ItemText className="small text-muted">
-            <Spinner as="span" animation="border" size="sm" className="me-2" /> Checking…
+            <Spinner as="span" animation="border" size="sm" className="me-2" />{' '}
+            {t('cluster:keepalived.power.checking', 'Checking…')}
           </NavDropdown.ItemText>
         ) : null}
       </NavDropdown>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, Button, Card, Col, Form, Row } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 
@@ -20,6 +21,7 @@ const toIntOr = (raw, fallback) => {
 };
 
 export const GlobalSettingsCard = ({ doc, onSave }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [draft, setDraft] = useState(null);
   const [status, setStatus] = useState(null);
   const current = draft ?? doc.globalSettings;
@@ -33,7 +35,7 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
     setStatus(null);
     onSave({ ...doc, globalSettings: current })
       .then(() => {
-        setStatus({ kind: 'success', message: 'Saved.' });
+        setStatus({ kind: 'success', message: t('haproxy:common.saved', 'Saved.') });
         setDraft(null);
       })
       .catch(err => setStatus({ kind: 'danger', message: err.message }));
@@ -42,15 +44,18 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
   return (
     <Card className="mb-3">
       <Card.Body>
-        <Card.Title>HAProxy global block</Card.Title>
+        <Card.Title>{t('haproxy:globalSettings.title', 'HAProxy global block')}</Card.Title>
         <Card.Text className="text-muted small">
-          Capacity, logging, and unique-id format. These render into the <code>global</code> section
-          of <code>haproxy.cfg</code>. SSL / TLS, Lua plugins, QUIC tunables, and raw passthrough
-          directives are configured in the cards below.
+          {t(
+            'haproxy:globalSettings.description',
+            'Capacity, logging, and unique-id format. These render into the global section of haproxy.cfg. SSL / TLS, Lua plugins, QUIC tunables, and raw passthrough directives are configured in the cards below.'
+          )}
         </Card.Text>
         {status ? <Alert variant={status.kind}>{status.message}</Alert> : null}
         <Form onSubmit={submit}>
-          <h6 className="mt-2 text-uppercase text-muted small">Capacity</h6>
+          <h6 className="mt-2 text-uppercase text-muted small">
+            {t('haproxy:globalSettings.capacity', 'Capacity')}
+          </h6>
           <Row className="g-3">
             <Col md={3}>
               <Form.Group>
@@ -63,8 +68,10 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
                   onChange={e => update({ maxconn: toIntOr(e.target.value, current.maxconn) })}
                 />
                 <Form.Text className="text-muted">
-                  Per-process simultaneous connection limit. Effective value capped by{' '}
-                  <code>fd-hard-limit / 2 - 256</code>.
+                  {t(
+                    'haproxy:globalSettings.maxconnHelp',
+                    'Per-process simultaneous connection limit. Effective value capped by fd-hard-limit / 2 - 256.'
+                  )}
                 </Form.Text>
               </Form.Group>
             </Col>
@@ -81,7 +88,10 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
                   }
                 />
                 <Form.Text className="text-muted">
-                  Hard ceiling on file descriptors HAProxy will ever request from the OS.
+                  {t(
+                    'haproxy:globalSettings.fdHardLimitHelp',
+                    'Hard ceiling on file descriptors HAProxy will ever request from the OS.'
+                  )}
                 </Form.Text>
               </Form.Group>
             </Col>
@@ -97,13 +107,18 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
                   }
                 />
                 <Form.Text className="text-muted">
-                  Per-stream buffer size in bytes. 64K covers most workloads.
+                  {t(
+                    'haproxy:globalSettings.bufsizeHelp',
+                    'Per-stream buffer size in bytes. 64K covers most workloads.'
+                  )}
                 </Form.Text>
               </Form.Group>
             </Col>
           </Row>
 
-          <h6 className="mt-4 text-uppercase text-muted small">Process</h6>
+          <h6 className="mt-4 text-uppercase text-muted small">
+            {t('haproxy:globalSettings.process', 'Process')}
+          </h6>
           <Row className="g-3">
             <Col md={4}>
               <Form.Group>
@@ -115,13 +130,16 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
                   onChange={e => update({ hardStopAfter: e.target.value })}
                 />
                 <Form.Text className="text-muted">
-                  Grace period for old workers to drain after a reload before SIGKILL.
+                  {t(
+                    'haproxy:globalSettings.hardStopAfterHelp',
+                    'Grace period for old workers to drain after a reload before SIGKILL.'
+                  )}
                 </Form.Text>
               </Form.Group>
             </Col>
             <Col md={4}>
               <Form.Group>
-                <Form.Label>Log level</Form.Label>
+                <Form.Label>{t('haproxy:globalSettings.logLevel', 'Log level')}</Form.Label>
                 <Form.Select
                   value={current.logLevel}
                   onChange={e => update({ logLevel: e.target.value })}
@@ -133,19 +151,24 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
                   ))}
                 </Form.Select>
                 <Form.Text className="text-muted">
-                  HAProxy log emit level (passed to <code>log stdout format raw local0 X</code>).
+                  {t(
+                    'haproxy:globalSettings.logLevelHelp',
+                    'HAProxy log emit level (passed to log stdout format raw local0 X).'
+                  )}
                 </Form.Text>
               </Form.Group>
             </Col>
           </Row>
 
-          <h6 className="mt-4 text-uppercase text-muted small">Logging format</h6>
+          <h6 className="mt-4 text-uppercase text-muted small">
+            {t('haproxy:globalSettings.loggingFormat', 'Logging format')}
+          </h6>
           <Row className="g-3">
             <Col md={4} className="d-flex align-items-end">
               <Form.Check
                 type="switch"
                 id="gs-json-log"
-                label="Emit JSON access logs"
+                label={t('haproxy:globalSettings.jsonLogs', 'Emit JSON access logs')}
                 checked={current.jsonLogFormat}
                 onChange={e => update({ jsonLogFormat: e.target.checked })}
               />
@@ -160,7 +183,10 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
                   onChange={e => update({ uniqueIdHeader: e.target.value || null })}
                 />
                 <Form.Text className="text-muted">
-                  Header name used to surface the unique request id. Blank disables the directive.
+                  {t(
+                    'haproxy:globalSettings.uniqueIdHeaderHelp',
+                    'Header name used to surface the unique request id. Blank disables the directive.'
+                  )}
                 </Form.Text>
               </Form.Group>
             </Col>
@@ -175,9 +201,10 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
                   style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
                 />
                 <Form.Text className="text-muted">
-                  HAProxy log-format expression. Default{' '}
-                  <code>%{'{+X}'}o\ %ci:%cp_%fi:%fp_%Ts_%rt:%pid</code> is the canonical hex form
-                  per docs 8.2.1.
+                  {t(
+                    'haproxy:globalSettings.uniqueIdFormatHelp',
+                    'HAProxy log-format expression. Default %{+X}o\\ %ci:%cp_%fi:%fp_%Ts_%rt:%pid is the canonical hex form per docs 8.2.1.'
+                  )}
                 </Form.Text>
               </Form.Group>
             </Col>
@@ -185,7 +212,7 @@ export const GlobalSettingsCard = ({ doc, onSave }) => {
 
           <div className="mt-4">
             <Button type="submit" variant="primary" disabled={!draft}>
-              Save global settings
+              {t('haproxy:globalSettings.save', 'Save global settings')}
             </Button>
           </div>
         </Form>

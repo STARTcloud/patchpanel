@@ -2,7 +2,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 import bcrypt from 'bcryptjs';
 
-import { ValidationError } from './errors.js';
+import { StateError, ValidationError } from './errors.js';
 import { fileExists, readJson, writeJson } from './files.js';
 import { withLock } from './lock.js';
 
@@ -117,7 +117,7 @@ export const createToken = async (tokensPath, { name, createdBy, expiresAt = nul
   return withLock(lockPathFor(tokensPath), async () => {
     const doc = await loadDoc(tokensPath);
     if (doc.tokens.some(t => t.keyId === keyId)) {
-      throw new Error('keyId collision (improbable; retry)');
+      throw new StateError('auth.token.keyIdCollision');
     }
     if (doc.tokens.some(t => t.name === name)) {
       throw new ValidationError('auth.token.nameExists', { replacements: { name } });

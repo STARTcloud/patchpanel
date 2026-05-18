@@ -4,6 +4,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Tab, Table, Tabs } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { genKey } from '../utils/keys.js';
 
@@ -37,22 +38,31 @@ const ERROR_FILE_CODES = Object.freeze([
 const isQuicAddress = address =>
   typeof address === 'string' && (address.startsWith('quic4@') || address.startsWith('quic6@'));
 
-const validateFrontend = draft => {
+const validateFrontend = (draft, t) => {
   if (!ID_REGEX.test(draft.id ?? '')) {
-    return 'id must match a-z, 0-9, _, - (starting with a letter)';
+    return t(
+      'haproxy:frontend.errors.idFormat',
+      'id must match a-z, 0-9, _, - (starting with a letter)'
+    );
   }
   if (!SECTION_NAME_REGEX.test(draft.name ?? '')) {
-    return 'name must be a valid HAProxy section identifier (letters/digits/_/-, start with letter)';
+    return t(
+      'haproxy:frontend.errors.nameFormat',
+      'name must be a valid HAProxy section identifier (letters/digits/_/-, start with letter)'
+    );
   }
   if (!draft.fromDefaults?.trim()) {
-    return 'a defaults block must be selected (create one on the Defaults page first)';
+    return t(
+      'haproxy:frontend.errors.defaultsRequired',
+      'a defaults block must be selected (create one on the Defaults page first)'
+    );
   }
   if (!draft.binds || draft.binds.length === 0) {
-    return 'at least one bind is required';
+    return t('haproxy:frontend.errors.bindRequired', 'at least one bind is required');
   }
   for (const bind of draft.binds) {
     if (!bind.address?.trim()) {
-      return 'every bind needs an address';
+      return t('haproxy:frontend.errors.bindAddressRequired', 'every bind needs an address');
     }
   }
   return null;
@@ -189,6 +199,7 @@ CaptureRow.propTypes = {
 };
 
 const CaptureHeadersEditor = ({ items, onChange, addLabel }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const add = () => onChange([...(items ?? []), { _key: genKey(), header: '', maxLen: 256 }]);
   const remove = idx => {
     const next = items.slice();
@@ -199,13 +210,15 @@ const CaptureHeadersEditor = ({ items, onChange, addLabel }) => {
   return (
     <>
       {list.length === 0 ? (
-        <p className="text-muted small mb-2">No captures.</p>
+        <p className="text-muted small mb-2">
+          {t('haproxy:frontend.capture.none', 'No captures.')}
+        </p>
       ) : (
         <Table size="sm" bordered className="mb-2">
           <thead>
             <tr>
-              <th>Header</th>
-              <th>Max length (bytes)</th>
+              <th>{t('haproxy:frontend.capture.header', 'Header')}</th>
+              <th>{t('haproxy:frontend.capture.maxLen', 'Max length (bytes)')}</th>
               <th />
             </tr>
           </thead>
@@ -270,6 +283,7 @@ StatsAuthRow.propTypes = {
 };
 
 const StatsAuthUsersEditor = ({ users, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const add = () => onChange([...(users ?? []), { _key: genKey(), username: '', password: '' }]);
   const remove = idx => {
     const next = users.slice();
@@ -280,13 +294,15 @@ const StatsAuthUsersEditor = ({ users, onChange }) => {
   return (
     <>
       {list.length === 0 ? (
-        <p className="text-muted small mb-2">No stats auth users.</p>
+        <p className="text-muted small mb-2">
+          {t('haproxy:frontend.stats.noUsers', 'No stats auth users.')}
+        </p>
       ) : (
         <Table size="sm" bordered className="mb-2">
           <thead>
             <tr>
-              <th>Username</th>
-              <th>Password</th>
+              <th>{t('haproxy:frontend.stats.username', 'Username')}</th>
+              <th>{t('haproxy:frontend.stats.password', 'Password')}</th>
               <th />
             </tr>
           </thead>
@@ -303,7 +319,7 @@ const StatsAuthUsersEditor = ({ users, onChange }) => {
         </Table>
       )}
       <Button variant="outline-primary" size="sm" onClick={add}>
-        Add stats user
+        {t('haproxy:frontend.stats.addUser', 'Add stats user')}
       </Button>
     </>
   );
@@ -357,7 +373,19 @@ ErrorFileRow.propTypes = {
   onRemove: PropTypes.func.isRequired,
 };
 
+const ErrorFileRowHeader = () => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <tr>
+      <th>{t('haproxy:frontend.errorFiles.status', 'Status')}</th>
+      <th>{t('haproxy:frontend.errorFiles.path', 'File path')}</th>
+      <th />
+    </tr>
+  );
+};
+
 const ErrorFilesEditor = ({ entries, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const add = () => onChange([...(entries ?? []), { _key: genKey(), code: '', path: '' }]);
   const remove = idx => {
     const next = entries.slice();
@@ -368,15 +396,13 @@ const ErrorFilesEditor = ({ entries, onChange }) => {
   return (
     <>
       {list.length === 0 ? (
-        <p className="text-muted small mb-2">No per-status overrides.</p>
+        <p className="text-muted small mb-2">
+          {t('haproxy:frontend.errorFiles.none', 'No per-status overrides.')}
+        </p>
       ) : (
         <Table size="sm" bordered className="mb-2">
           <thead>
-            <tr>
-              <th>Status</th>
-              <th>File path</th>
-              <th />
-            </tr>
+            <ErrorFileRowHeader />
           </thead>
           <tbody>
             {list.map((entry, idx) => (
@@ -391,7 +417,7 @@ const ErrorFilesEditor = ({ entries, onChange }) => {
         </Table>
       )}
       <Button variant="outline-primary" size="sm" onClick={add}>
-        Add errorfile
+        {t('haproxy:frontend.errorFiles.add', 'Add errorfile')}
       </Button>
     </>
   );
@@ -407,13 +433,17 @@ ErrorFilesEditor.propTypes = {
 // =====================================================================
 
 const BasicsTab = ({ draft, update, isExisting, doc }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const sections = doc.httpErrorsSections ?? [];
   const defaultsBlocks = doc.defaultsBlocks ?? [];
   return (
     <Row className="g-2 pt-3">
       <Field
-        label="ID"
-        helpText="Immutable after creation. Lowercase a-z, digits, _ or -, start with a letter."
+        label={t('haproxy:frontend.edit.id', 'ID')}
+        helpText={t(
+          'haproxy:frontend.edit.idHelp',
+          'Immutable after creation. Lowercase a-z, digits, _ or -, start with a letter.'
+        )}
       >
         <Form.Control
           type="text"
@@ -422,14 +452,20 @@ const BasicsTab = ({ draft, update, isExisting, doc }) => {
           onChange={e => update({ id: e.target.value })}
         />
       </Field>
-      <Field label="HAProxy section name" helpText="Rendered as `frontend NAME` in haproxy.cfg.">
+      <Field
+        label={t('haproxy:frontend.edit.sectionName', 'HAProxy section name')}
+        helpText={t(
+          'haproxy:frontend.edit.sectionNameHelp',
+          'Rendered as `frontend NAME` in haproxy.cfg.'
+        )}
+      >
         <Form.Control
           type="text"
           value={draft.name ?? ''}
           onChange={e => update({ name: e.target.value })}
         />
       </Field>
-      <Field label="Description" md={12}>
+      <Field label={t('haproxy:frontend.edit.description', 'Description')} md={12}>
         <Form.Control
           as="textarea"
           rows={2}
@@ -437,13 +473,20 @@ const BasicsTab = ({ draft, update, isExisting, doc }) => {
           onChange={e => update({ description: e.target.value || undefined })}
         />
       </Field>
-      <Field label="Mode" md={3}>
+      <Field label={t('haproxy:frontend.edit.mode', 'Mode')} md={3}>
         <Form.Select value={draft.mode ?? 'http'} onChange={e => update({ mode: e.target.value })}>
           <option value="http">http</option>
           <option value="tcp">tcp</option>
         </Form.Select>
       </Field>
-      <Field label="maxconn" md={3} helpText="Per-frontend session cap. Leave blank for default.">
+      <Field
+        label="maxconn"
+        md={3}
+        helpText={t(
+          'haproxy:frontend.edit.maxconnHelp',
+          'Per-frontend session cap. Leave blank for default.'
+        )}
+      >
         <Form.Control
           type="number"
           min={1}
@@ -452,16 +495,21 @@ const BasicsTab = ({ draft, update, isExisting, doc }) => {
         />
       </Field>
       <Field
-        label="from (defaults block)"
+        label={t('haproxy:frontend.edit.fromDefaults', 'from (defaults block)')}
         md={6}
-        helpText="Required. Each frontend inherits from one named defaults block. Define them on the Defaults page."
+        helpText={t(
+          'haproxy:frontend.edit.fromDefaultsHelp',
+          'Required. Each frontend inherits from one named defaults block. Define them on the Defaults page.'
+        )}
       >
         <Form.Select
           value={draft.fromDefaults ?? ''}
           onChange={e => update({ fromDefaults: e.target.value || '' })}
           disabled={defaultsBlocks.length === 0}
         >
-          <option value="">— choose a defaults block —</option>
+          <option value="">
+            — {t('haproxy:frontend.edit.chooseDefaults', 'choose a defaults block')} —
+          </option>
           {defaultsBlocks.map(b => (
             <option key={b.id} value={b.id}>
               {b.name} ({b.id})
@@ -470,16 +518,26 @@ const BasicsTab = ({ draft, update, isExisting, doc }) => {
         </Form.Select>
       </Field>
       <Field
-        label="errorfiles section (frontend-level)"
+        label={t('haproxy:frontend.edit.errorFiles', 'errorfiles section (frontend-level)')}
         md={12}
-        helpText="Reference one of the `http-errors NAME` sections (define them on the Error pages tab)."
+        helpText={t(
+          'haproxy:frontend.edit.errorFilesHelp',
+          'Reference one of the `http-errors NAME` sections (define them on the Error pages tab).'
+        )}
       >
         <Form.Select
           value={draft.useErrorFilesId ?? ''}
           onChange={e => update({ useErrorFilesId: e.target.value || null })}
           disabled={sections.length === 0}
         >
-          <option value="">(none — use defaults or per-status overrides)</option>
+          <option value="">
+            (
+            {t(
+              'haproxy:frontend.edit.noneErrorFiles',
+              'none — use defaults or per-status overrides'
+            )}
+            )
+          </option>
           {sections.map(s => (
             <option key={s.id} value={s.id}>
               {s.name} ({s.id})
@@ -488,7 +546,7 @@ const BasicsTab = ({ draft, update, isExisting, doc }) => {
         </Form.Select>
       </Field>
       <SwitchField
-        label="Enabled"
+        label={t('haproxy:frontend.edit.enabled', 'Enabled')}
         id="fe-basics-enabled"
         checked={draft.enabled ?? true}
         onChange={v => update({ enabled: v })}
@@ -509,49 +567,62 @@ BasicsTab.propTypes = {
 // Bind SSL block.
 // =====================================================================
 
-const SslIdentityFields = ({ ssl, setSsl }) => (
-  <>
-    <Field label="crt-list / @store/alias" md={6}>
-      <Form.Control
-        type="text"
-        value={ssl.crtListRef ?? ''}
-        placeholder="/etc/haproxy/certs.list or @store/alias"
-        onChange={e => setSsl({ crtListRef: e.target.value || null })}
-      />
-    </Field>
-    <Field label="default-crt (fallback when no SNI matches)" md={6}>
-      <Form.Control
-        type="text"
-        value={ssl.defaultCert ?? ''}
-        placeholder="/etc/haproxy/certs/fallback.pem"
-        onChange={e => setSsl({ defaultCert: e.target.value || null })}
-      />
-    </Field>
-    <Field label="ALPN" md={6} helpText="Comma-separated list (e.g. h2,http/1.1 or h3).">
-      <Form.Control
-        type="text"
-        value={(ssl.alpn ?? []).join(',')}
-        placeholder="h2,http/1.1"
-        onChange={e =>
-          setSsl({
-            alpn: e.target.value
-              .split(',')
-              .map(s => s.trim())
-              .filter(Boolean),
-          })
-        }
-      />
-    </Field>
-    <Field label="curves" md={6}>
-      <Form.Control
-        type="text"
-        value={ssl.curves ?? ''}
-        placeholder="X25519:secp256r1:secp384r1"
-        onChange={e => setSsl({ curves: e.target.value || undefined })}
-      />
-    </Field>
-  </>
-);
+const SslIdentityFields = ({ ssl, setSsl }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      <Field label="crt-list / @store/alias" md={6}>
+        <Form.Control
+          type="text"
+          value={ssl.crtListRef ?? ''}
+          placeholder="/etc/haproxy/certs.list or @store/alias"
+          onChange={e => setSsl({ crtListRef: e.target.value || null })}
+        />
+      </Field>
+      <Field
+        label={t('haproxy:frontend.ssl.defaultCert', 'default-crt (fallback when no SNI matches)')}
+        md={6}
+      >
+        <Form.Control
+          type="text"
+          value={ssl.defaultCert ?? ''}
+          placeholder="/etc/haproxy/certs/fallback.pem"
+          onChange={e => setSsl({ defaultCert: e.target.value || null })}
+        />
+      </Field>
+      <Field
+        label="ALPN"
+        md={6}
+        helpText={t(
+          'haproxy:frontend.ssl.alpnHelp',
+          'Comma-separated list (e.g. h2,http/1.1 or h3).'
+        )}
+      >
+        <Form.Control
+          type="text"
+          value={(ssl.alpn ?? []).join(',')}
+          placeholder="h2,http/1.1"
+          onChange={e =>
+            setSsl({
+              alpn: e.target.value
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean),
+            })
+          }
+        />
+      </Field>
+      <Field label="curves" md={6}>
+        <Form.Control
+          type="text"
+          value={ssl.curves ?? ''}
+          placeholder="X25519:secp256r1:secp384r1"
+          onChange={e => setSsl({ curves: e.target.value || undefined })}
+        />
+      </Field>
+    </>
+  );
+};
 
 SslIdentityFields.propTypes = {
   ssl: PropTypes.object.isRequired,
@@ -598,16 +669,20 @@ SslCipherFields.propTypes = {
   setSsl: PropTypes.func.isRequired,
 };
 
-const TrustedCaSelect = ({ value, onChange, trustedCas, placeholder = '(none)' }) => (
-  <Form.Select value={value ?? ''} onChange={e => onChange(e.target.value || undefined)}>
-    <option value="">{placeholder}</option>
-    {trustedCas.map(ca => (
-      <option key={ca.id} value={ca.id}>
-        {ca.name} ({ca.id})
-      </option>
-    ))}
-  </Form.Select>
-);
+const TrustedCaSelect = ({ value, onChange, trustedCas, placeholder = null }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  const display = placeholder ?? t('haproxy:frontend.ssl.none', '(none)');
+  return (
+    <Form.Select value={value ?? ''} onChange={e => onChange(e.target.value || undefined)}>
+      <option value="">{display}</option>
+      {trustedCas.map(ca => (
+        <option key={ca.id} value={ca.id}>
+          {ca.name} ({ca.id})
+        </option>
+      ))}
+    </Form.Select>
+  );
+};
 
 TrustedCaSelect.propTypes = {
   value: PropTypes.string,
@@ -616,16 +691,20 @@ TrustedCaSelect.propTypes = {
   placeholder: PropTypes.string,
 };
 
-const TrustedCrlSelect = ({ value, onChange, trustedCrls, placeholder = '(none)' }) => (
-  <Form.Select value={value ?? ''} onChange={e => onChange(e.target.value || undefined)}>
-    <option value="">{placeholder}</option>
-    {trustedCrls.map(crl => (
-      <option key={crl.id} value={crl.id}>
-        {crl.name} ({crl.id})
-      </option>
-    ))}
-  </Form.Select>
-);
+const TrustedCrlSelect = ({ value, onChange, trustedCrls, placeholder = null }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  const display = placeholder ?? t('haproxy:frontend.ssl.none', '(none)');
+  return (
+    <Form.Select value={value ?? ''} onChange={e => onChange(e.target.value || undefined)}>
+      <option value="">{display}</option>
+      {trustedCrls.map(crl => (
+        <option key={crl.id} value={crl.id}>
+          {crl.name} ({crl.id})
+        </option>
+      ))}
+    </Form.Select>
+  );
+};
 
 TrustedCrlSelect.propTypes = {
   value: PropTypes.string,
@@ -634,69 +713,90 @@ TrustedCrlSelect.propTypes = {
   placeholder: PropTypes.string,
 };
 
-const SslMtlsFields = ({ ssl, setSsl, trustedCas, trustedCrls }) => (
-  <>
-    <Field
-      label="ca-file (mTLS client cert validation)"
-      md={6}
-      helpText={
-        trustedCas.length === 0
-          ? 'No trusted CAs uploaded yet — add one on the Certificates page.'
-          : 'Bundle used to verify client certs presented to this bind.'
-      }
-    >
-      <TrustedCaSelect
-        value={ssl.caTrustedCaId}
-        onChange={next => setSsl({ caTrustedCaId: next })}
-        trustedCas={trustedCas}
-      />
-    </Field>
-    <Field
-      label="ca-verify-file (alternate chain for ca-names)"
-      md={6}
-      helpText="Optional. Lets HAProxy advertise different CA names than the chain it verifies against."
-    >
-      <TrustedCaSelect
-        value={ssl.caVerifyTrustedCaId}
-        onChange={next => setSsl({ caVerifyTrustedCaId: next })}
-        trustedCas={trustedCas}
-      />
-    </Field>
-    <Field label="verify" md={3}>
-      <Form.Select
-        value={ssl.verify ?? ''}
-        onChange={e => setSsl({ verify: e.target.value || undefined })}
+const SslMtlsFields = ({ ssl, setSsl, trustedCas, trustedCrls }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      <Field
+        label={t('haproxy:frontend.ssl.caFile', 'ca-file (mTLS client cert validation)')}
+        md={6}
+        helpText={
+          trustedCas.length === 0
+            ? t(
+                'haproxy:frontend.ssl.noCas',
+                'No trusted CAs uploaded yet — add one on the Certificates page.'
+              )
+            : t(
+                'haproxy:frontend.ssl.caFileHelp',
+                'Bundle used to verify client certs presented to this bind.'
+              )
+        }
       >
-        <option value="">(default)</option>
-        <option value="none">none</option>
-        <option value="optional">optional</option>
-        <option value="required">required</option>
-      </Form.Select>
-    </Field>
-    <Field
-      label="crl-file (revocation list)"
-      md={3}
-      helpText={
-        trustedCrls.length === 0
-          ? 'No trusted CRLs uploaded yet — add one on the Certificates page.'
-          : 'CRL HAProxy uses to reject revoked client certs at the TLS handshake.'
-      }
-    >
-      <TrustedCrlSelect
-        value={ssl.crlTrustedCrlId}
-        onChange={next => setSsl({ crlTrustedCrlId: next })}
-        trustedCrls={trustedCrls}
-      />
-    </Field>
-    <Field label="ocsp-update-uri" md={6}>
-      <Form.Control
-        type="text"
-        value={ssl.ocspUpdateUri ?? ''}
-        onChange={e => setSsl({ ocspUpdateUri: e.target.value || undefined })}
-      />
-    </Field>
-  </>
-);
+        <TrustedCaSelect
+          value={ssl.caTrustedCaId}
+          onChange={next => setSsl({ caTrustedCaId: next })}
+          trustedCas={trustedCas}
+        />
+      </Field>
+      <Field
+        label={t(
+          'haproxy:frontend.ssl.caVerifyFile',
+          'ca-verify-file (alternate chain for ca-names)'
+        )}
+        md={6}
+        helpText={t(
+          'haproxy:frontend.ssl.caVerifyHelp',
+          'Optional. Lets HAProxy advertise different CA names than the chain it verifies against.'
+        )}
+      >
+        <TrustedCaSelect
+          value={ssl.caVerifyTrustedCaId}
+          onChange={next => setSsl({ caVerifyTrustedCaId: next })}
+          trustedCas={trustedCas}
+        />
+      </Field>
+      <Field label="verify" md={3}>
+        <Form.Select
+          value={ssl.verify ?? ''}
+          onChange={e => setSsl({ verify: e.target.value || undefined })}
+        >
+          <option value="">({t('haproxy:common.default', 'default')})</option>
+          <option value="none">none</option>
+          <option value="optional">optional</option>
+          <option value="required">required</option>
+        </Form.Select>
+      </Field>
+      <Field
+        label={t('haproxy:frontend.ssl.crlFile', 'crl-file (revocation list)')}
+        md={3}
+        helpText={
+          trustedCrls.length === 0
+            ? t(
+                'haproxy:frontend.ssl.noCrls',
+                'No trusted CRLs uploaded yet — add one on the Certificates page.'
+              )
+            : t(
+                'haproxy:frontend.ssl.crlHelp',
+                'CRL HAProxy uses to reject revoked client certs at the TLS handshake.'
+              )
+        }
+      >
+        <TrustedCrlSelect
+          value={ssl.crlTrustedCrlId}
+          onChange={next => setSsl({ crlTrustedCrlId: next })}
+          trustedCrls={trustedCrls}
+        />
+      </Field>
+      <Field label="ocsp-update-uri" md={6}>
+        <Form.Control
+          type="text"
+          value={ssl.ocspUpdateUri ?? ''}
+          onChange={e => setSsl({ ocspUpdateUri: e.target.value || undefined })}
+        />
+      </Field>
+    </>
+  );
+};
 
 SslMtlsFields.propTypes = {
   ssl: PropTypes.object.isRequired,
@@ -705,30 +805,33 @@ SslMtlsFields.propTypes = {
   trustedCrls: PropTypes.array.isRequired,
 };
 
-const SslVersionFields = ({ ssl, setSsl }) => (
-  <>
-    <Field label="ssl-min-ver" md={3}>
-      <Form.Select
-        value={ssl.sslMinVersion ?? ''}
-        onChange={e => setSsl({ sslMinVersion: e.target.value || undefined })}
-      >
-        <option value="">(default)</option>
-        <option value="TLSv1.2">TLSv1.2</option>
-        <option value="TLSv1.3">TLSv1.3</option>
-      </Form.Select>
-    </Field>
-    <Field label="ssl-max-ver" md={3}>
-      <Form.Select
-        value={ssl.sslMaxVersion ?? ''}
-        onChange={e => setSsl({ sslMaxVersion: e.target.value || undefined })}
-      >
-        <option value="">(default)</option>
-        <option value="TLSv1.2">TLSv1.2</option>
-        <option value="TLSv1.3">TLSv1.3</option>
-      </Form.Select>
-    </Field>
-  </>
-);
+const SslVersionFields = ({ ssl, setSsl }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      <Field label="ssl-min-ver" md={3}>
+        <Form.Select
+          value={ssl.sslMinVersion ?? ''}
+          onChange={e => setSsl({ sslMinVersion: e.target.value || undefined })}
+        >
+          <option value="">({t('haproxy:common.default', 'default')})</option>
+          <option value="TLSv1.2">TLSv1.2</option>
+          <option value="TLSv1.3">TLSv1.3</option>
+        </Form.Select>
+      </Field>
+      <Field label="ssl-max-ver" md={3}>
+        <Form.Select
+          value={ssl.sslMaxVersion ?? ''}
+          onChange={e => setSsl({ sslMaxVersion: e.target.value || undefined })}
+        >
+          <option value="">({t('haproxy:common.default', 'default')})</option>
+          <option value="TLSv1.2">TLSv1.2</option>
+          <option value="TLSv1.3">TLSv1.3</option>
+        </Form.Select>
+      </Field>
+    </>
+  );
+};
 
 SslVersionFields.propTypes = {
   ssl: PropTypes.object.isRequired,
@@ -736,29 +839,60 @@ SslVersionFields.propTypes = {
 };
 
 const SSL_FLAG_TOGGLES = Object.freeze([
-  { key: 'strictSni', label: 'strict-sni (reject TLS with no matching cert)' },
-  { key: 'noTlsTickets', label: 'no-tls-tickets' },
-  { key: 'allow0rtt', label: 'allow-0rtt' },
-  { key: 'preferClientCiphers', label: 'prefer-client-ciphers' },
-  { key: 'crtIgnoreErrors', label: 'crt-ignore-err all' },
-  { key: 'caIgnoreErrors', label: 'ca-ignore-err all' },
-  { key: 'noCaNames', label: 'no-ca-names (HAProxy 2.2+)' },
+  {
+    key: 'strictSni',
+    labelKey: 'haproxy:frontend.sslFlags.strictSni',
+    labelFallback: 'strict-sni (reject TLS with no matching cert)',
+  },
+  {
+    key: 'noTlsTickets',
+    labelKey: 'haproxy:frontend.sslFlags.noTlsTickets',
+    labelFallback: 'no-tls-tickets',
+  },
+  {
+    key: 'allow0rtt',
+    labelKey: 'haproxy:frontend.sslFlags.allow0rtt',
+    labelFallback: 'allow-0rtt',
+  },
+  {
+    key: 'preferClientCiphers',
+    labelKey: 'haproxy:frontend.sslFlags.preferClientCiphers',
+    labelFallback: 'prefer-client-ciphers',
+  },
+  {
+    key: 'crtIgnoreErrors',
+    labelKey: 'haproxy:frontend.sslFlags.crtIgnoreErrors',
+    labelFallback: 'crt-ignore-err all',
+  },
+  {
+    key: 'caIgnoreErrors',
+    labelKey: 'haproxy:frontend.sslFlags.caIgnoreErrors',
+    labelFallback: 'ca-ignore-err all',
+  },
+  {
+    key: 'noCaNames',
+    labelKey: 'haproxy:frontend.sslFlags.noCaNames',
+    labelFallback: 'no-ca-names (HAProxy 2.2+)',
+  },
 ]);
 
-const SslFlagSwitches = ({ ssl, setSsl, bindId }) => (
-  <>
-    {SSL_FLAG_TOGGLES.map(t => (
-      <SwitchField
-        key={t.key}
-        label={t.label}
-        id={`bind-${bindId}-${t.key}`}
-        checked={ssl[t.key]}
-        onChange={v => setSsl({ [t.key]: v })}
-        md={6}
-      />
-    ))}
-  </>
-);
+const SslFlagSwitches = ({ ssl, setSsl, bindId }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      {SSL_FLAG_TOGGLES.map(flag => (
+        <SwitchField
+          key={flag.key}
+          label={t(flag.labelKey, flag.labelFallback)}
+          id={`bind-${bindId}-${flag.key}`}
+          checked={ssl[flag.key]}
+          onChange={v => setSsl({ [flag.key]: v })}
+          md={6}
+        />
+      ))}
+    </>
+  );
+};
 
 SslFlagSwitches.propTypes = {
   ssl: PropTypes.object.isRequired,
@@ -767,6 +901,7 @@ SslFlagSwitches.propTypes = {
 };
 
 const BindSslSection = ({ bind, onChange, trustedCas, trustedCrls }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const ssl = bind.ssl ?? {};
   const setSsl = patch => onChange({ ...bind, ssl: { ...ssl, ...patch } });
   return (
@@ -775,7 +910,7 @@ const BindSslSection = ({ bind, onChange, trustedCas, trustedCrls }) => {
         <Form.Check
           type="switch"
           id={`bind-${bind.id}-ssl-enabled`}
-          label="SSL / TLS enabled on this bind"
+          label={t('haproxy:frontend.bind.sslEnabled', 'SSL / TLS enabled on this bind')}
           checked={Boolean(ssl.enabled)}
           onChange={e => setSsl({ enabled: e.target.checked })}
         />
@@ -810,6 +945,7 @@ BindSslSection.propTypes = {
 // =====================================================================
 
 const BindQuicSection = ({ bind, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   if (!isQuicAddress(bind.address)) {
     return null;
   }
@@ -817,17 +953,20 @@ const BindQuicSection = ({ bind, onChange }) => {
   const setQuic = patch => onChange({ ...bind, quic: { ...quic, ...patch } });
   return (
     <Row className="g-2 mt-1">
-      <SectionHeading>QUIC (per-bind)</SectionHeading>
+      <SectionHeading>{t('haproxy:frontend.bind.quicHeading', 'QUIC (per-bind)')}</SectionHeading>
       <Field
         label="quic-cc-algo"
         md={3}
-        helpText="Congestion control for this listener. `nocc` disables CC (debug only)."
+        helpText={t(
+          'haproxy:frontend.bind.quicCcAlgoHelp',
+          'Congestion control for this listener. `nocc` disables CC (debug only).'
+        )}
       >
         <Form.Select
           value={quic.ccAlgo ?? ''}
           onChange={e => setQuic({ ccAlgo: e.target.value || undefined })}
         >
-          <option value="">(default)</option>
+          <option value="">({t('haproxy:common.default', 'default')})</option>
           <option value="cubic">cubic</option>
           <option value="bbr">bbr</option>
           <option value="newreno">newreno</option>
@@ -837,7 +976,10 @@ const BindQuicSection = ({ bind, onChange }) => {
       <Field
         label="quic-cc-algo window"
         md={3}
-        helpText="Optional initial congestion window size (e.g. 1m, 100k)."
+        helpText={t(
+          'haproxy:frontend.bind.quicCcWindowHelp',
+          'Optional initial congestion window size (e.g. 1m, 100k).'
+        )}
       >
         <Form.Control
           type="text"
@@ -849,13 +991,16 @@ const BindQuicSection = ({ bind, onChange }) => {
       <Field
         label="quic-socket"
         md={3}
-        helpText="`connection` = one UDP socket per QUIC connection (better perf, requires SO_REUSEPORT)."
+        helpText={t(
+          'haproxy:frontend.bind.quicSocketHelp',
+          '`connection` = one UDP socket per QUIC connection (better perf, requires SO_REUSEPORT).'
+        )}
       >
         <Form.Select
           value={quic.socket ?? ''}
           onChange={e => setQuic({ socket: e.target.value || undefined })}
         >
-          <option value="">(default)</option>
+          <option value="">({t('haproxy:common.default', 'default')})</option>
           <option value="connection">connection</option>
           <option value="listener">listener</option>
         </Form.Select>
@@ -880,71 +1025,77 @@ BindQuicSection.propTypes = {
 // Bind row (per-bind base + tuning + SSL + QUIC).
 // =====================================================================
 
-const BindBaseFields = ({ bind, onChange, floatingIps, savedAddresses }) => (
-  <Row className="g-2">
-    <Field
-      label="Address"
-      md={6}
-      helpText="*:443, [::]:443, 127.0.0.1:5432, quic4@*:443, /var/run/haproxy.sock, etc."
-    >
-      <BindAddressPicker
-        value={bind.address ?? ''}
-        floatingIpInstanceId={bind.floatingIpInstanceId ?? null}
-        floatingIps={floatingIps}
-        savedAddresses={savedAddresses}
-        onChange={({ address, floatingIpInstanceId }) =>
-          onChange({ ...bind, address, floatingIpInstanceId })
-        }
-      />
-    </Field>
-    <Field label="bind name (shows in stats)" md={3}>
-      <Form.Control
-        type="text"
-        value={bind.name ?? ''}
-        onChange={e => onChange({ ...bind, name: e.target.value || undefined })}
-      />
-    </Field>
-    <Field label="label (UX-only)" md={3}>
-      <Form.Control
-        type="text"
-        value={bind.label ?? ''}
-        onChange={e => onChange({ ...bind, label: e.target.value || undefined })}
-      />
-    </Field>
-    <Field label="IP family" md={3}>
-      <Form.Select
-        value={bind.ipFamily ?? ''}
-        onChange={e => onChange({ ...bind, ipFamily: e.target.value || undefined })}
+const BindBaseFields = ({ bind, onChange, floatingIps, savedAddresses }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <Row className="g-2">
+      <Field
+        label={t('haproxy:frontend.bind.address', 'Address')}
+        md={6}
+        helpText={t(
+          'haproxy:frontend.bind.addressHelp',
+          '*:443, [::]:443, 127.0.0.1:5432, quic4@*:443, /var/run/haproxy.sock, etc.'
+        )}
       >
-        <option value="">(default)</option>
-        <option value="v4">v4v6</option>
-        <option value="v6">v6only</option>
-        <option value="dual">dual</option>
-      </Form.Select>
-    </Field>
-    <Field label="interface" md={3}>
-      <Form.Control
-        type="text"
-        value={bind.interface ?? ''}
-        onChange={e => onChange({ ...bind, interface: e.target.value || undefined })}
-      />
-    </Field>
-    <Field label="namespace" md={3}>
-      <Form.Control
-        type="text"
-        value={bind.namespace ?? ''}
-        onChange={e => onChange({ ...bind, namespace: e.target.value || undefined })}
-      />
-    </Field>
-    <Field label="thread (e.g. g1/1-4)" md={3}>
-      <Form.Control
-        type="text"
-        value={bind.thread ?? ''}
-        onChange={e => onChange({ ...bind, thread: e.target.value || undefined })}
-      />
-    </Field>
-  </Row>
-);
+        <BindAddressPicker
+          value={bind.address ?? ''}
+          floatingIpInstanceId={bind.floatingIpInstanceId ?? null}
+          floatingIps={floatingIps}
+          savedAddresses={savedAddresses}
+          onChange={({ address, floatingIpInstanceId }) =>
+            onChange({ ...bind, address, floatingIpInstanceId })
+          }
+        />
+      </Field>
+      <Field label={t('haproxy:frontend.bind.bindName', 'bind name (shows in stats)')} md={3}>
+        <Form.Control
+          type="text"
+          value={bind.name ?? ''}
+          onChange={e => onChange({ ...bind, name: e.target.value || undefined })}
+        />
+      </Field>
+      <Field label={t('haproxy:frontend.bind.label', 'label (UX-only)')} md={3}>
+        <Form.Control
+          type="text"
+          value={bind.label ?? ''}
+          onChange={e => onChange({ ...bind, label: e.target.value || undefined })}
+        />
+      </Field>
+      <Field label={t('haproxy:frontend.bind.ipFamily', 'IP family')} md={3}>
+        <Form.Select
+          value={bind.ipFamily ?? ''}
+          onChange={e => onChange({ ...bind, ipFamily: e.target.value || undefined })}
+        >
+          <option value="">({t('haproxy:common.default', 'default')})</option>
+          <option value="v4">v4v6</option>
+          <option value="v6">v6only</option>
+          <option value="dual">dual</option>
+        </Form.Select>
+      </Field>
+      <Field label="interface" md={3}>
+        <Form.Control
+          type="text"
+          value={bind.interface ?? ''}
+          onChange={e => onChange({ ...bind, interface: e.target.value || undefined })}
+        />
+      </Field>
+      <Field label="namespace" md={3}>
+        <Form.Control
+          type="text"
+          value={bind.namespace ?? ''}
+          onChange={e => onChange({ ...bind, namespace: e.target.value || undefined })}
+        />
+      </Field>
+      <Field label={t('haproxy:frontend.bind.thread', 'thread (e.g. g1/1-4)')} md={3}>
+        <Form.Control
+          type="text"
+          value={bind.thread ?? ''}
+          onChange={e => onChange({ ...bind, thread: e.target.value || undefined })}
+        />
+      </Field>
+    </Row>
+  );
+};
 
 BindBaseFields.propTypes = {
   bind: PropTypes.object.isRequired,
@@ -953,118 +1104,132 @@ BindBaseFields.propTypes = {
   savedAddresses: PropTypes.array.isRequired,
 };
 
-const BindTuningFields = ({ bind, onChange }) => (
-  <Row className="g-2 mt-1">
-    <SectionHeading>Listener tuning</SectionHeading>
-    <Field label="shards" md={3} helpText="HAProxy 2.5+: by-thread / by-group / number">
-      <Form.Control
-        type="text"
-        value={bind.shards ?? ''}
-        placeholder="by-thread"
-        onChange={e => {
-          const v = e.target.value;
-          if (v === '') {
-            onChange({ ...bind, shards: undefined });
-            return;
-          }
-          const n = Number.parseInt(v, 10);
-          if (Number.isInteger(n) && String(n) === v) {
-            onChange({ ...bind, shards: n });
-            return;
-          }
-          onChange({ ...bind, shards: v });
-        }}
-      />
-    </Field>
-    <Field label="backlog" md={3}>
-      <Form.Control
-        type="number"
-        min={1}
-        value={bind.backlog ?? ''}
-        onChange={e => onChange({ ...bind, backlog: parseIntOrUndef(e.target.value) })}
-      />
-    </Field>
-    <Field label="maxconn (per-listener)" md={3}>
-      <Form.Control
-        type="number"
-        min={1}
-        value={bind.maxconn ?? ''}
-        onChange={e => onChange({ ...bind, maxconn: parseIntOrUndef(e.target.value) })}
-      />
-    </Field>
-    <Field label="nice (-20..19)" md={3}>
-      <Form.Control
-        type="number"
-        min={-20}
-        max={19}
-        value={bind.nice ?? ''}
-        onChange={e => {
-          const v = e.target.value;
-          if (v === '') {
-            onChange({ ...bind, nice: undefined });
-            return;
-          }
-          const n = Number.parseInt(v, 10);
-          onChange({ ...bind, nice: Number.isInteger(n) ? n : undefined });
-        }}
-      />
-    </Field>
-    <Field label="mss" md={3} helpText="TCP MSS clamp">
-      <Form.Control
-        type="number"
-        min={1}
-        value={bind.mss ?? ''}
-        onChange={e => onChange({ ...bind, mss: parseIntOrUndef(e.target.value) })}
-      />
-    </Field>
-    <Field label="tcp-ut (TCP_USER_TIMEOUT)" md={3}>
-      <Form.Control
-        type="text"
-        value={bind.tcpUt ?? ''}
-        placeholder="e.g. 30s"
-        onChange={e => onChange({ ...bind, tcpUt: e.target.value || undefined })}
-      />
-    </Field>
-    <Field label="tcp-quickack" md={2} helpText="Three-state: default / on / off">
-      <Form.Select
-        value={triStateBoolToString(bind.tcpQuickAck)}
-        onChange={e => onChange({ ...bind, tcpQuickAck: triStateStringToBool(e.target.value) })}
+const BindTuningFields = ({ bind, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <Row className="g-2 mt-1">
+      <SectionHeading>{t('haproxy:frontend.bind.tuningHeading', 'Listener tuning')}</SectionHeading>
+      <Field
+        label="shards"
+        md={3}
+        helpText={t(
+          'haproxy:frontend.bind.shardsHelp',
+          'HAProxy 2.5+: by-thread / by-group / number'
+        )}
       >
-        <option value="">(default)</option>
-        <option value="on">on</option>
-        <option value="off">off</option>
-      </Form.Select>
-    </Field>
-    <SwitchField
-      label="defer-accept"
-      id={`bind-${bind.id}-defer-accept`}
-      checked={bind.deferAccept}
-      onChange={v => onChange({ ...bind, deferAccept: v ? true : undefined })}
-      md={2}
-    />
-    <SwitchField
-      label="tfo (TCP Fast Open)"
-      id={`bind-${bind.id}-tfo`}
-      checked={bind.tfo}
-      onChange={v => onChange({ ...bind, tfo: v ? true : undefined })}
-      md={2}
-    />
-    <SwitchField
-      label="accept-proxy"
-      id={`bind-${bind.id}-accept-proxy`}
-      checked={bind.acceptProxy}
-      onChange={v => onChange({ ...bind, acceptProxy: v })}
-      md={3}
-    />
-    <SwitchField
-      label="transparent"
-      id={`bind-${bind.id}-transparent`}
-      checked={bind.transparent}
-      onChange={v => onChange({ ...bind, transparent: v })}
-      md={3}
-    />
-  </Row>
-);
+        <Form.Control
+          type="text"
+          value={bind.shards ?? ''}
+          placeholder="by-thread"
+          onChange={e => {
+            const v = e.target.value;
+            if (v === '') {
+              onChange({ ...bind, shards: undefined });
+              return;
+            }
+            const n = Number.parseInt(v, 10);
+            if (Number.isInteger(n) && String(n) === v) {
+              onChange({ ...bind, shards: n });
+              return;
+            }
+            onChange({ ...bind, shards: v });
+          }}
+        />
+      </Field>
+      <Field label="backlog" md={3}>
+        <Form.Control
+          type="number"
+          min={1}
+          value={bind.backlog ?? ''}
+          onChange={e => onChange({ ...bind, backlog: parseIntOrUndef(e.target.value) })}
+        />
+      </Field>
+      <Field label={t('haproxy:frontend.bind.maxconnPerListener', 'maxconn (per-listener)')} md={3}>
+        <Form.Control
+          type="number"
+          min={1}
+          value={bind.maxconn ?? ''}
+          onChange={e => onChange({ ...bind, maxconn: parseIntOrUndef(e.target.value) })}
+        />
+      </Field>
+      <Field label={t('haproxy:frontend.bind.nice', 'nice (-20..19)')} md={3}>
+        <Form.Control
+          type="number"
+          min={-20}
+          max={19}
+          value={bind.nice ?? ''}
+          onChange={e => {
+            const v = e.target.value;
+            if (v === '') {
+              onChange({ ...bind, nice: undefined });
+              return;
+            }
+            const n = Number.parseInt(v, 10);
+            onChange({ ...bind, nice: Number.isInteger(n) ? n : undefined });
+          }}
+        />
+      </Field>
+      <Field label="mss" md={3} helpText={t('haproxy:frontend.bind.mssHelp', 'TCP MSS clamp')}>
+        <Form.Control
+          type="number"
+          min={1}
+          value={bind.mss ?? ''}
+          onChange={e => onChange({ ...bind, mss: parseIntOrUndef(e.target.value) })}
+        />
+      </Field>
+      <Field label="tcp-ut (TCP_USER_TIMEOUT)" md={3}>
+        <Form.Control
+          type="text"
+          value={bind.tcpUt ?? ''}
+          placeholder="e.g. 30s"
+          onChange={e => onChange({ ...bind, tcpUt: e.target.value || undefined })}
+        />
+      </Field>
+      <Field
+        label="tcp-quickack"
+        md={2}
+        helpText={t('haproxy:frontend.bind.triStateHelp', 'Three-state: default / on / off')}
+      >
+        <Form.Select
+          value={triStateBoolToString(bind.tcpQuickAck)}
+          onChange={e => onChange({ ...bind, tcpQuickAck: triStateStringToBool(e.target.value) })}
+        >
+          <option value="">({t('haproxy:common.default', 'default')})</option>
+          <option value="on">on</option>
+          <option value="off">off</option>
+        </Form.Select>
+      </Field>
+      <SwitchField
+        label="defer-accept"
+        id={`bind-${bind.id}-defer-accept`}
+        checked={bind.deferAccept}
+        onChange={v => onChange({ ...bind, deferAccept: v ? true : undefined })}
+        md={2}
+      />
+      <SwitchField
+        label="tfo (TCP Fast Open)"
+        id={`bind-${bind.id}-tfo`}
+        checked={bind.tfo}
+        onChange={v => onChange({ ...bind, tfo: v ? true : undefined })}
+        md={2}
+      />
+      <SwitchField
+        label="accept-proxy"
+        id={`bind-${bind.id}-accept-proxy`}
+        checked={bind.acceptProxy}
+        onChange={v => onChange({ ...bind, acceptProxy: v })}
+        md={3}
+      />
+      <SwitchField
+        label="transparent"
+        id={`bind-${bind.id}-transparent`}
+        checked={bind.transparent}
+        onChange={v => onChange({ ...bind, transparent: v })}
+        md={3}
+      />
+    </Row>
+  );
+};
 
 BindTuningFields.propTypes = {
   bind: PropTypes.object.isRequired,
@@ -1081,36 +1246,45 @@ const BindRow = ({
   trustedCrls,
   floatingIps,
   savedAddresses,
-}) => (
-  <div className="border rounded p-3 mb-2">
-    <div className="d-flex justify-content-between align-items-center mb-2">
-      <Badge bg="secondary">Bind #{idx + 1}</Badge>
-      <Button
-        variant="outline-danger"
-        size="sm"
-        disabled={!canRemove}
-        onClick={onRemove}
-        title={canRemove ? 'Remove this bind' : 'A frontend needs at least one bind'}
-      >
-        Remove bind
-      </Button>
+}) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <div className="border rounded p-3 mb-2">
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <Badge bg="secondary">
+          {t('haproxy:frontend.bind.bindNumber', 'Bind #{{n}}', { n: idx + 1 })}
+        </Badge>
+        <Button
+          variant="outline-danger"
+          size="sm"
+          disabled={!canRemove}
+          onClick={onRemove}
+          title={
+            canRemove
+              ? t('haproxy:frontend.bind.removeTitle', 'Remove this bind')
+              : t('haproxy:frontend.bind.minTitle', 'A frontend needs at least one bind')
+          }
+        >
+          {t('haproxy:frontend.bind.remove', 'Remove bind')}
+        </Button>
+      </div>
+      <BindBaseFields
+        bind={bind}
+        onChange={onChange}
+        floatingIps={floatingIps}
+        savedAddresses={savedAddresses}
+      />
+      <BindTuningFields bind={bind} onChange={onChange} />
+      <BindSslSection
+        bind={bind}
+        onChange={onChange}
+        trustedCas={trustedCas}
+        trustedCrls={trustedCrls}
+      />
+      <BindQuicSection bind={bind} onChange={onChange} />
     </div>
-    <BindBaseFields
-      bind={bind}
-      onChange={onChange}
-      floatingIps={floatingIps}
-      savedAddresses={savedAddresses}
-    />
-    <BindTuningFields bind={bind} onChange={onChange} />
-    <BindSslSection
-      bind={bind}
-      onChange={onChange}
-      trustedCas={trustedCas}
-      trustedCrls={trustedCrls}
-    />
-    <BindQuicSection bind={bind} onChange={onChange} />
-  </div>
-);
+  );
+};
 
 BindRow.propTypes = {
   bind: PropTypes.object.isRequired,
@@ -1125,6 +1299,7 @@ BindRow.propTypes = {
 };
 
 const BindsTab = ({ draft, update, trustedCas, trustedCrls, floatingIps, savedAddresses }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const binds = draft.binds ?? [];
   const updateBind = (idx, next) => update({ binds: binds.map((b, i) => (i === idx ? next : b)) });
   const removeBind = idx => {
@@ -1163,7 +1338,7 @@ const BindsTab = ({ draft, update, trustedCas, trustedCrls, floatingIps, savedAd
       ))}
       <Button variant="outline-primary" size="sm" onClick={addBind}>
         <i className="bi bi-plus-lg me-1" />
-        Add bind
+        {t('haproxy:frontend.bind.add', 'Add bind')}
       </Button>
     </div>
   );
@@ -1182,47 +1357,58 @@ BindsTab.propTypes = {
 // HTTP options — Routing, default backend, ACME, monitor, rate-limit.
 // =====================================================================
 
-const HttpRoutingFields = ({ httpOpts, setHttpOpts, backends }) => (
-  <Row className="g-2">
-    <Field label="Default backend" md={6}>
-      <Form.Select
-        value={httpOpts.defaultBackendId ?? ''}
-        onChange={e => setHttpOpts({ defaultBackendId: e.target.value || null })}
-      >
-        <option value="">(none)</option>
-        {backends.map(b => (
-          <option key={b.id} value={b.id}>
-            {b.name} ({b.id})
+const HttpRoutingFields = ({ httpOpts, setHttpOpts, backends }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <Row className="g-2">
+      <Field label={t('haproxy:frontend.http.defaultBackend', 'Default backend')} md={6}>
+        <Form.Select
+          value={httpOpts.defaultBackendId ?? ''}
+          onChange={e => setHttpOpts({ defaultBackendId: e.target.value || null })}
+        >
+          <option value="">
+            ({t('haproxy:frontend.ssl.none', '(none)').replace(/[()]/g, '')})
           </option>
-        ))}
-      </Form.Select>
-    </Field>
-    <Field label="rate-limit sessions (per second)" md={4}>
-      <Form.Control
-        type="number"
-        min={1}
-        value={httpOpts.rateLimitSessions ?? ''}
-        onChange={e => setHttpOpts({ rateLimitSessions: parseIntOrUndef(e.target.value) })}
-      />
-    </Field>
-    <Field label="monitor-uri" md={4}>
-      <Form.Control
-        type="text"
-        value={httpOpts.monitorUri ?? ''}
-        placeholder="/healthz"
-        onChange={e => setHttpOpts({ monitorUri: e.target.value || undefined })}
-      />
-    </Field>
-    <Field label="monitor fail (HAProxy expression)" md={4}>
-      <Form.Control
-        type="text"
-        value={httpOpts.monitorFail ?? ''}
-        placeholder="!nbsrv lt 1"
-        onChange={e => setHttpOpts({ monitorFail: e.target.value || undefined })}
-      />
-    </Field>
-  </Row>
-);
+          {backends.map(b => (
+            <option key={b.id} value={b.id}>
+              {b.name} ({b.id})
+            </option>
+          ))}
+        </Form.Select>
+      </Field>
+      <Field
+        label={t('haproxy:frontend.http.rateLimitSessions', 'rate-limit sessions (per second)')}
+        md={4}
+      >
+        <Form.Control
+          type="number"
+          min={1}
+          value={httpOpts.rateLimitSessions ?? ''}
+          onChange={e => setHttpOpts({ rateLimitSessions: parseIntOrUndef(e.target.value) })}
+        />
+      </Field>
+      <Field label="monitor-uri" md={4}>
+        <Form.Control
+          type="text"
+          value={httpOpts.monitorUri ?? ''}
+          placeholder="/healthz"
+          onChange={e => setHttpOpts({ monitorUri: e.target.value || undefined })}
+        />
+      </Field>
+      <Field
+        label={t('haproxy:frontend.http.monitorFail', 'monitor fail (HAProxy expression)')}
+        md={4}
+      >
+        <Form.Control
+          type="text"
+          value={httpOpts.monitorFail ?? ''}
+          placeholder="!nbsrv lt 1"
+          onChange={e => setHttpOpts({ monitorFail: e.target.value || undefined })}
+        />
+      </Field>
+    </Row>
+  );
+};
 
 HttpRoutingFields.propTypes = {
   httpOpts: PropTypes.object.isRequired,
@@ -1234,166 +1420,175 @@ HttpRoutingFields.propTypes = {
 // HTTP response policy — HSTS / CORS / compression.
 // =====================================================================
 
-const HstsFields = ({ hsts, setHsts }) => (
-  <>
-    <SectionHeading>HSTS</SectionHeading>
-    <SwitchField
-      label="HSTS enabled"
-      id="hsts-enabled"
-      checked={hsts.enabled}
-      onChange={v => setHsts({ ...hsts, enabled: v })}
-      md={4}
-    />
-    <Field label="max-age (seconds)" md={4}>
-      <Form.Control
-        type="number"
-        value={hsts.maxAge ?? 16000000}
-        disabled={!hsts.enabled}
-        onChange={e => setHsts({ ...hsts, maxAge: parseIntOrUndef(e.target.value) ?? 0 })}
+const HstsFields = ({ hsts, setHsts }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      <SectionHeading>HSTS</SectionHeading>
+      <SwitchField
+        label={t('haproxy:frontend.hsts.enabled', 'HSTS enabled')}
+        id="hsts-enabled"
+        checked={hsts.enabled}
+        onChange={v => setHsts({ ...hsts, enabled: v })}
+        md={4}
       />
-    </Field>
-    <SwitchField
-      label="includeSubDomains"
-      id="hsts-subdomains"
-      checked={hsts.includeSubdomains}
-      onChange={v => setHsts({ ...hsts, includeSubdomains: v })}
-      md={2}
-    />
-    <SwitchField
-      label="preload"
-      id="hsts-preload"
-      checked={hsts.preload}
-      onChange={v => setHsts({ ...hsts, preload: v })}
-      md={2}
-    />
-  </>
-);
+      <Field label={t('haproxy:frontend.hsts.maxAge', 'max-age (seconds)')} md={4}>
+        <Form.Control
+          type="number"
+          value={hsts.maxAge ?? 16000000}
+          disabled={!hsts.enabled}
+          onChange={e => setHsts({ ...hsts, maxAge: parseIntOrUndef(e.target.value) ?? 0 })}
+        />
+      </Field>
+      <SwitchField
+        label="includeSubDomains"
+        id="hsts-subdomains"
+        checked={hsts.includeSubdomains}
+        onChange={v => setHsts({ ...hsts, includeSubdomains: v })}
+        md={2}
+      />
+      <SwitchField
+        label="preload"
+        id="hsts-preload"
+        checked={hsts.preload}
+        onChange={v => setHsts({ ...hsts, preload: v })}
+        md={2}
+      />
+    </>
+  );
+};
 
 HstsFields.propTypes = {
   hsts: PropTypes.object.isRequired,
   setHsts: PropTypes.func.isRequired,
 };
 
-const CorsFields = ({ cors, setCors }) => (
-  <>
-    <SectionHeading>CORS</SectionHeading>
-    <SwitchField
-      label="CORS enabled"
-      id="cors-enabled"
-      checked={cors.enabled}
-      onChange={v => setCors({ ...cors, enabled: v })}
-      md={4}
-    />
-    <Field label="frame-ancestors" md={8}>
-      <Form.Control
-        type="text"
-        value={cors.frameAncestors ?? ''}
-        disabled={!cors.enabled}
-        onChange={e => setCors({ ...cors, frameAncestors: e.target.value || null })}
+const CorsFields = ({ cors, setCors }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      <SectionHeading>CORS</SectionHeading>
+      <SwitchField
+        label={t('haproxy:frontend.cors.enabled', 'CORS enabled')}
+        id="cors-enabled"
+        checked={cors.enabled}
+        onChange={v => setCors({ ...cors, enabled: v })}
+        md={4}
       />
-    </Field>
-    <Field label="Allow-Origin" md={6}>
-      <Form.Control
-        type="text"
-        value={cors.allowOrigin ?? ''}
-        disabled={!cors.enabled}
-        onChange={e => setCors({ ...cors, allowOrigin: e.target.value || null })}
+      <Field label="frame-ancestors" md={8}>
+        <Form.Control
+          type="text"
+          value={cors.frameAncestors ?? ''}
+          disabled={!cors.enabled}
+          onChange={e => setCors({ ...cors, frameAncestors: e.target.value || null })}
+        />
+      </Field>
+      <Field label="Allow-Origin" md={6}>
+        <Form.Control
+          type="text"
+          value={cors.allowOrigin ?? ''}
+          disabled={!cors.enabled}
+          onChange={e => setCors({ ...cors, allowOrigin: e.target.value || null })}
+        />
+      </Field>
+      <Field label="Expose-Headers" md={6}>
+        <Form.Control
+          type="text"
+          value={cors.exposeHeaders ?? ''}
+          disabled={!cors.enabled}
+          onChange={e => setCors({ ...cors, exposeHeaders: e.target.value || null })}
+        />
+      </Field>
+      <Field label="Allow-Headers" md={6}>
+        <Form.Control
+          type="text"
+          value={cors.allowHeaders ?? ''}
+          disabled={!cors.enabled}
+          onChange={e => setCors({ ...cors, allowHeaders: e.target.value || null })}
+        />
+      </Field>
+      <Field label="Allow-Methods" md={6}>
+        <Form.Control
+          type="text"
+          value={cors.allowMethods ?? ''}
+          disabled={!cors.enabled}
+          onChange={e => setCors({ ...cors, allowMethods: e.target.value || null })}
+        />
+      </Field>
+      <SwitchField
+        label="Allow-Credentials"
+        id="cors-creds"
+        checked={cors.allowCredentials}
+        onChange={v => setCors({ ...cors, allowCredentials: v })}
+        md={4}
       />
-    </Field>
-    <Field label="Expose-Headers" md={6}>
-      <Form.Control
-        type="text"
-        value={cors.exposeHeaders ?? ''}
-        disabled={!cors.enabled}
-        onChange={e => setCors({ ...cors, exposeHeaders: e.target.value || null })}
-      />
-    </Field>
-    <Field label="Allow-Headers" md={6}>
-      <Form.Control
-        type="text"
-        value={cors.allowHeaders ?? ''}
-        disabled={!cors.enabled}
-        onChange={e => setCors({ ...cors, allowHeaders: e.target.value || null })}
-      />
-    </Field>
-    <Field label="Allow-Methods" md={6}>
-      <Form.Control
-        type="text"
-        value={cors.allowMethods ?? ''}
-        disabled={!cors.enabled}
-        onChange={e => setCors({ ...cors, allowMethods: e.target.value || null })}
-      />
-    </Field>
-    <SwitchField
-      label="Allow-Credentials"
-      id="cors-creds"
-      checked={cors.allowCredentials}
-      onChange={v => setCors({ ...cors, allowCredentials: v })}
-      md={4}
-    />
-    <Field label="max-age" md={4}>
-      <Form.Control
-        type="number"
-        value={cors.maxAge ?? ''}
-        disabled={!cors.enabled}
-        onChange={e => setCors({ ...cors, maxAge: parseIntOrUndef(e.target.value) })}
-      />
-    </Field>
-  </>
-);
+      <Field label="max-age" md={4}>
+        <Form.Control
+          type="number"
+          value={cors.maxAge ?? ''}
+          disabled={!cors.enabled}
+          onChange={e => setCors({ ...cors, maxAge: parseIntOrUndef(e.target.value) })}
+        />
+      </Field>
+    </>
+  );
+};
 
 CorsFields.propTypes = {
   cors: PropTypes.object.isRequired,
   setCors: PropTypes.func.isRequired,
 };
 
-const CompressionFields = ({ compression, setCompression }) => (
-  <>
-    <SectionHeading>Compression</SectionHeading>
-    <SwitchField
-      label="Compression enabled"
-      id="comp-enabled"
-      checked={compression.enabled}
-      onChange={v => setCompression({ ...compression, enabled: v })}
-      md={4}
-    />
-    <Field label="Algorithm" md={4}>
-      <Form.Select
-        value={compression.algorithm ?? 'gzip'}
-        disabled={!compression.enabled}
-        onChange={e => setCompression({ ...compression, algorithm: e.target.value })}
-      >
-        <option value="gzip">gzip</option>
-        <option value="deflate">deflate</option>
-        <option value="raw-deflate">raw-deflate</option>
-      </Form.Select>
-    </Field>
-    <SwitchField
-      label="offload"
-      id="comp-offload"
-      checked={compression.offload}
-      onChange={v => setCompression({ ...compression, offload: v })}
-      md={4}
-    />
-    <Field label="MIME types (one per line)" md={12}>
-      <Form.Control
-        as="textarea"
-        rows={3}
-        value={(compression.types ?? []).join('\n')}
-        disabled={!compression.enabled}
-        onChange={e =>
-          setCompression({
-            ...compression,
-            types: e.target.value
-              .split('\n')
-              .map(s => s.trim())
-              .filter(Boolean),
-          })
-        }
+const CompressionFields = ({ compression, setCompression }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      <SectionHeading>{t('haproxy:frontend.compression.heading', 'Compression')}</SectionHeading>
+      <SwitchField
+        label={t('haproxy:frontend.compression.enabled', 'Compression enabled')}
+        id="comp-enabled"
+        checked={compression.enabled}
+        onChange={v => setCompression({ ...compression, enabled: v })}
+        md={4}
       />
-    </Field>
-  </>
-);
+      <Field label={t('haproxy:frontend.compression.algorithm', 'Algorithm')} md={4}>
+        <Form.Select
+          value={compression.algorithm ?? 'gzip'}
+          disabled={!compression.enabled}
+          onChange={e => setCompression({ ...compression, algorithm: e.target.value })}
+        >
+          <option value="gzip">gzip</option>
+          <option value="deflate">deflate</option>
+          <option value="raw-deflate">raw-deflate</option>
+        </Form.Select>
+      </Field>
+      <SwitchField
+        label="offload"
+        id="comp-offload"
+        checked={compression.offload}
+        onChange={v => setCompression({ ...compression, offload: v })}
+        md={4}
+      />
+      <Field label={t('haproxy:frontend.compression.types', 'MIME types (one per line)')} md={12}>
+        <Form.Control
+          as="textarea"
+          rows={3}
+          value={(compression.types ?? []).join('\n')}
+          disabled={!compression.enabled}
+          onChange={e =>
+            setCompression({
+              ...compression,
+              types: e.target.value
+                .split('\n')
+                .map(s => s.trim())
+                .filter(Boolean),
+            })
+          }
+        />
+      </Field>
+    </>
+  );
+};
 
 CompressionFields.propTypes = {
   compression: PropTypes.object.isRequired,
@@ -2027,6 +2222,7 @@ HttpOptionsTab.propTypes = {
 // =====================================================================
 
 const SniMapEditor = ({ sniMap, onChange, backends }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const add = () =>
     onChange([...(sniMap ?? []), { sniPattern: '', backendId: '', _key: genKey() }]);
   const remove = idx => {
@@ -2037,13 +2233,15 @@ const SniMapEditor = ({ sniMap, onChange, backends }) => {
   return (
     <>
       {(sniMap ?? []).length === 0 ? (
-        <p className="text-muted small mb-2">No SNI mappings.</p>
+        <p className="text-muted small mb-2">
+          {t('haproxy:frontend.tcp.noSniMappings', 'No SNI mappings.')}
+        </p>
       ) : (
         <Table size="sm" bordered>
           <thead>
             <tr>
-              <th>SNI pattern</th>
-              <th>Backend</th>
+              <th>{t('haproxy:frontend.tcp.sniPattern', 'SNI pattern')}</th>
+              <th>{t('haproxy:frontend.tcp.backend', 'Backend')}</th>
               <th />
             </tr>
           </thead>
@@ -2067,7 +2265,7 @@ const SniMapEditor = ({ sniMap, onChange, backends }) => {
                       onChange(updateAtIndex(sniMap, idx, { backendId: e.target.value }))
                     }
                   >
-                    <option value="">— choose —</option>
+                    <option value="">— {t('haproxy:frontend.tcp.choose', 'choose')} —</option>
                     {backends.map(b => (
                       <option key={b.id} value={b.id}>
                         {b.name} ({b.id})
@@ -2086,7 +2284,7 @@ const SniMapEditor = ({ sniMap, onChange, backends }) => {
         </Table>
       )}
       <Button variant="outline-primary" size="sm" onClick={add}>
-        Add SNI mapping
+        {t('haproxy:frontend.tcp.addSniMapping', 'Add SNI mapping')}
       </Button>
     </>
   );
@@ -2348,6 +2546,7 @@ const emptyFrontend = () => ({
 // =====================================================================
 
 export const FrontendEditModal = ({ show, frontend = null, doc, onSave, onCancel }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [draft, setDraft] = useState(() => ensureFormKeys(frontend ?? emptyFrontend()));
   const [error, setError] = useState(null);
 
@@ -2359,7 +2558,7 @@ export const FrontendEditModal = ({ show, frontend = null, doc, onSave, onCancel
   };
 
   const handleSave = () => {
-    const message = validateFrontend(draft);
+    const message = validateFrontend(draft, t);
     if (message) {
       setError(message);
       return;
@@ -2373,15 +2572,21 @@ export const FrontendEditModal = ({ show, frontend = null, doc, onSave, onCancel
   return (
     <Modal show={show} onHide={onCancel} size="xl" backdrop="static">
       <Modal.Header closeButton>
-        <Modal.Title>{isExisting ? `Edit frontend: ${frontend.name}` : 'New frontend'}</Modal.Title>
+        <Modal.Title>
+          {isExisting
+            ? t('haproxy:frontend.edit.editTitle', 'Edit frontend: {{name}}', {
+                name: frontend.name,
+              })
+            : t('haproxy:frontend.edit.newTitle', 'New frontend')}
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         {error ? <Alert variant="danger">{error}</Alert> : null}
         <Tabs defaultActiveKey="basics" id="fe-edit-tabs" className="mb-1">
-          <Tab eventKey="basics" title="Basics">
+          <Tab eventKey="basics" title={t('haproxy:frontend.tabs.basics', 'Basics')}>
             <BasicsTab draft={draft} update={update} isExisting={isExisting} doc={doc} />
           </Tab>
-          <Tab eventKey="binds" title="Binds">
+          <Tab eventKey="binds" title={t('haproxy:frontend.tabs.binds', 'Binds')}>
             <BindsTab
               draft={draft}
               update={update}
@@ -2391,7 +2596,7 @@ export const FrontendEditModal = ({ show, frontend = null, doc, onSave, onCancel
               savedAddresses={doc.ui?.savedBindAddresses ?? []}
             />
           </Tab>
-          <Tab eventKey="options" title="Options">
+          <Tab eventKey="options" title={t('haproxy:frontend.tabs.options', 'Options')}>
             {draft.mode === 'tcp' ? (
               <TcpOptionsTab draft={draft} update={update} backends={backends} />
             ) : (
@@ -2407,10 +2612,12 @@ export const FrontendEditModal = ({ show, frontend = null, doc, onSave, onCancel
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <Button variant="primary" onClick={handleSave}>
-          {isExisting ? 'Update frontend' : 'Add frontend'}
+          {isExisting
+            ? t('haproxy:frontend.edit.update', 'Update frontend')
+            : t('haproxy:frontend.edit.add', 'Add frontend')}
         </Button>
       </Modal.Footer>
     </Modal>

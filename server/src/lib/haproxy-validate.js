@@ -37,10 +37,11 @@ export const validateRenderedCfg = async (haproxyBin, rendered) => {
 export const assertValidRenderedCfg = async (haproxyBin, rendered) => {
   const result = await validateRenderedCfg(haproxyBin, rendered);
   if (result.code !== 0) {
-    throw new HaproxyError(
-      `haproxy -c failed: code ${result.code}`,
-      result.stderr || result.stdout
-    );
+    throw new HaproxyError('haproxy.validate.failed', {
+      message: `haproxy -c failed: code ${result.code}`,
+      replacements: { code: result.code },
+      output: result.stderr || result.stdout,
+    });
   }
   return result;
 };

@@ -13,11 +13,13 @@ import {
   Tab,
   Tabs,
 } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 
 import { apiDelete, apiGet, apiPost } from '../api/client.js';
 
 const TablesSubtab = () => {
+  const { t } = useTranslation(['runtime', 'common']);
   const [tables, setTables] = useState([]);
   const [active, setActive] = useState(null);
   const [entries, setEntries] = useState({ entries: [], header: null });
@@ -81,15 +83,26 @@ const TablesSubtab = () => {
   return (
     <div>
       <SubtabHelp
-        title="Stick tables"
+        title={t('runtime:tables.title', 'Stick tables')}
         body={
           <>
-            Per-table key/value counters HAProxy keeps in memory (e.g. <code>http_req_rate</code>{' '}
-            tracked by source IP for rate-limiting). Empty if no <code>stick-table</code> directives
-            are declared in any frontend/backend. <strong>Inspect</strong> dumps the current
-            contents of one table; <strong>Clear all</strong> wipes the table; the per-row
-            <strong> Delete</strong> evicts a single key (e.g. unban one client IP). Effective
-            instantly — no reload, no session loss.
+            {t(
+              'runtime:tables.help1',
+              'Per-table key/value counters HAProxy keeps in memory (e.g.'
+            )}{' '}
+            <code>http_req_rate</code>{' '}
+            {t('runtime:tables.help2', 'tracked by source IP for rate-limiting). Empty if no')}{' '}
+            <code>stick-table</code>{' '}
+            {t('runtime:tables.help3', 'directives are declared in any frontend/backend.')}{' '}
+            <strong>{t('runtime:tables.inspect', 'Inspect')}</strong>{' '}
+            {t('runtime:tables.help4', 'dumps the current contents of one table;')}{' '}
+            <strong>{t('runtime:tables.clearAll', 'Clear all')}</strong>{' '}
+            {t('runtime:tables.help5', 'wipes the table; the per-row')}
+            <strong> {t('common:buttons.delete', 'Delete')}</strong>{' '}
+            {t(
+              'runtime:tables.help6',
+              'evicts a single key (e.g. unban one client IP). Effective instantly — no reload, no session loss.'
+            )}
           </>
         }
       />
@@ -100,49 +113,55 @@ const TablesSubtab = () => {
       ) : null}
       <div className="d-flex gap-2 mb-2 flex-wrap">
         <Button variant="outline-secondary" size="sm" onClick={loadTables} disabled={loading}>
-          {loading ? <Spinner as="span" animation="border" size="sm" /> : 'Refresh'}
+          {loading ? (
+            <Spinner as="span" animation="border" size="sm" />
+          ) : (
+            t('common:buttons.refresh', 'Refresh')
+          )}
         </Button>
         <span className="text-muted small align-self-center">
-          {tables.length} stick table{tables.length === 1 ? '' : 's'} live in HAProxy.
+          {t('runtime:tables.summary', '{{count}} stick table(s) live in HAProxy.', {
+            count: tables.length,
+          })}
         </span>
       </div>
       <Table size="sm" bordered hover responsive>
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th>Used</th>
-            <th>Size</th>
-            <th className="text-end">Actions</th>
+            <th>{t('runtime:tables.col.name', 'Name')}</th>
+            <th>{t('runtime:tables.col.type', 'Type')}</th>
+            <th>{t('runtime:tables.col.used', 'Used')}</th>
+            <th>{t('runtime:tables.col.size', 'Size')}</th>
+            <th className="text-end">{t('runtime:tables.col.actions', 'Actions')}</th>
           </tr>
         </thead>
         <tbody>
           {tables.length === 0 ? (
             <tr>
               <td colSpan={5} className="text-center text-muted small py-3">
-                No stick tables defined.
+                {t('runtime:tables.empty', 'No stick tables defined.')}
               </td>
             </tr>
           ) : null}
-          {tables.map(t => (
-            <tr key={t.table}>
+          {tables.map(tbl => (
+            <tr key={tbl.table}>
               <td>
-                <code>{t.table}</code>
+                <code>{tbl.table}</code>
               </td>
-              <td>{t.type}</td>
-              <td>{t.used}</td>
-              <td>{t.size}</td>
+              <td>{tbl.type}</td>
+              <td>{tbl.used}</td>
+              <td>{tbl.size}</td>
               <td className="text-end text-nowrap">
                 <Button
                   variant="outline-primary"
                   size="sm"
                   className="me-1"
-                  onClick={() => loadEntries(t.table)}
+                  onClick={() => loadEntries(tbl.table)}
                 >
-                  Inspect
+                  {t('runtime:tables.inspect', 'Inspect')}
                 </Button>
-                <Button variant="outline-danger" size="sm" onClick={() => clearAll(t.table)}>
-                  Clear all
+                <Button variant="outline-danger" size="sm" onClick={() => clearAll(tbl.table)}>
+                  {t('runtime:tables.clearAll', 'Clear all')}
                 </Button>
               </td>
             </tr>
@@ -154,7 +173,9 @@ const TablesSubtab = () => {
           <Modal.Title>
             <code>{active}</code>{' '}
             <Badge bg="secondary" className="ms-2">
-              {entries.entries.length} entries
+              {t('runtime:tables.entriesCount', '{{count}} entries', {
+                count: entries.entries.length,
+              })}
             </Badge>
           </Modal.Title>
         </Modal.Header>
@@ -162,8 +183,8 @@ const TablesSubtab = () => {
           <Table size="sm" bordered responsive>
             <thead>
               <tr>
-                <th>Key</th>
-                <th>Fields</th>
+                <th>{t('runtime:tables.col.key', 'Key')}</th>
+                <th>{t('runtime:tables.col.fields', 'Fields')}</th>
                 <th className="text-end" />
               </tr>
             </thead>
@@ -171,7 +192,7 @@ const TablesSubtab = () => {
               {entries.entries.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="text-center text-muted small py-3">
-                    Empty.
+                    {t('runtime:tables.modalEmpty', 'Empty.')}
                   </td>
                 </tr>
               ) : null}
@@ -192,7 +213,7 @@ const TablesSubtab = () => {
                       size="sm"
                       onClick={() => clearKey(active, row.fields.key)}
                     >
-                      Delete
+                      {t('common:buttons.delete', 'Delete')}
                     </Button>
                   </td>
                 </tr>
@@ -202,7 +223,7 @@ const TablesSubtab = () => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setActive(null)}>
-            Close
+            {t('common:buttons.close', 'Close')}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -211,13 +232,14 @@ const TablesSubtab = () => {
 };
 
 const AclMapLabelCell = ({ file, description }) => {
+  const { t } = useTranslation(['runtime']);
   if (file) {
     return <code className="small">{file}</code>;
   }
   if (description) {
     return <span className="small text-muted">{description}</span>;
   }
-  return <span className="small text-muted">(inline)</span>;
+  return <span className="small text-muted">{t('runtime:aclMap.inline', '(inline)')}</span>;
 };
 
 AclMapLabelCell.propTypes = {
@@ -226,6 +248,7 @@ AclMapLabelCell.propTypes = {
 };
 
 const AclMapSubtabImpl = ({ kind }) => {
+  const { t } = useTranslation(['runtime', 'common']);
   const isAcl = kind === 'acls';
   const [items, setItems] = useState([]);
   const [active, setActive] = useState(null);
@@ -305,15 +328,24 @@ const AclMapSubtabImpl = ({ kind }) => {
   const helpBody = isAcl ? (
     <>
       <p className="mb-2">
-        Only <strong>file-backed ACLs</strong> (lines like{' '}
-        <code>acl trusted_ips src -f /etc/haproxy/trusted.lst</code>) appear here — the inline ACLs
-        patchpanel writes for route hostnames are sample-based and don&apos;t show up in{' '}
+        {t('runtime:acls.help.intro1', 'Only')}{' '}
+        <strong>{t('runtime:acls.help.fileBacked', 'file-backed ACLs')}</strong>{' '}
+        {t('runtime:acls.help.intro2', '(lines like')}{' '}
+        <code>acl trusted_ips src -f /etc/haproxy/trusted.lst</code>
+        {t(
+          'runtime:acls.help.intro3',
+          ") appear here — the inline ACLs patchpanel writes for route hostnames are sample-based and don't show up in"
+        )}{' '}
         <code>show acl</code>.
       </p>
       <p className="mb-1">
-        <strong>To use this tab:</strong> add a file-backed ACL directive to your config (Raw State
-        tab, or as an advanced directive on a frontend) and create the file on disk. Then this tab
-        lets you <strong>Add / Delete</strong> entries at runtime with no reload.
+        <strong>{t('runtime:acls.help.usePrefix', 'To use this tab:')}</strong>{' '}
+        {t(
+          'runtime:acls.help.useBody',
+          'add a file-backed ACL directive to your config (Raw State tab, or as an advanced directive on a frontend) and create the file on disk. Then this tab lets you'
+        )}{' '}
+        <strong>{t('runtime:acls.help.addDelete', 'Add / Delete')}</strong>{' '}
+        {t('runtime:acls.help.useEnd', 'entries at runtime with no reload.')}
       </p>
       <pre className="small mb-0 bg-body-tertiary p-2 rounded">
         {`# In an advanced directive on the HTTPS frontend:\nacl trusted_ips src -f /etc/haproxy/trusted.lst\nhttp-request deny if !trusted_ips\n\n# /etc/haproxy/trusted.lst contains one IP/CIDR per line:\n10.0.0.0/8\n192.168.1.42`}
@@ -322,14 +354,23 @@ const AclMapSubtabImpl = ({ kind }) => {
   ) : (
     <>
       <p className="mb-2">
-        Maps are key→value lookup tables HAProxy uses for geo routing, header→backend dispatch, etc.
-        Only file-backed maps already loaded by HAProxy appear in this runtime list.
+        {t(
+          'runtime:maps.help.intro',
+          'Maps are key→value lookup tables HAProxy uses for geo routing, header→backend dispatch, etc. Only file-backed maps already loaded by HAProxy appear in this runtime list.'
+        )}
       </p>
       <p className="mb-1">
-        <strong>To create or edit map entries:</strong> use{' '}
-        <Link to="/advanced">Advanced → Maps</Link> &mdash; patchpanel writes{' '}
-        <code>/etc/haproxy/maps/&lt;name&gt;.map</code> on every apply, no Raw State editing needed.
-        To <em>use</em> a map, reference it from a frontend advanced directive:
+        <strong>{t('runtime:maps.help.editPrefix', 'To create or edit map entries:')}</strong>{' '}
+        {t('runtime:maps.help.use', 'use')}{' '}
+        <Link to="/advanced">{t('runtime:maps.help.advancedLink', 'Advanced → Maps')}</Link> &mdash;{' '}
+        {t('runtime:maps.help.writes', 'patchpanel writes')}{' '}
+        <code>/etc/haproxy/maps/&lt;name&gt;.map</code>{' '}
+        {t('runtime:maps.help.onApply', 'on every apply, no Raw State editing needed. To')}{' '}
+        <em>{t('runtime:maps.help.use2', 'use')}</em>{' '}
+        {t(
+          'runtime:maps.help.referenceFrontend',
+          'a map, reference it from a frontend advanced directive:'
+        )}
       </p>
       <pre className="small mb-0 bg-body-tertiary p-2 rounded">
         {`# On the HTTPS frontend's "Advanced HAProxy directives" list:\nhttp-request set-header X-Country %[src,map_ip(/etc/haproxy/maps/geo.map,unknown)]\n\n# Or for host-based backend selection:\nuse_backend %[req.hdr(host),lower,map(/etc/haproxy/maps/host_to_be.map,be_default)]`}
@@ -339,7 +380,14 @@ const AclMapSubtabImpl = ({ kind }) => {
 
   return (
     <div>
-      <SubtabHelp title={isAcl ? 'Runtime ACL lists' : 'Runtime maps'} body={helpBody} />
+      <SubtabHelp
+        title={
+          isAcl
+            ? t('runtime:acls.title', 'Runtime ACL lists')
+            : t('runtime:maps.title', 'Runtime maps')
+        }
+        body={helpBody}
+      />
       {error ? (
         <Alert variant="danger" dismissible onClose={() => setError(null)}>
           {error.message}
@@ -349,19 +397,25 @@ const AclMapSubtabImpl = ({ kind }) => {
         <thead>
           <tr>
             <th>#</th>
-            <th>File / source</th>
-            <th className="text-end">Actions</th>
+            <th>{t('runtime:aclMap.fileSource', 'File / source')}</th>
+            <th className="text-end">{t('runtime:tables.col.actions', 'Actions')}</th>
           </tr>
         </thead>
         <tbody>
           {items.length === 0 ? (
             <tr>
               <td colSpan={3} className="text-center text-muted small py-3">
-                None defined.{' '}
+                {t('runtime:aclMap.noneDefined', 'None defined.')}{' '}
                 <span className="text-muted">
                   {isAcl
-                    ? 'Add a file-backed ACL in your config to see it here.'
-                    : 'Add a file-backed map in your config to see it here.'}
+                    ? t(
+                        'runtime:acls.addHint',
+                        'Add a file-backed ACL in your config to see it here.'
+                      )
+                    : t(
+                        'runtime:maps.addHint',
+                        'Add a file-backed map in your config to see it here.'
+                      )}
                 </span>
               </td>
             </tr>
@@ -378,7 +432,7 @@ const AclMapSubtabImpl = ({ kind }) => {
                   size="sm"
                   onClick={() => loadEntries(String(item.id))}
                 >
-                  Inspect
+                  {t('runtime:tables.inspect', 'Inspect')}
                 </Button>
               </td>
             </tr>
@@ -391,25 +445,29 @@ const AclMapSubtabImpl = ({ kind }) => {
             <code>
               {isAcl ? 'acl' : 'map'} #{active}
             </code>{' '}
-            entries
+            {t('runtime:aclMap.entriesTitle', 'entries')}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <InputGroup className="mb-2" size="sm">
             <Form.Control
-              placeholder={isAcl ? 'Value (e.g. 10.0.0.1)' : 'Key'}
+              placeholder={
+                isAcl
+                  ? t('runtime:acls.valuePlaceholder', 'Value (e.g. 10.0.0.1)')
+                  : t('runtime:maps.keyPlaceholder', 'Key')
+              }
               value={newKey}
               onChange={e => setNewKey(e.target.value)}
             />
             {isAcl ? null : (
               <Form.Control
-                placeholder="Value"
+                placeholder={t('runtime:maps.valuePlaceholder', 'Value')}
                 value={newValue}
                 onChange={e => setNewValue(e.target.value)}
               />
             )}
             <Button variant="outline-primary" onClick={add}>
-              Add
+              {t('common:buttons.add', 'Add')}
             </Button>
           </InputGroup>
           <Table size="sm" bordered responsive>
@@ -417,7 +475,7 @@ const AclMapSubtabImpl = ({ kind }) => {
               {entries.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="text-center text-muted small py-3">
-                    Empty.
+                    {t('runtime:tables.modalEmpty', 'Empty.')}
                   </td>
                 </tr>
               ) : null}
@@ -433,7 +491,7 @@ const AclMapSubtabImpl = ({ kind }) => {
                   )}
                   <td className="text-end">
                     <Button variant="outline-danger" size="sm" onClick={() => remove(row)}>
-                      Delete
+                      {t('common:buttons.delete', 'Delete')}
                     </Button>
                   </td>
                 </tr>
@@ -443,7 +501,7 @@ const AclMapSubtabImpl = ({ kind }) => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setActive(null)}>
-            Close
+            {t('common:buttons.close', 'Close')}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -470,6 +528,7 @@ SubtabHelp.propTypes = {
 };
 
 const SessionsSubtab = () => {
+  const { t } = useTranslation(['runtime', 'common']);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -511,16 +570,25 @@ const SessionsSubtab = () => {
   return (
     <div>
       <SubtabHelp
-        title="Active client sessions"
+        title={t('runtime:sessions.title', 'Active client sessions')}
         body={
           <>
-            Each row is a single live connection HAProxy is currently handling — output of{' '}
-            <code>show sess all</code>. The <em>source</em> is the client IP/port. The{' '}
-            <em>frontend</em> is the HAProxy listener that accepted it; the <em>backend</em> is
-            where it&apos;s being proxied to. <strong>Shutdown</strong> forcibly closes the session
-            via the runtime socket — useful for kicking stuck connections, killing a misbehaving
-            client, or testing reconnection behavior. The list also feeds the Top client IPs /
-            Sessions by frontend / Sessions by backend cards on the Stats tab.
+            {t(
+              'runtime:sessions.help1',
+              'Each row is a single live connection HAProxy is currently handling — output of'
+            )}{' '}
+            <code>show sess all</code>. {t('runtime:sessions.help2', 'The')}{' '}
+            <em>{t('runtime:sessions.source', 'source')}</em>{' '}
+            {t('runtime:sessions.help3', 'is the client IP/port. The')}{' '}
+            <em>{t('runtime:sessions.frontend', 'frontend')}</em>{' '}
+            {t('runtime:sessions.help4', 'is the HAProxy listener that accepted it; the')}{' '}
+            <em>{t('runtime:sessions.backend', 'backend')}</em>{' '}
+            {t('runtime:sessions.help5', "is where it's being proxied to.")}{' '}
+            <strong>{t('runtime:sessions.shutdown', 'Shutdown')}</strong>{' '}
+            {t(
+              'runtime:sessions.help6',
+              'forcibly closes the session via the runtime socket — useful for kicking stuck connections, killing a misbehaving client, or testing reconnection behavior. The list also feeds the Top client IPs / Sessions by frontend / Sessions by backend cards on the Stats tab.'
+            )}
           </>
         }
       />
@@ -531,27 +599,33 @@ const SessionsSubtab = () => {
       ) : null}
       <div className="d-flex gap-2 mb-2">
         <Button variant="outline-secondary" size="sm" onClick={load} disabled={loading}>
-          {loading ? <Spinner as="span" animation="border" size="sm" /> : 'Refresh'}
+          {loading ? (
+            <Spinner as="span" animation="border" size="sm" />
+          ) : (
+            t('common:buttons.refresh', 'Refresh')
+          )}
         </Button>
         <span className="text-muted small align-self-center">
-          {data?.totalSessions ?? 0} active session{data?.totalSessions === 1 ? '' : 's'}.
+          {t('runtime:sessions.activeCount', '{{count}} active session(s).', {
+            count: data?.totalSessions ?? 0,
+          })}
         </span>
       </div>
       <Table size="sm" bordered hover responsive>
         <thead>
           <tr>
-            <th>Session id</th>
-            <th>Source</th>
-            <th>Frontend</th>
-            <th>Backend</th>
-            <th className="text-end">Actions</th>
+            <th>{t('runtime:sessions.col.sessionId', 'Session id')}</th>
+            <th>{t('runtime:sessions.col.source', 'Source')}</th>
+            <th>{t('runtime:sessions.col.frontend', 'Frontend')}</th>
+            <th>{t('runtime:sessions.col.backend', 'Backend')}</th>
+            <th className="text-end">{t('runtime:tables.col.actions', 'Actions')}</th>
           </tr>
         </thead>
         <tbody>
           {(data?.sessions ?? []).length === 0 ? (
             <tr>
               <td colSpan={5} className="text-center text-muted small py-3">
-                No sessions.
+                {t('runtime:sessions.empty', 'No sessions.')}
               </td>
             </tr>
           ) : null}
@@ -567,7 +641,7 @@ const SessionsSubtab = () => {
               <td>{s.be ?? '—'}</td>
               <td className="text-end">
                 <Button variant="outline-danger" size="sm" onClick={() => shutdown(s.sessionId)}>
-                  Shutdown
+                  {t('runtime:sessions.shutdown', 'Shutdown')}
                 </Button>
               </td>
             </tr>
@@ -578,10 +652,12 @@ const SessionsSubtab = () => {
   );
 };
 
-const RawCommandSubtabImpl = ({ path, label, refreshLabel = 'Refresh' }) => {
+const RawCommandSubtabImpl = ({ path, label, refreshLabel }) => {
+  const { t } = useTranslation(['runtime', 'common']);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const effectiveRefreshLabel = refreshLabel ?? t('common:buttons.refresh', 'Refresh');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -613,7 +689,7 @@ const RawCommandSubtabImpl = ({ path, label, refreshLabel = 'Refresh' }) => {
       {error ? <Alert variant="danger">{error.message}</Alert> : null}
       <div className="d-flex gap-2 mb-2">
         <Button variant="outline-secondary" size="sm" onClick={load} disabled={loading}>
-          {loading ? <Spinner as="span" animation="border" size="sm" /> : refreshLabel}
+          {loading ? <Spinner as="span" animation="border" size="sm" /> : effectiveRefreshLabel}
         </Button>
         <span className="text-muted small align-self-center">{label}</span>
       </div>
@@ -626,7 +702,7 @@ const RawCommandSubtabImpl = ({ path, label, refreshLabel = 'Refresh' }) => {
           fontFamily: 'ui-monospace, Menlo, monospace',
         }}
       >
-        {text || '(empty)'}
+        {text || t('runtime:rawEmpty', '(empty)')}
       </pre>
     </div>
   );
@@ -640,40 +716,51 @@ RawCommandSubtabImpl.propTypes = {
 
 const RawCommandSubtab = RawCommandSubtabImpl;
 
-export const RuntimePage = () => (
-  <Card>
-    <Card.Body>
-      <Card.Title>Runtime</Card.Title>
-      <Card.Text className="text-muted small">
-        Live HAProxy operations via the runtime stats socket — no config reload, no session loss.
-        Every action is recorded in the audit log.
-      </Card.Text>
-      <Tabs defaultActiveKey="tables" id="runtime-tabs" className="mb-3">
-        <Tab eventKey="tables" title="Stick tables">
-          <TablesSubtab />
-        </Tab>
-        <Tab eventKey="sessions" title="Sessions">
-          <SessionsSubtab />
-        </Tab>
-        <Tab eventKey="acls" title="ACLs">
-          <AclMapSubtab kind="acls" />
-        </Tab>
-        <Tab eventKey="maps" title="Maps">
-          <AclMapSubtab kind="maps" />
-        </Tab>
-        <Tab eventKey="errors" title="Recent errors">
-          <RawCommandSubtab
-            path="api/runtime/errors"
-            label="Output of HAProxy `show errors` — recent malformed requests/responses."
-          />
-        </Tab>
-        <Tab eventKey="resolvers" title="Resolvers">
-          <RawCommandSubtab
-            path="api/runtime/resolvers"
-            label="Output of HAProxy `show resolvers` — DNS resolver state."
-          />
-        </Tab>
-      </Tabs>
-    </Card.Body>
-  </Card>
-);
+export const RuntimePage = () => {
+  const { t } = useTranslation(['runtime']);
+  return (
+    <Card>
+      <Card.Body>
+        <Card.Title>{t('runtime:page.title', 'Runtime')}</Card.Title>
+        <Card.Text className="text-muted small">
+          {t(
+            'runtime:page.description',
+            'Live HAProxy operations via the runtime stats socket — no config reload, no session loss. Every action is recorded in the audit log.'
+          )}
+        </Card.Text>
+        <Tabs defaultActiveKey="tables" id="runtime-tabs" className="mb-3">
+          <Tab eventKey="tables" title={t('runtime:tabs.tables', 'Stick tables')}>
+            <TablesSubtab />
+          </Tab>
+          <Tab eventKey="sessions" title={t('runtime:tabs.sessions', 'Sessions')}>
+            <SessionsSubtab />
+          </Tab>
+          <Tab eventKey="acls" title={t('runtime:tabs.acls', 'ACLs')}>
+            <AclMapSubtab kind="acls" />
+          </Tab>
+          <Tab eventKey="maps" title={t('runtime:tabs.maps', 'Maps')}>
+            <AclMapSubtab kind="maps" />
+          </Tab>
+          <Tab eventKey="errors" title={t('runtime:tabs.errors', 'Recent errors')}>
+            <RawCommandSubtab
+              path="api/runtime/errors"
+              label={t(
+                'runtime:rawErrorsLabel',
+                'Output of HAProxy `show errors` — recent malformed requests/responses.'
+              )}
+            />
+          </Tab>
+          <Tab eventKey="resolvers" title={t('runtime:tabs.resolvers', 'Resolvers')}>
+            <RawCommandSubtab
+              path="api/runtime/resolvers"
+              label={t(
+                'runtime:rawResolversLabel',
+                'Output of HAProxy `show resolvers` — DNS resolver state.'
+              )}
+            />
+          </Tab>
+        </Tabs>
+      </Card.Body>
+    </Card>
+  );
+};

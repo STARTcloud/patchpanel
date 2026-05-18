@@ -13,7 +13,10 @@ export const loadState = async statePath => {
   const raw = await readJson(statePath);
   const result = validateState(raw);
   if (!result.ok) {
-    throw new ValidationError(`state at ${statePath} failed schema validation`, result.issues);
+    throw new ValidationError('state.load.schemaInvalid', {
+      issues: result.issues,
+      replacements: { path: statePath },
+    });
   }
   return result.data;
 };

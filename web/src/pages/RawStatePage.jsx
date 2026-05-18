@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Badge, Button, Card, Form, Modal, Spinner } from 'react-bootstrap';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 
@@ -13,29 +14,33 @@ const HINT_VARIANTS = Object.freeze({
 });
 
 const SECTION_LIST_DEFS = Object.freeze([
-  { path: ['backends'], label: 'Backends' },
-  { path: ['frontends'], label: 'Frontends' },
-  { path: ['defaultsBlocks'], label: 'Defaults blocks' },
-  { path: ['acls'], label: 'ACLs' },
-  { path: ['authProviders'], label: 'Auth providers' },
-  { path: ['acmeAccounts'], label: 'ACME accounts' },
-  { path: ['tls', 'providers'], label: 'TLS providers' },
-  { path: ['tls', 'certs'], label: 'Certificates' },
-  { path: ['notifications', 'channels'], label: 'Notification channels' },
-  { path: ['resolvers'], label: 'Resolvers' },
-  { path: ['peers'], label: 'Peers' },
-  { path: ['mailers'], label: 'Mailers' },
-  { path: ['rings'], label: 'Rings' },
-  { path: ['crtStores'], label: 'Cert stores' },
-  { path: ['maps'], label: 'Maps' },
-  { path: ['securityProfiles'], label: 'Security profiles' },
-  { path: ['httpErrorsSections'], label: 'Error pages sections' },
+  { path: ['backends'], key: 'backends', label: 'Backends' },
+  { path: ['frontends'], key: 'frontends', label: 'Frontends' },
+  { path: ['defaultsBlocks'], key: 'defaultsBlocks', label: 'Defaults blocks' },
+  { path: ['acls'], key: 'acls', label: 'ACLs' },
+  { path: ['authProviders'], key: 'authProviders', label: 'Auth providers' },
+  { path: ['acmeAccounts'], key: 'acmeAccounts', label: 'ACME accounts' },
+  { path: ['tls', 'providers'], key: 'tlsProviders', label: 'TLS providers' },
+  { path: ['tls', 'certs'], key: 'certs', label: 'Certificates' },
+  {
+    path: ['notifications', 'channels'],
+    key: 'notificationChannels',
+    label: 'Notification channels',
+  },
+  { path: ['resolvers'], key: 'resolvers', label: 'Resolvers' },
+  { path: ['peers'], key: 'peers', label: 'Peers' },
+  { path: ['mailers'], key: 'mailers', label: 'Mailers' },
+  { path: ['rings'], key: 'rings', label: 'Rings' },
+  { path: ['crtStores'], key: 'crtStores', label: 'Cert stores' },
+  { path: ['maps'], key: 'maps', label: 'Maps' },
+  { path: ['securityProfiles'], key: 'securityProfiles', label: 'Security profiles' },
+  { path: ['httpErrorsSections'], key: 'errorPagesSections', label: 'Error pages sections' },
 ]);
 
 const SECTION_OBJECT_DEFS = Object.freeze([
-  { path: ['globalSettings'], label: 'Global settings' },
-  { path: ['letsencrypt'], label: "Let's Encrypt" },
-  { path: ['geoip'], label: 'GeoIP' },
+  { path: ['globalSettings'], key: 'globalSettings', label: 'Global settings' },
+  { path: ['letsencrypt'], key: 'letsencrypt', label: "Let's Encrypt" },
+  { path: ['geoip'], key: 'geoip', label: 'GeoIP' },
 ]);
 
 const getByPath = (obj, path) => path.reduce((acc, key) => acc?.[key], obj);
@@ -80,32 +85,39 @@ const summarizeStateDiff = (prev, next) => {
     const diff = diffListById(getByPath(prev, def.path), getByPath(next, def.path));
     const total = diff.added.length + diff.removed.length + diff.modified.length;
     if (total > 0) {
-      sections.push({ label: def.label, kind: 'list', ...diff, total });
+      sections.push({ key: def.key, label: def.label, kind: 'list', ...diff, total });
     }
   }
   for (const def of SECTION_OBJECT_DEFS) {
     const diff = diffObjectKeys(getByPath(prev, def.path), getByPath(next, def.path));
     if (diff.modified.length > 0) {
-      sections.push({ label: def.label, kind: 'object', ...diff, total: diff.modified.length });
+      sections.push({
+        key: def.key,
+        label: def.label,
+        kind: 'object',
+        ...diff,
+        total: diff.modified.length,
+      });
     }
   }
   return sections;
 };
 
 const ValidationHints = ({ hints }) => {
+  const { t } = useTranslation(['state']);
   if (!hints || hints.length === 0) {
     return null;
   }
   return (
     <div className="mt-2 small">
-      <strong>Validation hints (from haproxy -c):</strong>
+      <strong>{t('state:raw.validationHints', 'Validation hints (from haproxy -c):')}</strong>
       <ul className="mb-0 ps-3">
         {hints.map(hint => {
           const variant = HINT_VARIANTS[hint.severity] ?? HINT_VARIANTS.NOTICE;
           return (
             <li key={hint.raw}>
               <Badge bg={variant.bg} text={variant.text} className="me-2">
-                line {hint.line}
+                {t('state:raw.lineN', 'line {{n}}', { n: hint.line })}
               </Badge>
               {hint.entity ? (
                 <code className="me-2">
@@ -115,18 +127,34 @@ const ValidationHints = ({ hints }) => {
               <span>{hint.message}</span>
               {hint.ref?.kind === 'backend' ? (
                 <span className="ms-2 text-muted">
-                  → edit on the <strong>Backends</strong> tab
+                  <Trans
+                    i18nKey="state:raw.refBackend"
+                    t={t}
+                    defaults="→ edit on the <0>Backends</0> tab"
+                    components={[<strong key="0" />]}
+                  />
                 </span>
               ) : null}
               {hint.ref?.kind === 'server' ? (
                 <span className="ms-2 text-muted">
-                  → server <code>{hint.ref.serverName}</code> in backend{' '}
-                  <code>{hint.ref.backendId}</code>
+                  <Trans
+                    i18nKey="state:raw.refServer"
+                    t={t}
+                    defaults="→ server <0>{{serverName}}</0> in backend <1>{{backendId}}</1>"
+                    values={{ serverName: hint.ref.serverName, backendId: hint.ref.backendId }}
+                    components={[<code key="0" />, <code key="1" />]}
+                  />
                 </span>
               ) : null}
               {hint.ref?.kind === 'route' ? (
                 <span className="ms-2 text-muted">
-                  → edit route <code>{hint.ref.id}</code> on the <strong>Routes</strong> tab
+                  <Trans
+                    i18nKey="state:raw.refRoute"
+                    t={t}
+                    defaults="→ edit route <0>{{id}}</0> on the <1>Routes</1> tab"
+                    values={{ id: hint.ref.id }}
+                    components={[<code key="0" />, <strong key="1" />]}
+                  />
                 </span>
               ) : null}
             </li>
@@ -151,10 +179,14 @@ ValidationHints.propTypes = {
 };
 
 const DiffSummary = ({ summary }) => {
+  const { t } = useTranslation(['state']);
   if (summary.length === 0) {
     return (
       <Alert variant="info" className="mb-0">
-        No structural changes — saving will only refresh the meta.lastEditedAt timestamp.
+        {t(
+          'state:raw.noStructuralChanges',
+          'No structural changes — saving will only refresh the meta.lastEditedAt timestamp.'
+        )}
       </Alert>
     );
   }
@@ -162,16 +194,18 @@ const DiffSummary = ({ summary }) => {
     <div className="d-flex flex-column gap-2">
       {summary.map(s => (
         <div key={s.label} className="border rounded p-2">
-          <strong>{s.label}</strong>{' '}
+          <strong>{t(`state:raw.section.${s.key}`, s.label)}</strong>{' '}
           <Badge bg="secondary" className="ms-1">
-            {s.total} change{s.total === 1 ? '' : 's'}
+            {s.total === 1
+              ? t('state:raw.changeOne', '{{count}} change', { count: s.total })
+              : t('state:raw.changeMany', '{{count}} changes', { count: s.total })}
           </Badge>
           {s.added?.length > 0 ? (
             <div className="small mt-1">
               <Badge bg="success" className="me-2">
                 +{s.added.length}
               </Badge>
-              added: <code>{s.added.join(', ')}</code>
+              {t('state:raw.added', 'added:')} <code>{s.added.join(', ')}</code>
             </div>
           ) : null}
           {s.removed?.length > 0 ? (
@@ -179,7 +213,7 @@ const DiffSummary = ({ summary }) => {
               <Badge bg="danger" className="me-2">
                 −{s.removed.length}
               </Badge>
-              removed: <code>{s.removed.join(', ')}</code>
+              {t('state:raw.removed', 'removed:')} <code>{s.removed.join(', ')}</code>
             </div>
           ) : null}
           {s.modified?.length > 0 ? (
@@ -187,7 +221,7 @@ const DiffSummary = ({ summary }) => {
               <Badge bg="warning" text="dark" className="me-2">
                 ~{s.modified.length}
               </Badge>
-              modified: <code>{s.modified.join(', ')}</code>
+              {t('state:raw.modified', 'modified:')} <code>{s.modified.join(', ')}</code>
             </div>
           ) : null}
         </div>
@@ -201,6 +235,7 @@ DiffSummary.propTypes = {
 };
 
 export const RawStatePage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['state', 'common']);
   const [text, setText] = useState(null);
   const [status, setStatus] = useState(null);
   const [pendingApply, setPendingApply] = useState(null);
@@ -219,7 +254,10 @@ export const RawStatePage = ({ doc = null, onSave = null }) => {
     try {
       parsed = JSON.parse(current);
     } catch (err) {
-      setStatus({ kind: 'danger', message: `invalid JSON: ${err.message}` });
+      setStatus({
+        kind: 'danger',
+        message: t('state:raw.invalidJson', 'invalid JSON: {{message}}', { message: err.message }),
+      });
       return;
     }
     const summary = summarizeStateDiff(doc, parsed);
@@ -233,7 +271,7 @@ export const RawStatePage = ({ doc = null, onSave = null }) => {
     setApplying(true);
     onSave(pendingApply.parsed)
       .then(() => {
-        setStatus({ kind: 'success', message: 'saved' });
+        setStatus({ kind: 'success', message: t('state:raw.savedMessage', 'saved') });
         setText(null);
         setPendingApply(null);
       })
@@ -259,11 +297,14 @@ export const RawStatePage = ({ doc = null, onSave = null }) => {
   return (
     <Card className="patchpanel-fullheight-page">
       <Card.Body>
-        <Card.Title>Raw State</Card.Title>
+        <Card.Title>{t('state:raw.title', 'Raw State')}</Card.Title>
         <Card.Text className="text-muted">
-          Edit the canonical state.json directly. Saving runs schema validation, renders the new
-          haproxy.cfg, validates it with <code>haproxy -c</code>, and reloads HAProxy via the master
-          socket on success.
+          <Trans
+            i18nKey="state:raw.subtitle"
+            t={t}
+            defaults="Edit the canonical state.json directly. Saving runs schema validation, renders the new haproxy.cfg, validates it with <0>haproxy -c</0>, and reloads HAProxy via the master socket on success."
+            components={[<code key="0" />]}
+          />
         </Card.Text>
         {status ? (
           <Alert variant={status.kind}>
@@ -300,10 +341,10 @@ export const RawStatePage = ({ doc = null, onSave = null }) => {
           />
           <div className="mt-3 d-flex gap-2">
             <Button type="submit" variant="primary">
-              Review &amp; apply
+              {t('state:raw.reviewApply', 'Review & apply')}
             </Button>
             <Button type="button" variant="secondary" onClick={() => setText(null)}>
-              Discard changes
+              {t('state:raw.discardChanges', 'Discard changes')}
             </Button>
           </div>
         </Form>
@@ -311,27 +352,31 @@ export const RawStatePage = ({ doc = null, onSave = null }) => {
       {pendingApply ? (
         <Modal show onHide={cancelApply} size="lg">
           <Modal.Header closeButton>
-            <Modal.Title>Confirm apply</Modal.Title>
+            <Modal.Title>{t('state:raw.confirmApply', 'Confirm apply')}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <p className="small text-muted">
-              Applying will re-render <code>haproxy.cfg</code>, validate it with{' '}
-              <code>haproxy -c</code>, atomically swap, and reload HAProxy via the master socket. On
-              reload failure the previous cfg is restored and a snapshot is written either way.
+              <Trans
+                i18nKey="state:raw.applyHint"
+                t={t}
+                defaults="Applying will re-render <0>haproxy.cfg</0>, validate it with <1>haproxy -c</1>, atomically swap, and reload HAProxy via the master socket. On reload failure the previous cfg is restored and a snapshot is written either way."
+                components={[<code key="0" />, <code key="1" />]}
+              />
             </p>
             <DiffSummary summary={pendingApply.summary} />
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={cancelApply} disabled={applying}>
-              Cancel
+              {t('common:buttons.cancel', 'Cancel')}
             </Button>
             <Button variant="primary" onClick={apply} disabled={applying}>
               {applying ? (
                 <>
-                  <Spinner as="span" animation="border" size="sm" /> Applying…
+                  <Spinner as="span" animation="border" size="sm" />{' '}
+                  <span>{t('state:raw.applying', 'Applying…')}</span>
                 </>
               ) : (
-                'Apply'
+                t('state:raw.apply', 'Apply')
               )}
             </Button>
           </Modal.Footer>

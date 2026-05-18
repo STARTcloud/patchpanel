@@ -3,12 +3,13 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import './styles/app.css';
 
 import { HelmetProvider } from '@dr.pogodin/react-helmet';
-import { StrictMode } from 'react';
+import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 
 import { App } from './App.jsx';
 import { ErrorBoundary } from './components/ErrorBoundary.jsx';
+import './i18n/index.js';
 import { log } from './utils/Logger.js';
 
 const detectBasename = () => {
@@ -50,7 +51,9 @@ root.render(
     <ErrorBoundary>
       <HelmetProvider>
         <BrowserRouter basename={detectBasename()}>
-          <App />
+          <Suspense fallback={null}>
+            <App />
+          </Suspense>
         </BrowserRouter>
       </HelmetProvider>
     </ErrorBoundary>

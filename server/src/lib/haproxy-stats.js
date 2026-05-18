@@ -1,5 +1,7 @@
 import { createConnection } from 'node:net';
 
+import { HaproxyError, ValidationError } from './errors.js';
+
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 const send = (socketPath, command, timeoutMs) =>
@@ -7,7 +9,12 @@ const send = (socketPath, command, timeoutMs) =>
     const chunks = [];
     const socket = createConnection(socketPath);
     const timer = setTimeout(() => {
-      socket.destroy(new Error(`stats socket timeout after ${timeoutMs}ms`));
+      socket.destroy(
+        new HaproxyError('haproxy.stats.timeout', {
+          message: `stats socket timeout after ${timeoutMs}ms`,
+          replacements: { timeoutMs },
+        })
+      );
     }, timeoutMs);
 
     socket.once('connect', () => {
@@ -64,14 +71,20 @@ export const showInfo = async (socketPath, { timeoutMs = DEFAULT_TIMEOUT_MS } = 
 
 export const setServerState = (socketPath, backend, server, state) => {
   if (!['ready', 'drain', 'maint'].includes(state)) {
-    throw new Error(`invalid server state: ${state}`);
+    throw new ValidationError('haproxy.server.invalidState', {
+      message: `invalid server state: ${state}`,
+      replacements: { allowed: 'ready, drain, maint' },
+    });
   }
   return send(socketPath, `set server ${backend}/${server} state ${state}`, DEFAULT_TIMEOUT_MS);
 };
 
 export const setServerWeight = (socketPath, backend, server, weight) => {
   if (!Number.isInteger(weight) || weight < 0 || weight > 256) {
-    throw new Error(`invalid server weight: ${weight}`);
+    throw new ValidationError('haproxy.server.invalidWeight', {
+      message: `invalid server weight: ${weight}`,
+      replacements: { value: weight },
+    });
   }
   return send(socketPath, `set server ${backend}/${server} weight ${weight}`, DEFAULT_TIMEOUT_MS);
 };
@@ -188,13 +201,19 @@ const SAFE_KEY_PATTERN = /^[A-Za-z0-9_.:/-]+$/u;
 
 const assertSafeId = (value, label) => {
   if (typeof value !== 'string' || !ID_PATTERN.test(value)) {
-    throw new Error(`invalid ${label}: ${value}`);
+    throw new ValidationError('haproxy.runtime.invalidId', {
+      message: `invalid ${label}: ${value}`,
+      replacements: { label, value: String(value) },
+    });
   }
 };
 
 const assertSafeKey = (value, label) => {
   if (typeof value !== 'string' || !SAFE_KEY_PATTERN.test(value)) {
-    throw new Error(`invalid ${label}: ${value}`);
+    throw new ValidationError('haproxy.runtime.invalidKey', {
+      message: `invalid ${label}: ${value}`,
+      replacements: { label, value: String(value) },
+    });
   }
 };
 
@@ -399,7 +418,9 @@ export const addMapEntry = (
   assertSafeKey(key, 'map key');
   // Value can contain spaces — caller is trusted but we sanitize control characters.
   if (typeof value !== 'string' || /[\r\n\0]/u.test(value)) {
-    throw new Error('invalid map value');
+    throw new ValidationError('haproxy.runtime.invalidMapValue', {
+      message: 'invalid map value',
+    });
   }
   return send(socketPath, `add map ${formatRef(ref)} ${key} ${value}`, timeoutMs);
 };
@@ -422,7 +443,10 @@ export const disableFrontend = (socketPath, name, { timeoutMs = DEFAULT_TIMEOUT_
 
 export const shutdownSession = (socketPath, id, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) => {
   if (typeof id !== 'string' || !/^0x[0-9a-fA-F]+$/u.test(id)) {
-    throw new Error(`invalid session id: ${id}`);
+    throw new ValidationError('haproxy.runtime.invalidSessionId', {
+      message: `invalid session id: ${id}`,
+      replacements: { value: String(id) },
+    });
   }
   return send(socketPath, `shutdown session ${id}`, timeoutMs);
 };
@@ -430,14 +454,20 @@ export const shutdownSession = (socketPath, id, { timeoutMs = DEFAULT_TIMEOUT_MS
 export const setMaxconnFrontend = (socketPath, name, max) => {
   assertSafeId(name, 'frontend name');
   if (!Number.isInteger(max) || max < 0) {
-    throw new Error(`invalid maxconn: ${max}`);
+    throw new ValidationError('runtime.maxconn.invalid', {
+      message: `invalid maxconn: ${max}`,
+      replacements: { value: String(max) },
+    });
   }
   return send(socketPath, `set maxconn frontend ${name} ${max}`, DEFAULT_TIMEOUT_MS);
 };
 
 export const setMaxconnGlobal = (socketPath, max) => {
   if (!Number.isInteger(max) || max < 0) {
-    throw new Error(`invalid maxconn: ${max}`);
+    throw new ValidationError('runtime.maxconn.invalid', {
+      message: `invalid maxconn: ${max}`,
+      replacements: { value: String(max) },
+    });
   }
   return send(socketPath, `set maxconn global ${max}`, DEFAULT_TIMEOUT_MS);
 };

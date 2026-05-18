@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Table } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 
@@ -67,38 +68,56 @@ const sanitizeForSave = draft => {
   return out;
 };
 
-const validate = (draft, takenIds, takenTuples) => {
+const validate = (draft, takenIds, takenTuples, t) => {
   if (!ID_REGEX.test(draft.id)) {
-    return 'id must match a-z, 0-9, _, - (starting with a letter)';
+    return t(
+      'cert:acmeAccount.validate.idFormat',
+      'id must match a-z, 0-9, _, - (starting with a letter)'
+    );
   }
   if (takenIds.has(draft.id)) {
-    return `id "${draft.id}" is already used`;
+    return t('cert:acmeAccount.validate.idTaken', 'id "{{id}}" is already used', { id: draft.id });
   }
   if (!EMAIL_REGEX.test(draft.email)) {
-    return 'email is required and must be valid';
+    return t('cert:acmeAccount.validate.emailRequired', 'email is required and must be valid');
   }
   if (!SERVER_OPTIONS.some(s => s.value === draft.server)) {
-    return 'unknown server';
+    return t('cert:acmeAccount.validate.unknownServer', 'unknown server');
   }
   if (draft.server === 'custom' && !draft.directoryUrl?.trim()) {
-    return 'directoryUrl is required when server is "custom"';
+    return t(
+      'cert:acmeAccount.validate.directoryUrlRequired',
+      'directoryUrl is required when server is "custom"'
+    );
   }
   const serverOpt = SERVER_OPTIONS.find(s => s.value === draft.server);
   if (serverOpt?.requiresEab && (!draft.eabKid?.trim() || !draft.eabHmacKey?.trim())) {
-    return `${serverOpt.label} requires External Account Binding — set both eabKid and eabHmacKey`;
+    return t(
+      'cert:acmeAccount.validate.eabRequired',
+      '{{server}} requires External Account Binding — set both eabKid and eabHmacKey',
+      { server: serverOpt.label }
+    );
   }
   const hasOneEab = Boolean(draft.eabKid?.trim()) !== Boolean(draft.eabHmacKey?.trim());
   if (hasOneEab) {
-    return 'eabKid and eabHmacKey must be set together (or both empty)';
+    return t(
+      'cert:acmeAccount.validate.eabPair',
+      'eabKid and eabHmacKey must be set together (or both empty)'
+    );
   }
   const tuple = `${draft.email}|${draft.server}|${draft.directoryUrl?.trim() ?? ''}`;
   if (takenTuples.has(tuple)) {
-    return `another account already uses email "${draft.email}" on server "${draft.server}"`;
+    return t(
+      'cert:acmeAccount.validate.tupleTaken',
+      'another account already uses email "{{email}}" on server "{{server}}"',
+      { email: draft.email, server: draft.server }
+    );
   }
   return null;
 };
 
 const AccountEditModal = ({ show, account, takenIds, takenTuples, onSave, onCancel }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const [draft, setDraft] = useState(() => (account ? accountForEdit(account) : emptyAccount()));
   const [error, setError] = useState(null);
   const isExisting = Boolean(account?.id);
@@ -114,7 +133,7 @@ const AccountEditModal = ({ show, account, takenIds, takenTuples, onSave, onCanc
     if (isExisting) {
       tuplesForCheck.delete(`${account.email}|${account.server}|${account.directoryUrl ?? ''}`);
     }
-    const message = validate(draft, idsForCheck, tuplesForCheck);
+    const message = validate(draft, idsForCheck, tuplesForCheck, t);
     if (message) {
       setError(message);
       return;
@@ -126,7 +145,11 @@ const AccountEditModal = ({ show, account, takenIds, takenTuples, onSave, onCanc
     <Modal show={show} onHide={onCancel} size="lg">
       <Modal.Header closeButton>
         <Modal.Title>
-          {isExisting ? `Edit ACME account: ${account.id}` : 'New ACME account'}
+          {isExisting
+            ? t('cert:acmeAccount.modal.editTitle', 'Edit ACME account: {{id}}', {
+                id: account.id,
+              })
+            : t('cert:acmeAccount.modal.newTitle', 'New ACME account')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body>
@@ -134,33 +157,44 @@ const AccountEditModal = ({ show, account, takenIds, takenTuples, onSave, onCanc
         <Row className="g-3">
           <Col md={6}>
             <Form.Group>
-              <Form.Label>ID</Form.Label>
+              <Form.Label>{t('cert:acmeAccount.field.id', 'ID')}</Form.Label>
               <Form.Control
                 type="text"
                 value={draft.id}
                 disabled={isExisting}
                 onChange={e => update({ id: e.target.value })}
-                placeholder="e.g. default or work-zerossl"
+                placeholder={t(
+                  'cert:acmeAccount.field.idPlaceholder',
+                  'e.g. default or work-zerossl'
+                )}
               />
               <Form.Text className="text-muted">
-                Stable identifier. Certs reference accounts by id.
+                {t(
+                  'cert:acmeAccount.field.idHelp',
+                  'Stable identifier. Certs reference accounts by id.'
+                )}
               </Form.Text>
             </Form.Group>
           </Col>
           <Col md={6}>
             <Form.Group>
-              <Form.Label>Description (optional)</Form.Label>
+              <Form.Label>
+                {t('cert:acmeAccount.field.description', 'Description (optional)')}
+              </Form.Label>
               <Form.Control
                 type="text"
                 value={draft.description}
                 onChange={e => update({ description: e.target.value })}
-                placeholder="What this account is for"
+                placeholder={t(
+                  'cert:acmeAccount.field.descriptionPlaceholder',
+                  'What this account is for'
+                )}
               />
             </Form.Group>
           </Col>
           <Col md={6}>
             <Form.Group>
-              <Form.Label>Account email</Form.Label>
+              <Form.Label>{t('cert:acmeAccount.field.email', 'Account email')}</Form.Label>
               <Form.Control
                 type="email"
                 value={draft.email}
@@ -171,7 +205,7 @@ const AccountEditModal = ({ show, account, takenIds, takenTuples, onSave, onCanc
           </Col>
           <Col md={6}>
             <Form.Group>
-              <Form.Label>ACME server</Form.Label>
+              <Form.Label>{t('cert:acmeAccount.field.server', 'ACME server')}</Form.Label>
               <Form.Select value={draft.server} onChange={e => update({ server: e.target.value })}>
                 {SERVER_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>
@@ -184,7 +218,7 @@ const AccountEditModal = ({ show, account, takenIds, takenTuples, onSave, onCanc
           {draft.server === 'custom' ? (
             <Col xs={12}>
               <Form.Group>
-                <Form.Label>Directory URL</Form.Label>
+                <Form.Label>{t('cert:acmeAccount.field.directoryUrl', 'Directory URL')}</Form.Label>
                 <Form.Control
                   type="text"
                   value={draft.directoryUrl}
@@ -197,10 +231,10 @@ const AccountEditModal = ({ show, account, takenIds, takenTuples, onSave, onCanc
           <Col md={6}>
             <Form.Group>
               <Form.Label>
-                EAB Key ID
+                {t('cert:acmeAccount.field.eabKid', 'EAB Key ID')}
                 {serverOpt?.requiresEab ? (
                   <Badge bg="warning" text="dark" className="ms-2">
-                    required
+                    {t('cert:acmeAccount.field.required', 'required')}
                   </Badge>
                 ) : null}
               </Form.Label>
@@ -208,17 +242,21 @@ const AccountEditModal = ({ show, account, takenIds, takenTuples, onSave, onCanc
                 type="text"
                 value={draft.eabKid}
                 onChange={e => update({ eabKid: e.target.value })}
-                placeholder={serverOpt?.requiresEab ? 'from CA dashboard' : 'optional'}
+                placeholder={
+                  serverOpt?.requiresEab
+                    ? t('cert:acmeAccount.field.fromCaDashboard', 'from CA dashboard')
+                    : t('cert:acmeAccount.field.optional', 'optional')
+                }
               />
             </Form.Group>
           </Col>
           <Col md={6}>
             <Form.Group>
               <Form.Label>
-                EAB HMAC Key
+                {t('cert:acmeAccount.field.eabHmac', 'EAB HMAC Key')}
                 {serverOpt?.requiresEab ? (
                   <Badge bg="warning" text="dark" className="ms-2">
-                    required
+                    {t('cert:acmeAccount.field.required', 'required')}
                   </Badge>
                 ) : null}
               </Form.Label>
@@ -226,24 +264,31 @@ const AccountEditModal = ({ show, account, takenIds, takenTuples, onSave, onCanc
                 type="text"
                 value={draft.eabHmacKey}
                 onChange={e => update({ eabHmacKey: e.target.value })}
-                placeholder={serverOpt?.requiresEab ? 'from CA dashboard' : 'optional'}
+                placeholder={
+                  serverOpt?.requiresEab
+                    ? t('cert:acmeAccount.field.fromCaDashboard', 'from CA dashboard')
+                    : t('cert:acmeAccount.field.optional', 'optional')
+                }
               />
             </Form.Group>
           </Col>
         </Row>
         {serverOpt?.requiresEab ? (
           <Alert variant="info" className="small mt-3 mb-0">
-            {serverOpt.label} requires External Account Binding. Generate the key ID + HMAC pair in
-            the CA dashboard and paste them above before saving.
+            {t(
+              'cert:acmeAccount.eabHint',
+              '{{server}} requires External Account Binding. Generate the key ID + HMAC pair in the CA dashboard and paste them above before saving.',
+              { server: serverOpt.label }
+            )}
           </Alert>
         ) : null}
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <Button variant="primary" onClick={handleSave}>
-          {isExisting ? 'Update' : 'Add'}
+          {isExisting ? t('common:buttons.update', 'Update') : t('common:buttons.add', 'Add')}
         </Button>
       </Modal.Footer>
     </Modal>
@@ -260,6 +305,7 @@ AccountEditModal.propTypes = {
 };
 
 export const AcmeAccountsCard = ({ doc, onSave }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const [editing, setEditing] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [error, setError] = useState(null);
@@ -297,7 +343,15 @@ export const AcmeAccountsCard = ({ doc, onSave }) => {
   const handleDelete = id => {
     const refCount = certsByAccountId.get(id) ?? 0;
     if (refCount > 0) {
-      setError(new Error(`Cannot delete: ${refCount} cert(s) still reference this account`));
+      setError(
+        new Error(
+          t(
+            'cert:acmeAccount.cannotDelete',
+            'Cannot delete: {{count}} cert(s) still reference this account',
+            { count: refCount }
+          )
+        )
+      );
       return;
     }
     persist(accounts.filter(a => a.id !== id));
@@ -307,10 +361,12 @@ export const AcmeAccountsCard = ({ doc, onSave }) => {
     <>
       <div className="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
         <div>
-          <h6 className="mb-0">ACME accounts</h6>
+          <h6 className="mb-0">{t('cert:acmeAccount.section.title', 'ACME accounts')}</h6>
           <p className="text-muted small mb-0">
-            Each account = an email registered with one ACME CA. Multiple accounts let you split
-            certs across CAs, separate rate-limit pools, or run staging + prod side-by-side.
+            {t(
+              'cert:acmeAccount.section.description',
+              'Each account = an email registered with one ACME CA. Multiple accounts let you split certs across CAs, separate rate-limit pools, or run staging + prod side-by-side.'
+            )}
           </p>
         </div>
         <Button
@@ -320,7 +376,7 @@ export const AcmeAccountsCard = ({ doc, onSave }) => {
           disabled={!onSave}
         >
           <i className="bi bi-plus-lg me-1" />
-          Add account
+          {t('cert:acmeAccount.addButton', 'Add account')}
         </Button>
       </div>
       {error ? (
@@ -330,18 +386,21 @@ export const AcmeAccountsCard = ({ doc, onSave }) => {
       ) : null}
       {accounts.length === 0 ? (
         <Alert variant="warning" className="small mb-0">
-          No ACME accounts defined. Every non-BYO cert needs one — add at least one before issuing.
+          {t(
+            'cert:acmeAccount.emptyState',
+            'No ACME accounts defined. Every non-BYO cert needs one — add at least one before issuing.'
+          )}
         </Alert>
       ) : (
         <Table size="sm" responsive className="mb-0">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Email</th>
-              <th>Server</th>
-              <th>EAB</th>
-              <th>Used by</th>
-              <th className="text-end">Actions</th>
+              <th>{t('cert:acmeAccount.column.id', 'ID')}</th>
+              <th>{t('cert:acmeAccount.column.email', 'Email')}</th>
+              <th>{t('cert:acmeAccount.column.server', 'Server')}</th>
+              <th>{t('cert:acmeAccount.column.eab', 'EAB')}</th>
+              <th>{t('cert:acmeAccount.column.usedBy', 'Used by')}</th>
+              <th className="text-end">{t('cert:acmeAccount.column.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -367,13 +426,15 @@ export const AcmeAccountsCard = ({ doc, onSave }) => {
                   </td>
                   <td>
                     {a.eabKid ? (
-                      <Badge bg="success">set</Badge>
+                      <Badge bg="success">{t('cert:acmeAccount.eabSet', 'set')}</Badge>
                     ) : (
                       <span className="text-muted small">—</span>
                     )}
                   </td>
                   <td>
-                    <Badge bg={refCount > 0 ? 'info' : 'secondary'}>{refCount} cert(s)</Badge>
+                    <Badge bg={refCount > 0 ? 'info' : 'secondary'}>
+                      {t('cert:acmeAccount.certCount', '{{count}} cert(s)', { count: refCount })}
+                    </Badge>
                   </td>
                   <td className="text-end text-nowrap">
                     <Button
@@ -383,7 +444,7 @@ export const AcmeAccountsCard = ({ doc, onSave }) => {
                       onClick={() => setEditing(a)}
                       disabled={!onSave}
                     >
-                      Edit
+                      {t('common:buttons.edit', 'Edit')}
                     </Button>
                     <Button
                       variant="outline-danger"
@@ -391,10 +452,16 @@ export const AcmeAccountsCard = ({ doc, onSave }) => {
                       onClick={() => handleDelete(a.id)}
                       disabled={!onSave || refCount > 0}
                       title={
-                        refCount > 0 ? `${refCount} cert(s) still reference this account` : 'Delete'
+                        refCount > 0
+                          ? t(
+                              'cert:acmeAccount.stillRefTitle',
+                              '{{count}} cert(s) still reference this account',
+                              { count: refCount }
+                            )
+                          : t('common:buttons.delete', 'Delete')
                       }
                     >
-                      Delete
+                      {t('common:buttons.delete', 'Delete')}
                     </Button>
                   </td>
                 </tr>

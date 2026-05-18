@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { Alert, Badge, Button, Modal, Spinner } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 const stepVariant = (index, currentStep) => {
   if (index === currentStep) {
@@ -38,7 +39,7 @@ export const WizardShell = ({
   canAdvance = true,
   saving = false,
   error = null,
-  finishLabel = 'Finish',
+  finishLabel = null,
   finishVariant = 'success',
   size = 'lg',
   onPrev = null,
@@ -47,6 +48,7 @@ export const WizardShell = ({
   onCancel,
   children,
 }) => {
+  const { t } = useTranslation(['common']);
   const isLast = currentStep === stepLabels.length - 1;
   return (
     <Modal show={show} onHide={onCancel} size={size} backdrop="static">
@@ -64,13 +66,13 @@ export const WizardShell = ({
       </Modal.Body>
       <Modal.Footer className="d-flex justify-content-between">
         <Button variant="outline-secondary" onClick={onCancel} disabled={saving}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <div className="d-flex gap-2">
           {onPrev ? (
             <Button variant="outline-secondary" onClick={onPrev} disabled={saving}>
               <i className="bi bi-arrow-left me-1" />
-              Back
+              {t('common:buttons.back', 'Back')}
             </Button>
           ) : null}
           {isLast ? (
@@ -81,18 +83,19 @@ export const WizardShell = ({
             >
               {saving ? (
                 <>
-                  <Spinner as="span" animation="border" size="sm" /> Working…
+                  <Spinner as="span" animation="border" size="sm" />{' '}
+                  <span>{t('common:wizard.working', 'Working…')}</span>
                 </>
               ) : (
                 <>
                   <i className="bi bi-check2-circle me-1" />
-                  {finishLabel}
+                  {finishLabel ?? t('common:wizard.finish', 'Finish')}
                 </>
               )}
             </Button>
           ) : (
             <Button variant="primary" onClick={onNext} disabled={!canAdvance || saving || !onNext}>
-              Next
+              {t('common:buttons.next', 'Next')}
               <i className="bi bi-arrow-right ms-1" />
             </Button>
           )}

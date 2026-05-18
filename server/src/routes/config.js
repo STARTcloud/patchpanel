@@ -2,9 +2,10 @@ import { basename, resolve as resolvePath } from 'node:path';
 
 import { Router } from 'express';
 
+import { errorResponse } from '../lib/api-response.js';
 import * as audit from '../lib/audit.js';
 import { applyConfigPatch, writeRawConfig } from '../lib/config-write.js';
-import { ValidationError } from '../lib/errors.js';
+import { ConfigError, ValidationError } from '../lib/errors.js';
 import { ensureDir, safePathUnder, writeAtomic } from '../lib/files.js';
 import { log } from '../lib/logger.js';
 
@@ -109,11 +110,13 @@ const buildConfigRouter = () => {
     const actor = req.user?.id ?? null;
     const patch = req.body?.patch;
     if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
-      res.status(400).json({ ok: false, error: 'body.patch must be an object' });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, 'config.validation.bodyPatchObject') });
       return;
     }
     if (Object.keys(patch).length === 0) {
-      res.status(400).json({ ok: false, error: 'patch must not be empty' });
+      res.status(400).json({ ok: false, ...errorResponse(req, 'config.validation.patchEmpty') });
       return;
     }
     try {
@@ -121,7 +124,7 @@ const buildConfigRouter = () => {
       const updated = applyConfigPatch(raw, patch);
       const configPath = configLoader.getLoadedFrom();
       if (!configPath) {
-        throw new Error('configLoader loaded-from path unknown');
+        throw new ConfigError('config.loadedPathUnknown');
       }
       const writeResult = await writeRawConfig(configPath, updated);
       // Reset + re-load so subsequent GETs reflect the new state. Both ops are
@@ -158,10 +161,6 @@ const buildConfigRouter = () => {
         outcome: 'error',
         details: { error: err.message },
       });
-      if (err instanceof ValidationError) {
-        res.status(400).json({ ok: false, error: err.message });
-        return;
-      }
       next(err);
     }
   });
@@ -253,13 +252,15 @@ const buildConfigRouter = () => {
     const actor = req.user?.id ?? null;
     const { targetPath, content } = req.body ?? {};
     if (typeof targetPath !== 'string' || typeof content !== 'string') {
-      res.status(400).json({ ok: false, error: 'targetPath and content are required strings' });
+      res
+        .status(400)
+        .json({ ok: false, ...errorResponse(req, 'config.upload.targetAndContentRequired') });
       return;
     }
     try {
       const fileBasename = basename(targetPath);
       if (!SSL_FILENAME_RE.test(fileBasename)) {
-        throw new ValidationError('filename must match [a-zA-Z0-9._-]+.(pem|crt|key|ca-bundle)');
+        throw new ValidationError('config.upload.filenamePattern');
       }
       // The targetPath claims to point somewhere; reject anything not strictly
       // under SSL_UPLOAD_ROOT before we even consider the filename. We accept
@@ -267,7 +268,9 @@ const buildConfigRouter = () => {
       const resolvedTarget = resolvePath(targetPath);
       const resolvedRoot = resolvePath(SSL_UPLOAD_ROOT);
       if (!resolvedTarget.startsWith(resolvedRoot)) {
-        throw new ValidationError(`target must be under ${SSL_UPLOAD_ROOT}`);
+        throw new ValidationError('config.upload.targetMustBeUnderRoot', {
+          replacements: { root: SSL_UPLOAD_ROOT },
+        });
       }
       const finalPath = safePathUnder(SSL_UPLOAD_ROOT, fileBasename);
       await ensureDir(SSL_UPLOAD_ROOT, 0o700);
@@ -291,10 +294,6 @@ const buildConfigRouter = () => {
         outcome: 'error',
         details: { error: err.message },
       });
-      if (err instanceof ValidationError) {
-        res.status(400).json({ ok: false, error: err.message });
-        return;
-      }
       next(err);
     }
   });

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { errorResponse } from '../lib/api-response.js';
 import { lookupMany } from '../lib/geoip.js';
 import * as haproxyStats from '../lib/haproxy-stats.js';
 import { log } from '../lib/logger.js';
@@ -39,7 +40,8 @@ export const statsRouter = (config, statsSampler) => {
       ]);
       res.json({ info, stat });
     } catch (err) {
-      res.status(502).json({ error: 'haproxy_stats_unavailable', message: err.message });
+      log.api.error('haproxy stats unavailable', { error: err.message });
+      res.status(502).json(errorResponse(req, 'stats.unavailable'));
     }
   });
 
@@ -63,7 +65,7 @@ export const statsRouter = (config, statsSampler) => {
    */
   router.get('/stats/history', (req, res) => {
     if (!statsSampler) {
-      res.status(503).json({ error: 'stats sampler not running' });
+      res.status(503).json(errorResponse(req, 'stats.sampler.notRunning'));
       return;
     }
     const since = req.query.since ? Number(req.query.since) : null;
@@ -101,7 +103,7 @@ export const statsRouter = (config, statsSampler) => {
   router.get('/stats/slowest-backends', (req, res) => {
     log.api.debug('GET /stats/slowest-backends', { ip: req.ip });
     if (!statsSampler) {
-      res.status(503).json({ error: 'stats sampler not running' });
+      res.status(503).json(errorResponse(req, 'stats.sampler.notRunning'));
       return;
     }
     const limit = Math.max(1, Math.min(50, Number(req.query.limit) || 10));
@@ -132,7 +134,7 @@ export const statsRouter = (config, statsSampler) => {
   router.get('/stats/http-codes', (req, res) => {
     log.api.debug('GET /stats/http-codes', { ip: req.ip });
     if (!statsSampler) {
-      res.status(503).json({ error: 'stats sampler not running' });
+      res.status(503).json(errorResponse(req, 'stats.sampler.notRunning'));
       return;
     }
     res.set('cache-control', 'no-store').json({ totals: statsSampler.httpStatusDistribution() });
@@ -175,7 +177,8 @@ export const statsRouter = (config, statsSampler) => {
       }
       res.json(summary);
     } catch (err) {
-      res.status(502).json({ error: 'haproxy_sessions_unavailable', message: err.message });
+      log.api.error('haproxy sessions unavailable', { error: err.message });
+      res.status(502).json(errorResponse(req, 'stats.sessions.unavailable'));
     }
   });
 

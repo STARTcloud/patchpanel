@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Badge, Button, OverlayTrigger, Table, Tooltip } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiDelete } from '../api/client.js';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
@@ -36,22 +37,22 @@ const countTrustedCaUsage = (doc, id) => {
   return { binds, servers, total: binds + servers };
 };
 
-const expiryBadge = notAfter => {
+const expiryBadge = (notAfter, t) => {
   if (!notAfter) {
     return null;
   }
   const days = Math.round((new Date(notAfter).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
   if (days < 0) {
-    return <Badge bg="danger">expired</Badge>;
+    return <Badge bg="danger">{t('cert:trustedCa.list.expired', 'expired')}</Badge>;
   }
   if (days < 30) {
     return (
       <Badge bg="warning" text="dark">
-        {days}d
+        {t('cert:trustedCa.list.daysShort', '{{days}}d', { days })}
       </Badge>
     );
   }
-  return <Badge bg="success">{days}d</Badge>;
+  return <Badge bg="success">{t('cert:trustedCa.list.daysShort', '{{days}}d', { days })}</Badge>;
 };
 
 const FingerprintCell = ({ fingerprint }) => {
@@ -76,6 +77,7 @@ FingerprintCell.propTypes = {
 };
 
 export const TrustedCAsCard = ({ doc, onSave }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const [showUpload, setShowUpload] = useState(false);
   const [error, setError] = useState(null);
   const trustedCas = doc.trustedCas ?? [];
@@ -103,7 +105,11 @@ export const TrustedCAsCard = ({ doc, onSave }) => {
     if (usage.total > 0) {
       setError(
         new Error(
-          `Cannot delete: still referenced by ${usage.binds} bind(s) and ${usage.servers} server(s)`
+          t(
+            'cert:trustedCa.list.cannotDelete',
+            'Cannot delete: still referenced by {{binds}} bind(s) and {{servers}} server(s)',
+            { binds: usage.binds, servers: usage.servers }
+          )
         )
       );
       return;
@@ -116,18 +122,23 @@ export const TrustedCAsCard = ({ doc, onSave }) => {
       // a stray file. Surface the warning, don't block.
       setError(err);
     }
-    persist(trustedCas.filter(t => t.id !== ca.id));
+    persist(trustedCas.filter(other => other.id !== ca.id));
   };
 
   return (
     <>
       <div className="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
         <div>
-          <h6 className="mb-0">Trusted CAs</h6>
+          <h6 className="mb-0">{t('cert:trustedCa.list.title', 'Trusted CAs')}</h6>
           <p className="text-muted small mb-0">
-            CA bundles used by HAProxy to verify peer certificates. Referenced from frontend bind{' '}
-            <code>ca-file</code> / <code>ca-verify-file</code> (mTLS client auth) and backend{' '}
-            <code>server</code> lines (upstream TLS verification).
+            {t(
+              'cert:trustedCa.list.descPrefix',
+              'CA bundles used by HAProxy to verify peer certificates. Referenced from frontend bind'
+            )}{' '}
+            <code>ca-file</code> / <code>ca-verify-file</code>{' '}
+            {t('cert:trustedCa.list.descMiddle', '(mTLS client auth) and backend')}{' '}
+            <code>server</code>{' '}
+            {t('cert:trustedCa.list.descSuffix', 'lines (upstream TLS verification).')}
           </p>
         </div>
         <Button
@@ -137,7 +148,7 @@ export const TrustedCAsCard = ({ doc, onSave }) => {
           disabled={!onSave}
         >
           <i className="bi bi-cloud-upload me-1" />
-          Upload CA bundle
+          {t('cert:trustedCa.list.upload', 'Upload CA bundle')}
         </Button>
       </div>
       {error ? (
@@ -147,20 +158,22 @@ export const TrustedCAsCard = ({ doc, onSave }) => {
       ) : null}
       {trustedCas.length === 0 ? (
         <Alert variant="info" className="small mb-0">
-          No trusted CAs uploaded yet. Add one to enable mTLS client validation on binds or upstream
-          TLS verification on backend servers.
+          {t(
+            'cert:trustedCa.list.empty',
+            'No trusted CAs uploaded yet. Add one to enable mTLS client validation on binds or upstream TLS verification on backend servers.'
+          )}
         </Alert>
       ) : (
         <Table size="sm" responsive className="mb-0">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Subject</th>
-              <th>Fingerprint</th>
-              <th>Expires</th>
-              <th>Used by</th>
-              <th className="text-end">Actions</th>
+              <th>{t('cert:trustedCa.list.columns.id', 'ID')}</th>
+              <th>{t('cert:trustedCa.list.columns.name', 'Name')}</th>
+              <th>{t('cert:trustedCa.list.columns.subject', 'Subject')}</th>
+              <th>{t('cert:trustedCa.list.columns.fingerprint', 'Fingerprint')}</th>
+              <th>{t('cert:trustedCa.list.columns.expires', 'Expires')}</th>
+              <th>{t('cert:trustedCa.list.columns.usedBy', 'Used by')}</th>
+              <th className="text-end">{t('cert:trustedCa.list.columns.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -181,17 +194,22 @@ export const TrustedCAsCard = ({ doc, onSave }) => {
                     {ca.subjectSummary ?? '—'}
                     {ca.certCount && ca.certCount > 1 ? (
                       <Badge bg="secondary" className="ms-2">
-                        chain ×{ca.certCount}
+                        {t('cert:trustedCa.list.chainCount', 'chain ×{{count}}', {
+                          count: ca.certCount,
+                        })}
                       </Badge>
                     ) : null}
                   </td>
                   <td>
                     <FingerprintCell fingerprint={ca.fingerprint} />
                   </td>
-                  <td>{expiryBadge(ca.notAfter)}</td>
+                  <td>{expiryBadge(ca.notAfter, t)}</td>
                   <td>
                     <Badge bg={usage.total > 0 ? 'info' : 'secondary'}>
-                      {usage.binds} bind · {usage.servers} server
+                      {t('cert:trustedCa.list.usageBadge', '{{binds}} bind · {{servers}} server', {
+                        binds: usage.binds,
+                        servers: usage.servers,
+                      })}
                     </Badge>
                   </td>
                   <td className="text-end text-nowrap">
@@ -202,11 +220,15 @@ export const TrustedCAsCard = ({ doc, onSave }) => {
                       disabled={!onSave || usage.total > 0}
                       title={
                         usage.total > 0
-                          ? `Still referenced by ${usage.binds} bind(s) and ${usage.servers} server(s)`
-                          : 'Delete'
+                          ? t(
+                              'cert:trustedCa.list.stillReferencedTitle',
+                              'Still referenced by {{binds}} bind(s) and {{servers}} server(s)',
+                              { binds: usage.binds, servers: usage.servers }
+                            )
+                          : t('common:buttons.delete', 'Delete')
                       }
                     >
-                      Delete
+                      {t('common:buttons.delete', 'Delete')}
                     </Button>
                   </td>
                 </tr>

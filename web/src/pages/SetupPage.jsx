@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, Badge, Button, Card } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { OnboardingWizard } from '../components/OnboardingWizard.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
@@ -16,6 +17,7 @@ export const isFreshInstall = doc =>
   );
 
 export const SetupPage = ({ doc = null, onSave = null }) => {
+  const { t } = useTranslation(['auth', 'common']);
   const [show, setShow] = useState(false);
 
   if (!doc) {
@@ -42,9 +44,11 @@ export const SetupPage = ({ doc = null, onSave = null }) => {
         <Card.Body>
           <Card.Title className="mb-1">
             <i className="bi bi-check2-circle me-2 text-success" />
-            Setup
+            {t('auth:setupPage.title', 'Setup')}
           </Card.Title>
-          <Card.Text className="text-muted small mb-0">Onboarding for new installs.</Card.Text>
+          <Card.Text className="text-muted small mb-0">
+            {t('auth:setupPage.subtitle', 'Onboarding for new installs.')}
+          </Card.Text>
         </Card.Body>
       </Card>
     );
@@ -58,22 +62,28 @@ export const SetupPage = ({ doc = null, onSave = null }) => {
             <div>
               <Card.Title className="mb-1">
                 <i className="bi bi-stars me-2 text-primary" />
-                Setup
+                {t('auth:setupPage.title', 'Setup')}
               </Card.Title>
-              <Card.Text className="text-muted small mb-0">Onboarding for new installs.</Card.Text>
+              <Card.Text className="text-muted small mb-0">
+                {t('auth:setupPage.subtitle', 'Onboarding for new installs.')}
+              </Card.Text>
             </div>
             <Badge bg="warning" text="dark">
               <i className="bi bi-exclamation-circle me-1" />
-              Fresh install — no defaults, frontends, ACLs, backends, or certs yet
+              {t(
+                'auth:setupPage.freshInstallBadge',
+                'Fresh install — no defaults, frontends, ACLs, backends, or certs yet'
+              )}
             </Badge>
           </div>
           <Alert variant="primary" className="py-2 small mb-3">
-            patchpanel is still empty. The wizard collects a Let&apos;s Encrypt account, the first
-            defaults block, frontend, ACL + use-backend rule, backend, and covering certificate —
-            enough to render a valid haproxy.cfg.
+            {t(
+              'auth:setupPage.emptyAlert',
+              "patchpanel is still empty. The wizard collects a Let's Encrypt account, the first defaults block, frontend, ACL + use-backend rule, backend, and covering certificate — enough to render a valid haproxy.cfg."
+            )}
           </Alert>
           <Button variant="primary" onClick={() => setShow(true)} disabled={!onSave}>
-            Run setup wizard
+            {t('auth:setupPage.runWizard', 'Run setup wizard')}
           </Button>
         </Card.Body>
       </Card>

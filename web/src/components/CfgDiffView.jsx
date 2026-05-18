@@ -1,6 +1,7 @@
 import { diffLines } from 'diff';
 import PropTypes from 'prop-types';
 import { useMemo } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 
 const LINE_BG = Object.freeze({
   added: 'var(--bs-success-bg-subtle, #d1e7dd)',
@@ -132,39 +133,47 @@ DiffRow.propTypes = {
   }).isRequired,
 };
 
-const NoChangesMessage = ({ leftLabel, rightLabel }) => (
-  <div className="bg-body-tertiary border rounded patchpanel-fullheight-scroller d-flex align-items-center justify-content-center text-center text-muted p-5">
-    <div>
-      <i className="bi bi-check-circle text-success" style={{ fontSize: '2rem' }} />
-      <div className="mt-2">
-        <strong>No changes.</strong>
-      </div>
-      <div className="small mt-1">
-        <code>{leftLabel}</code> and <code>{rightLabel}</code> are identical — clicking Apply
-        wouldn&apos;t change the file.
+const NoChangesMessage = ({ leftLabel, rightLabel }) => {
+  const { t } = useTranslation(['state']);
+  return (
+    <div className="bg-body-tertiary border rounded patchpanel-fullheight-scroller d-flex align-items-center justify-content-center text-center text-muted p-5">
+      <div>
+        <i className="bi bi-check-circle text-success" style={{ fontSize: '2rem' }} />
+        <div className="mt-2">
+          <strong>{t('state:diff.noChanges', 'No changes.')}</strong>
+        </div>
+        <div className="small mt-1">
+          <Trans
+            i18nKey="state:diff.identical"
+            t={t}
+            defaults="<0>{{leftLabel}}</0> and <1>{{rightLabel}}</1> are identical — clicking Apply wouldn't change the file."
+            values={{ leftLabel, rightLabel }}
+            components={[<code key="0" />, <code key="1" />]}
+          />
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 NoChangesMessage.propTypes = {
   leftLabel: PropTypes.string.isRequired,
   rightLabel: PropTypes.string.isRequired,
 };
 
-export const CfgDiffView = ({
-  oldText,
-  newText,
-  leftLabel = 'on-disk',
-  rightLabel = 'from state',
-}) => {
+export const CfgDiffView = ({ oldText, newText, leftLabel = null, rightLabel = null }) => {
+  const { t } = useTranslation(['state']);
+  const resolvedLeft = leftLabel ?? t('state:diff.onDisk', 'on-disk');
+  const resolvedRight = rightLabel ?? t('state:diff.fromState', 'from state');
   const rows = useMemo(() => buildDiffRows(oldText, newText), [oldText, newText]);
   const { added, removed } = useMemo(() => countChanges(rows), [rows]);
   if (rows.length === 0) {
-    return <div className="text-muted p-3">No content to compare.</div>;
+    return (
+      <div className="text-muted p-3">{t('state:diff.noContent', 'No content to compare.')}</div>
+    );
   }
   if (added === 0 && removed === 0) {
-    return <NoChangesMessage leftLabel={leftLabel} rightLabel={rightLabel} />;
+    return <NoChangesMessage leftLabel={resolvedLeft} rightLabel={resolvedRight} />;
   }
   return (
     <div
@@ -187,7 +196,13 @@ export const CfgDiffView = ({
         <span className="text-success fw-semibold">+{added}</span>
         <span className="text-danger fw-semibold">-{removed}</span>
         <span className="text-muted ms-auto">
-          comparing: <code>{leftLabel}</code> → <code>{rightLabel}</code>
+          <Trans
+            i18nKey="state:diff.comparing"
+            t={t}
+            defaults="comparing: <0>{{leftLabel}}</0> → <1>{{rightLabel}}</1>"
+            values={{ leftLabel: resolvedLeft, rightLabel: resolvedRight }}
+            components={[<code key="0" />, <code key="1" />]}
+          />
         </span>
       </div>
       {rows.map(row => (

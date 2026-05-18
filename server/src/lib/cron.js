@@ -1,10 +1,15 @@
 import { Cron } from 'croner';
 
+import { ValidationError } from './errors.js';
+
 export const nextRunAt = (cronExpression, from = new Date()) => {
   const cron = new Cron(cronExpression, { paused: true });
   const next = cron.nextRun(from);
   if (!next) {
-    throw new Error(`cron expression has no future occurrences: ${cronExpression}`);
+    throw new ValidationError('cron.noFutureOccurrence', {
+      message: `cron expression has no future occurrences: ${cronExpression}`,
+      replacements: { expression: cronExpression },
+    });
   }
   return next;
 };

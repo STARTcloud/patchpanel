@@ -10,6 +10,7 @@ import {
   Spinner,
   Table,
 } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router';
 
 import { apiDelete, apiGet, apiPost } from '../api/client.js';
@@ -58,22 +59,25 @@ const useFocusFromQuery = () => {
 };
 
 const UsageBadge = ({ count, refs, kind, variant = 'secondary' }) => {
+  const { t } = useTranslation(['cert']);
   if (count === 0) {
     return (
       <Badge bg="secondary" className="bg-opacity-25 text-body-secondary border">
-        unused
+        {t('cert:providersPage.usage.unused', 'unused')}
       </Badge>
     );
   }
   const popover = (
     <Popover>
       <Popover.Header as="h6">
-        Used by {count} {kind}
-        {count === 1 ? '' : 's'}
+        {t('cert:providersPage.usage.popoverHeader', 'Used by {{count}} {{kind}}', {
+          count,
+          kind,
+        })}
       </Popover.Header>
       <Popover.Body className="small">
         {refs.length === 0 ? (
-          <em>(no details)</em>
+          <em>{t('cert:providersPage.usage.noDetails', '(no details)')}</em>
         ) : (
           <ul className="mb-0 ps-3">
             {refs.map(r => (
@@ -87,8 +91,7 @@ const UsageBadge = ({ count, refs, kind, variant = 'secondary' }) => {
   return (
     <OverlayTrigger placement="left" overlay={popover} trigger={['hover', 'focus']}>
       <Badge bg={variant} style={{ cursor: 'help' }}>
-        {count} {kind}
-        {count === 1 ? '' : 's'}
+        {t('cert:providersPage.usage.badge', '{{count}} {{kind}}', { count, kind })}
       </Badge>
     </OverlayTrigger>
   );
@@ -102,6 +105,7 @@ UsageBadge.propTypes = {
 };
 
 const TestButton = ({ path, onResult }) => {
+  const { t } = useTranslation(['common']);
   const [running, setRunning] = useState(false);
   const run = async () => {
     setRunning(true);
@@ -116,7 +120,11 @@ const TestButton = ({ path, onResult }) => {
   };
   return (
     <Button variant="outline-info" size="sm" className="me-1" onClick={run} disabled={running}>
-      {running ? <Spinner as="span" animation="border" size="sm" /> : 'Test'}
+      {running ? (
+        <Spinner as="span" animation="border" size="sm" />
+      ) : (
+        t('common:buttons.test', 'Test')
+      )}
     </Button>
   );
 };
@@ -127,6 +135,7 @@ TestButton.propTypes = {
 };
 
 const TestResultAlert = ({ result, onDismiss }) => {
+  const { t } = useTranslation(['cert']);
   if (!result) {
     return null;
   }
@@ -134,10 +143,18 @@ const TestResultAlert = ({ result, onDismiss }) => {
   return (
     <Alert variant={ok ? 'success' : 'danger'} dismissible onClose={onDismiss}>
       <strong>
-        {kind} test for {id}: {ok ? 'OK' : 'FAILED'}
+        {t('cert:providersPage.testResult.summary', '{{kind}} test for {{id}}: {{status}}', {
+          kind,
+          id,
+          status: ok
+            ? t('cert:providersPage.testResult.ok', 'OK')
+            : t('cert:providersPage.testResult.failed', 'FAILED'),
+        })}
       </strong>
       <details className="mt-2">
-        <summary className="small">Show raw response</summary>
+        <summary className="small">
+          {t('cert:providersPage.testResult.showRaw', 'Show raw response')}
+        </summary>
         <pre
           className="mt-2 mb-0 small"
           style={{ whiteSpace: 'pre-wrap', maxHeight: '20rem', overflow: 'auto' }}
@@ -382,21 +399,28 @@ AuthProvidersCard.propTypes = {
 
 const CREDENTIALS_NA_TYPES = new Set(['http-01', 'byo']);
 
-const StoredBadge = () => (
-  <Badge bg="success">
-    <i className="bi bi-lock-fill me-1" />
-    stored
-  </Badge>
-);
+const StoredBadge = () => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <Badge bg="success">
+      <i className="bi bi-lock-fill me-1" />
+      {t('cert:tlsProviders.credentials.stored', 'stored')}
+    </Badge>
+  );
+};
 
-const MissingBadge = () => (
-  <Badge bg="warning" text="dark">
-    <i className="bi bi-exclamation-circle me-1" />
-    missing
-  </Badge>
-);
+const MissingBadge = () => {
+  const { t } = useTranslation(['cert']);
+  return (
+    <Badge bg="warning" text="dark">
+      <i className="bi bi-exclamation-circle me-1" />
+      {t('cert:tlsProviders.credentials.missing', 'missing')}
+    </Badge>
+  );
+};
 
 const CredentialsStatusBadge = ({ providerId, providerType, version }) => {
+  const { t } = useTranslation(['cert']);
   const isNa = CREDENTIALS_NA_TYPES.has(providerType);
   const [state, setState] = useState({ loading: !isNa, exists: false });
 
@@ -424,7 +448,7 @@ const CredentialsStatusBadge = ({ providerId, providerType, version }) => {
   if (isNa) {
     return (
       <Badge bg="secondary" className="bg-opacity-25 text-body-secondary border">
-        n/a
+        {t('cert:tlsProviders.credentials.na', 'n/a')}
       </Badge>
     );
   }
@@ -441,6 +465,7 @@ CredentialsStatusBadge.propTypes = {
 };
 
 const TlsProvidersCard = ({ doc, onSave }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const [editing, setEditing] = useState(null);
   const [showNew, setShowNew] = useState(false);
   const [deleting, setDeleting] = useState(null);
@@ -503,30 +528,35 @@ const TlsProvidersCard = ({ doc, onSave }) => {
     <Card className="mb-3">
       <Card.Body>
         <div className="d-flex justify-content-between align-items-start mb-3">
-          <Card.Title className="mb-0">TLS / ACME providers</Card.Title>
+          <Card.Title className="mb-0">
+            {t('cert:tlsProviders.title', 'TLS / ACME providers')}
+          </Card.Title>
           <Button variant="primary" size="sm" onClick={() => setShowNew(true)} disabled={!onSave}>
-            Add provider
+            {t('cert:tlsProviders.add', 'Add provider')}
           </Button>
         </div>
         <Card.Text className="text-muted small">
-          Certbot challenge providers (DNS-01 per registrar, HTTP-01, BYO). Certificates pick one of
-          these to satisfy the ACME challenge. Credentials are stored as mode-600 files in
-          patchpanel&apos;s credentials directory — the per-provider form below collects them.
+          {t(
+            'cert:tlsProviders.description',
+            "Certbot challenge providers (DNS-01 per registrar, HTTP-01, BYO). Certificates pick one of these to satisfy the ACME challenge. Credentials are stored as mode-600 files in patchpanel's credentials directory — the per-provider form below collects them."
+          )}
         </Card.Text>
         {saveError ? (
           <Alert variant="danger" onClose={() => setSaveError(null)} dismissible>
-            Save failed: {saveError.message}
+            {t('cert:tlsProviders.saveFailed', 'Save failed: {{message}}', {
+              message: saveError.message,
+            })}
           </Alert>
         ) : null}
         <TestResultAlert result={testResult} onDismiss={() => setTestResult(null)} />
         <Table striped bordered hover responsive size="sm">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Type</th>
-              <th>Credentials</th>
-              <th>Used by</th>
-              <th className="text-end">Actions</th>
+              <th>{t('cert:tlsProviders.columns.id', 'ID')}</th>
+              <th>{t('cert:tlsProviders.columns.type', 'Type')}</th>
+              <th>{t('cert:tlsProviders.columns.credentials', 'Credentials')}</th>
+              <th>{t('cert:tlsProviders.columns.usedBy', 'Used by')}</th>
+              <th className="text-end">{t('cert:tlsProviders.columns.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -569,16 +599,23 @@ const TlsProvidersCard = ({ doc, onSave }) => {
                       onClick={() => setEditing(provider)}
                       disabled={!onSave}
                     >
-                      Edit
+                      {t('common:buttons.edit', 'Edit')}
                     </Button>
                     <Button
                       variant="outline-danger"
                       size="sm"
                       onClick={() => setDeleting(provider)}
                       disabled={!onSave || isInUse(provider.id)}
-                      title={isInUse(provider.id) ? 'Referenced by at least one certificate.' : ''}
+                      title={
+                        isInUse(provider.id)
+                          ? t(
+                              'cert:tlsProviders.referencedTitle',
+                              'Referenced by at least one certificate.'
+                            )
+                          : ''
+                      }
                     >
-                      Delete
+                      {t('common:buttons.delete', 'Delete')}
                     </Button>
                   </td>
                 </tr>
@@ -607,14 +644,18 @@ const TlsProvidersCard = ({ doc, onSave }) => {
       {deleting ? (
         <ConfirmDialog
           show
-          title="Delete TLS provider?"
+          title={t('cert:tlsProviders.confirmDelete.title', 'Delete TLS provider?')}
           body={
             <>
-              Delete <strong>{deleting.id}</strong> ({deleting.type})? The stored credentials file
-              (if any) is also removed from disk.
+              {t('cert:tlsProviders.confirmDelete.prefix', 'Delete')} <strong>{deleting.id}</strong>{' '}
+              ({deleting.type}){' '}
+              {t(
+                'cert:tlsProviders.confirmDelete.suffix',
+                '? The stored credentials file (if any) is also removed from disk.'
+              )}
             </>
           }
-          confirmLabel="Delete"
+          confirmLabel={t('common:buttons.delete', 'Delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />

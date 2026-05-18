@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card, Col, Form, Row, Spinner, Tab, Tabs } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { useConfirmation } from '../hooks/useConfirmation.jsx';
 import { useSslCapabilities } from '../hooks/useSslCapabilities.jsx';
@@ -122,6 +123,7 @@ const arraysShallowEqual = (a, b) => {
 };
 
 const TlsVersionField = ({ profileName, side, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const overridden = sideHasOverride(side, 'enabledVersions');
   const effective = effectiveSideValue(profileName, side, 'enabledVersions');
   const selected = new Set(effective);
@@ -136,7 +138,7 @@ const TlsVersionField = ({ profileName, side, onChange }) => {
           {FIELD_LABEL.enabledVersions}
           {overridden ? (
             <Badge bg="warning" text="dark" className="ms-2">
-              override
+              {t('haproxy:ssl.override', 'override')}
             </Badge>
           ) : null}
         </Form.Label>
@@ -146,9 +148,9 @@ const TlsVersionField = ({ profileName, side, onChange }) => {
             size="sm"
             className="p-0"
             onClick={() => onChange(undefined)}
-            title="Revert to the preset value"
+            title={t('haproxy:ssl.revertTitle', 'Revert to the preset value')}
           >
-            Reset to preset
+            {t('haproxy:ssl.resetToPreset', 'Reset to preset')}
           </Button>
         ) : null}
       </div>
@@ -176,6 +178,7 @@ TlsVersionField.propTypes = {
 };
 
 const CapabilityCheckboxList = ({ field, profileName, side, available, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const overridden = sideHasOverride(side, field);
   const effective = effectiveSideValue(profileName, side, field);
   const selectedSet = new Set(effective);
@@ -201,11 +204,15 @@ const CapabilityCheckboxList = ({ field, profileName, side, available, onChange 
           {FIELD_LABEL[field]}
           {overridden ? (
             <Badge bg="warning" text="dark" className="ms-2">
-              override · {effective.length} selected
+              {t('haproxy:ssl.overrideCount', 'override · {{count}} selected', {
+                count: effective.length,
+              })}
             </Badge>
           ) : (
             <Badge bg="secondary" className="ms-2">
-              preset · {effective.length} selected
+              {t('haproxy:ssl.presetCount', 'preset · {{count}} selected', {
+                count: effective.length,
+              })}
             </Badge>
           )}
         </Form.Label>
@@ -215,15 +222,18 @@ const CapabilityCheckboxList = ({ field, profileName, side, available, onChange 
             size="sm"
             className="p-0"
             onClick={() => onChange(undefined)}
-            title="Revert to the preset value"
+            title={t('haproxy:ssl.revertTitle', 'Revert to the preset value')}
           >
-            Reset to preset
+            {t('haproxy:ssl.resetToPreset', 'Reset to preset')}
           </Button>
         ) : null}
       </div>
       {renderRows.length === 0 ? (
         <p className="text-muted small mb-1">
-          No items reported by this HAProxy / OpenSSL build for this field.
+          {t(
+            'haproxy:ssl.noCapability',
+            'No items reported by this HAProxy / OpenSSL build for this field.'
+          )}
         </p>
       ) : (
         <div
@@ -239,7 +249,7 @@ const CapabilityCheckboxList = ({ field, profileName, side, available, onChange 
                 label={
                   <code className="small">
                     {item}
-                    {extras.includes(item) ? ' (custom)' : ''}
+                    {extras.includes(item) ? ` (${t('haproxy:ssl.custom', 'custom')})` : ''}
                   </code>
                 }
                 checked={selectedSet.has(item)}
@@ -253,8 +263,10 @@ const CapabilityCheckboxList = ({ field, profileName, side, available, onChange 
       {isEmpty ? (
         <div className="small text-warning-emphasis mt-1">
           <i className="bi bi-exclamation-triangle me-1" />
-          No items selected — HAProxy will not emit a <code>ssl-default-*</code> directive for this
-          field. OpenSSL&apos;s built-in defaults will apply at runtime.
+          {t(
+            'haproxy:ssl.emptyWarning',
+            "No items selected — HAProxy will not emit a ssl-default-* directive for this field. OpenSSL's built-in defaults will apply at runtime."
+          )}
         </div>
       ) : null}
       <Form.Text className="text-muted">{FIELD_HELP[field]}</Form.Text>
@@ -271,6 +283,7 @@ CapabilityCheckboxList.propTypes = {
 };
 
 const OptionsField = ({ profileName, side, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const overridden = sideHasOverride(side, 'options');
   const effective = effectiveSideValue(profileName, side, 'options');
   return (
@@ -280,7 +293,7 @@ const OptionsField = ({ profileName, side, onChange }) => {
           {FIELD_LABEL.options}
           {overridden ? (
             <Badge bg="warning" text="dark" className="ms-2">
-              override
+              {t('haproxy:ssl.override', 'override')}
             </Badge>
           ) : null}
         </Form.Label>
@@ -290,15 +303,16 @@ const OptionsField = ({ profileName, side, onChange }) => {
             size="sm"
             className="p-0"
             onClick={() => onChange(undefined)}
-            title="Revert to the preset value"
+            title={t('haproxy:ssl.revertTitle', 'Revert to the preset value')}
           >
-            Reset to preset
+            {t('haproxy:ssl.resetToPreset', 'Reset to preset')}
           </Button>
         ) : null}
       </div>
       <ListEditor items={effective} onChange={onChange} placeholder="e.g. no-tls-tickets" />
       <Form.Text className="text-muted">
-        {FIELD_HELP.options} Known tokens: {KNOWN_BIND_OPTIONS.join(', ')}.
+        {FIELD_HELP.options} {t('haproxy:ssl.knownTokens', 'Known tokens:')}{' '}
+        {KNOWN_BIND_OPTIONS.join(', ')}.
       </Form.Text>
     </Form.Group>
   );
@@ -378,6 +392,7 @@ SidePanel.propTypes = {
 };
 
 const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const setField = (field, value) => onUpdate({ ...tune, [field]: value });
   const numericOrUndef = raw => {
     if (raw === '' || raw === null || raw === undefined) {
@@ -399,7 +414,7 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               onChange={e => setField('defaultDhParam', numericOrUndef(e.target.value) ?? 4096)}
             />
             <Form.Text className="text-muted">
-              DH params bit size. 2048 min; 4096 default.
+              {t('haproxy:ssl.tune.dhParamHelp', 'DH params bit size. 2048 min; 4096 default.')}
             </Form.Text>
           </Form.Group>
         </Col>
@@ -412,7 +427,9 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               value={tune.cachesize ?? ''}
               onChange={e => setField('cachesize', numericOrUndef(e.target.value))}
             />
-            <Form.Text className="text-muted">SSL session cache entries. Default 20000.</Form.Text>
+            <Form.Text className="text-muted">
+              {t('haproxy:ssl.tune.cachesizeHelp', 'SSL session cache entries. Default 20000.')}
+            </Form.Text>
           </Form.Group>
         </Col>
         <Col md={3}>
@@ -424,7 +441,9 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               value={tune.lifetime ?? ''}
               onChange={e => setField('lifetime', numericOrUndef(e.target.value))}
             />
-            <Form.Text className="text-muted">Session cache TTL. Default 300.</Form.Text>
+            <Form.Text className="text-muted">
+              {t('haproxy:ssl.tune.lifetimeHelp', 'Session cache TTL. Default 300.')}
+            </Form.Text>
           </Form.Group>
         </Col>
         <Col md={3}>
@@ -436,7 +455,9 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               value={tune.maxrecord ?? ''}
               onChange={e => setField('maxrecord', numericOrUndef(e.target.value))}
             />
-            <Form.Text className="text-muted">TLS record size; 0 = auto.</Form.Text>
+            <Form.Text className="text-muted">
+              {t('haproxy:ssl.tune.maxrecordHelp', 'TLS record size; 0 = auto.')}
+            </Form.Text>
           </Form.Group>
         </Col>
         <Col md={3}>
@@ -448,7 +469,9 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               value={tune.captureBufferSize ?? ''}
               onChange={e => setField('captureBufferSize', numericOrUndef(e.target.value))}
             />
-            <Form.Text className="text-muted">ClientHello capture buffer.</Form.Text>
+            <Form.Text className="text-muted">
+              {t('haproxy:ssl.tune.captureBufferHelp', 'ClientHello capture buffer.')}
+            </Form.Text>
           </Form.Group>
         </Col>
         <Col md={3}>
@@ -460,7 +483,9 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               value={tune.numAsync ?? ''}
               onChange={e => setField('numAsync', numericOrUndef(e.target.value))}
             />
-            <Form.Text className="text-muted">Async engine threads.</Form.Text>
+            <Form.Text className="text-muted">
+              {t('haproxy:ssl.tune.asyncHelp', 'Async engine threads.')}
+            </Form.Text>
           </Form.Group>
         </Col>
         <Col md={3} className="d-flex align-items-end">
@@ -480,7 +505,7 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               <span>
                 keylog{' '}
                 <Badge bg="danger" className="ms-1">
-                  danger
+                  {t('haproxy:ssl.danger', 'danger')}
                 </Badge>
               </span>
             }
@@ -503,9 +528,11 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
       {tune.keylog === true ? (
         <Alert variant="danger" className="small mt-3 mb-0">
           <i className="bi bi-shield-slash me-1" />
-          <strong>tune.ssl.keylog is ON.</strong> Session keys are written to the HAProxy log,
-          allowing anyone with log access to decrypt past TLS traffic captured on the wire. Turn off
-          before going live; this is a debugging-only flag.
+          <strong>{t('haproxy:ssl.keylogOnTitle', 'tune.ssl.keylog is ON.')}</strong>{' '}
+          {t(
+            'haproxy:ssl.keylogOnBody',
+            'Session keys are written to the HAProxy log, allowing anyone with log access to decrypt past TLS traffic captured on the wire. Turn off before going live; this is a debugging-only flag.'
+          )}
         </Alert>
       ) : null}
     </div>
@@ -527,67 +554,81 @@ TuneTab.propTypes = {
   requestKeylogConfirm: PropTypes.func.isRequired,
 };
 
-const ExtrasTab = ({ providers, loadExtraFiles, onUpdateProviders, onUpdateLoadExtraFiles }) => (
-  <div className="pt-3">
-    <Row className="g-3">
-      <Col xs={12}>
-        <Form.Group>
-          <Form.Label>OpenSSL providers loaded (reference / hint only)</Form.Label>
-          <ListEditor
-            items={providers.loaded}
-            onChange={list => onUpdateProviders({ ...providers, loaded: list })}
-            placeholder="e.g. default, fips, oqs"
-          />
-          <Form.Text className="text-muted">
-            Tracked in state for documentation. Actual provider availability is reported by{' '}
-            <code>openssl list -providers</code> and shown read-only above this card.
-          </Form.Text>
-        </Form.Group>
-      </Col>
-      <Col xs={12}>
-        <Form.Group>
-          <Form.Label>Provider default properties</Form.Label>
-          <Form.Control
-            type="text"
-            value={providers.defaultProperties ?? ''}
-            placeholder="e.g. fips=yes"
+const ExtrasTab = ({ providers, loadExtraFiles, onUpdateProviders, onUpdateLoadExtraFiles }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <div className="pt-3">
+      <Row className="g-3">
+        <Col xs={12}>
+          <Form.Group>
+            <Form.Label>
+              {t('haproxy:ssl.providersLabel', 'OpenSSL providers loaded (reference / hint only)')}
+            </Form.Label>
+            <ListEditor
+              items={providers.loaded}
+              onChange={list => onUpdateProviders({ ...providers, loaded: list })}
+              placeholder="e.g. default, fips, oqs"
+            />
+            <Form.Text className="text-muted">
+              {t(
+                'haproxy:ssl.providersHelp',
+                'Tracked in state for documentation. Actual provider availability is reported by openssl list -providers and shown read-only above this card.'
+              )}
+            </Form.Text>
+          </Form.Group>
+        </Col>
+        <Col xs={12}>
+          <Form.Group>
+            <Form.Label>
+              {t('haproxy:ssl.providerDefaultProps', 'Provider default properties')}
+            </Form.Label>
+            <Form.Control
+              type="text"
+              value={providers.defaultProperties ?? ''}
+              placeholder="e.g. fips=yes"
+              onChange={e =>
+                onUpdateProviders({
+                  ...providers,
+                  defaultProperties: e.target.value.trim() === '' ? null : e.target.value,
+                })
+              }
+            />
+          </Form.Group>
+        </Col>
+        <Col xs={12}>
+          <Form.Group>
+            <Form.Label>ssl-load-extra-files</Form.Label>
+            <ListEditor
+              items={loadExtraFiles.extraFiles}
+              onChange={list => onUpdateLoadExtraFiles({ ...loadExtraFiles, extraFiles: list })}
+              placeholder="e.g. ocsp, sctl, issuer"
+            />
+            <Form.Text className="text-muted">
+              {t(
+                'haproxy:ssl.extraFilesHelp',
+                'Extra cert sidecar files to load alongside each PEM. Common values: ocsp, sctl, issuer.'
+              )}
+            </Form.Text>
+          </Form.Group>
+        </Col>
+        <Col xs={12}>
+          <Form.Check
+            type="switch"
+            id="ssl-load-extra-del-ext"
+            label={t(
+              'haproxy:ssl.loadExtraDelExt',
+              'ssl-load-extra-del-ext (strip extension when matching siblings)'
+            )}
+            checked={loadExtraFiles.deleteExtensions === true}
             onChange={e =>
-              onUpdateProviders({
-                ...providers,
-                defaultProperties: e.target.value.trim() === '' ? null : e.target.value,
-              })
+              onUpdateLoadExtraFiles({ ...loadExtraFiles, deleteExtensions: e.target.checked })
             }
           />
-        </Form.Group>
-      </Col>
-      <Col xs={12}>
-        <Form.Group>
-          <Form.Label>ssl-load-extra-files</Form.Label>
-          <ListEditor
-            items={loadExtraFiles.extraFiles}
-            onChange={list => onUpdateLoadExtraFiles({ ...loadExtraFiles, extraFiles: list })}
-            placeholder="e.g. ocsp, sctl, issuer"
-          />
-          <Form.Text className="text-muted">
-            Extra cert sidecar files to load alongside each PEM. Common values: <code>ocsp</code>,{' '}
-            <code>sctl</code>, <code>issuer</code>.
-          </Form.Text>
-        </Form.Group>
-      </Col>
-      <Col xs={12}>
-        <Form.Check
-          type="switch"
-          id="ssl-load-extra-del-ext"
-          label="ssl-load-extra-del-ext (strip extension when matching siblings)"
-          checked={loadExtraFiles.deleteExtensions === true}
-          onChange={e =>
-            onUpdateLoadExtraFiles({ ...loadExtraFiles, deleteExtensions: e.target.checked })
-          }
-        />
-      </Col>
-    </Row>
-  </div>
-);
+        </Col>
+      </Row>
+    </div>
+  );
+};
 
 ExtrasTab.propTypes = {
   providers: PropTypes.shape({
@@ -603,19 +644,28 @@ ExtrasTab.propTypes = {
 };
 
 const RuntimeCapabilitiesBanner = ({ caps, loading, error }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   if (loading) {
     return (
       <Alert variant="light" className="border small mb-3 d-flex align-items-center gap-2">
         <Spinner size="sm" animation="border" />
-        <span>Probing installed HAProxy + OpenSSL for available ciphers / curves / sigalgs…</span>
+        <span>
+          {t(
+            'haproxy:ssl.probing',
+            'Probing installed HAProxy + OpenSSL for available ciphers / curves / sigalgs…'
+          )}
+        </span>
       </Alert>
     );
   }
   if (error) {
     return (
       <Alert variant="warning" className="small mb-3">
-        Capability probe failed: {error.message}. The cipher / curve / sigalg checkbox lists fall
-        back to whatever is already in state. You can still save.
+        {t('haproxy:ssl.probeFailed', 'Capability probe failed')}: {error.message}.{' '}
+        {t(
+          'haproxy:ssl.probeFailedNote',
+          'The cipher / curve / sigalg checkbox lists fall back to whatever is already in state. You can still save.'
+        )}
       </Alert>
     );
   }
@@ -631,13 +681,21 @@ const RuntimeCapabilitiesBanner = ({ caps, loading, error }) => {
           <strong>OpenSSL</strong> <code>{caps.haproxy?.opensslRunning ?? '?'}</code>
         </span>
         <span>
-          {(caps.ciphers ?? []).length} ciphers · {(caps.ciphersuites ?? []).length} ciphersuites ·{' '}
-          {(caps.curves ?? []).length} curves · {(caps.sigalgs ?? []).length} sigalgs
+          {t(
+            'haproxy:ssl.capsSummary',
+            '{{c}} ciphers · {{cs}} ciphersuites · {{cv}} curves · {{sa}} sigalgs',
+            {
+              c: (caps.ciphers ?? []).length,
+              cs: (caps.ciphersuites ?? []).length,
+              cv: (caps.curves ?? []).length,
+              sa: (caps.sigalgs ?? []).length,
+            }
+          )}
         </span>
         <span>
-          Providers loaded:{' '}
+          {t('haproxy:ssl.providersLoaded', 'Providers loaded:')}{' '}
           {(caps.haproxy?.providersLoaded ?? []).length === 0
-            ? '(none reported)'
+            ? `(${t('haproxy:ssl.noneReported', 'none reported')})`
             : (caps.haproxy?.providersLoaded ?? []).map(p => (
                 <Badge key={p} bg="info" className="me-1">
                   {p}
@@ -656,6 +714,7 @@ RuntimeCapabilitiesBanner.propTypes = {
 };
 
 export const SslGlobalsCard = ({ doc, onSave }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const liveSsl = doc.globalSettings.ssl ?? {};
   const [draft, setDraft] = useState(null);
   const [status, setStatus] = useState(null);
@@ -714,15 +773,16 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
 
   const requestKeylogConfirm = onResult => {
     confirm({
-      title: 'Enable tune.ssl.keylog?',
+      title: t('haproxy:ssl.keylogConfirm.title', 'Enable tune.ssl.keylog?'),
       body: (
         <>
-          Turning <code>tune.ssl.keylog</code> on writes session keys to the HAProxy log. Anyone
-          with log access can decrypt TLS traffic captured on the wire. Use only for short-lived
-          Wireshark debugging on a controlled environment. Never leave on in production.
+          {t(
+            'haproxy:ssl.keylogConfirm.body',
+            'Turning tune.ssl.keylog on writes session keys to the HAProxy log. Anyone with log access can decrypt TLS traffic captured on the wire. Use only for short-lived Wireshark debugging on a controlled environment. Never leave on in production.'
+          )}
         </>
       ),
-      confirmLabel: 'Enable keylog',
+      confirmLabel: t('haproxy:ssl.keylogConfirm.confirm', 'Enable keylog'),
       confirmVariant: 'danger',
     })
       .then(onResult)
@@ -775,7 +835,7 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
     };
     onSave(next)
       .then(() => {
-        setStatus({ kind: 'success', message: 'Saved.' });
+        setStatus({ kind: 'success', message: t('haproxy:common.saved', 'Saved.') });
         setDraft(null);
       })
       .catch(err => setStatus({ kind: 'danger', message: err.message }));
@@ -787,19 +847,25 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
         <Card.Body>
           <div className="d-flex justify-content-between align-items-start mb-2 gap-2 flex-wrap">
             <div>
-              <Card.Title className="mb-1">SSL / TLS Globals</Card.Title>
+              <Card.Title className="mb-1">
+                {t('haproxy:ssl.title', 'SSL / TLS Globals')}
+              </Card.Title>
               <Card.Text className="text-muted small mb-0">
-                Mozilla profile + per-cipher/curve/suite overrides. Frontend and Backend are
-                configured here. Empty array on any field means HAProxy will not emit the
-                corresponding <code>ssl-default-*</code> directive — OpenSSL built-in defaults apply
-                at runtime.
+                {t(
+                  'haproxy:ssl.description',
+                  'Mozilla profile + per-cipher/curve/suite overrides. Frontend and Backend are configured here. Empty array on any field means HAProxy will not emit the corresponding ssl-default-* directive — OpenSSL built-in defaults apply at runtime.'
+                )}
               </Card.Text>
             </div>
             <div className="d-flex gap-2">
               <Badge bg={overrideCount === 0 ? 'success' : 'warning'} text="dark">
-                {overrideCount} override{overrideCount === 1 ? '' : 's'}
+                {t('haproxy:ssl.overrideCountBadge', '{{count}} override', {
+                  count: overrideCount,
+                })}
               </Badge>
-              {presetStale ? <Badge bg="info">preset updated</Badge> : null}
+              {presetStale ? (
+                <Badge bg="info">{t('haproxy:ssl.presetUpdated', 'preset updated')}</Badge>
+              ) : null}
             </div>
           </div>
           <RuntimeCapabilitiesBanner caps={caps} loading={capsLoading} error={capsError} />
@@ -810,12 +876,14 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
               className="small d-flex justify-content-between align-items-center"
             >
               <span>
-                The <code>{profileName}</code> preset was based on version{' '}
-                <code>{presetVersion}</code> when last saved. Current preset version is{' '}
-                <code>{PROFILE_VERSION}</code>.
+                {t(
+                  'haproxy:ssl.presetStale',
+                  'The {{name}} preset was based on version {{old}} when last saved. Current preset version is {{current}}.',
+                  { name: profileName, old: presetVersion, current: PROFILE_VERSION }
+                )}
               </span>
               <Button variant="outline-primary" size="sm" onClick={refreshFromPresetBoth}>
-                Refresh from current preset
+                {t('haproxy:ssl.refreshFromPreset', 'Refresh from current preset')}
               </Button>
             </Alert>
           ) : null}
@@ -823,7 +891,7 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
             <Row className="g-3 mb-3">
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Profile</Form.Label>
+                  <Form.Label>{t('haproxy:ssl.profile', 'Profile')}</Form.Label>
                   <Form.Select value={profileName} onChange={e => setProfile(e.target.value)}>
                     {PROFILE_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>
@@ -832,7 +900,7 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
                     ))}
                   </Form.Select>
                   <Form.Text className="text-muted">
-                    Mozilla reference values from{' '}
+                    {t('haproxy:ssl.profileHelpPart1', 'Mozilla reference values from')}{' '}
                     <a
                       href="https://ssl-config.mozilla.org/"
                       target="_blank"
@@ -840,7 +908,11 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
                     >
                       ssl-config.mozilla.org
                     </a>
-                    . <code>custom</code> = no preset overlay; every field is explicit.
+                    .{' '}
+                    {t(
+                      'haproxy:ssl.profileHelpPart2',
+                      'custom = no preset overlay; every field is explicit.'
+                    )}
                   </Form.Text>
                 </Form.Group>
               </Col>
@@ -851,24 +923,30 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
                       variant="outline-secondary"
                       size="sm"
                       onClick={() => refreshFromPreset('bind')}
-                      title="Drop any bind-side override that already matches the preset value"
+                      title={t(
+                        'haproxy:ssl.resetBindTitle',
+                        'Drop any bind-side override that already matches the preset value'
+                      )}
                     >
-                      Reset bind overrides to preset
+                      {t('haproxy:ssl.resetBind', 'Reset bind overrides to preset')}
                     </Button>
                     <Button
                       variant="outline-secondary"
                       size="sm"
                       onClick={() => refreshFromPreset('server')}
-                      title="Drop any server-side override that already matches the preset value"
+                      title={t(
+                        'haproxy:ssl.resetServerTitle',
+                        'Drop any server-side override that already matches the preset value'
+                      )}
                     >
-                      Reset server overrides to preset
+                      {t('haproxy:ssl.resetServer', 'Reset server overrides to preset')}
                     </Button>
                   </>
                 ) : null}
               </Col>
             </Row>
             <Tabs defaultActiveKey="bind" id="ssl-globals-tabs" className="mb-1">
-              <Tab eventKey="bind" title="Frontend">
+              <Tab eventKey="bind" title={t('haproxy:ssl.tabs.frontend', 'Frontend')}>
                 <SidePanel
                   profileName={profileName}
                   draftSide={current.bind}
@@ -876,7 +954,7 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
                   onUpdate={next => update({ ...current, bind: next })}
                 />
               </Tab>
-              <Tab eventKey="server" title="Backend">
+              <Tab eventKey="server" title={t('haproxy:ssl.tabs.backend', 'Backend')}>
                 <SidePanel
                   profileName={profileName}
                   draftSide={current.server}
@@ -884,14 +962,17 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
                   onUpdate={next => update({ ...current, server: next })}
                 />
               </Tab>
-              <Tab eventKey="tune" title="Tune">
+              <Tab eventKey="tune" title={t('haproxy:ssl.tabs.tune', 'Tune')}>
                 <TuneTab
                   tune={current.tune}
                   onUpdate={next => update({ ...current, tune: next })}
                   requestKeylogConfirm={requestKeylogConfirm}
                 />
               </Tab>
-              <Tab eventKey="extras" title="Providers + extra files">
+              <Tab
+                eventKey="extras"
+                title={t('haproxy:ssl.tabs.extras', 'Providers + extra files')}
+              >
                 <ExtrasTab
                   providers={current.providers}
                   loadExtraFiles={current.loadExtraFiles}
@@ -902,11 +983,11 @@ export const SslGlobalsCard = ({ doc, onSave }) => {
             </Tabs>
             <div className="mt-3 d-flex gap-2">
               <Button type="submit" variant="primary" disabled={!dirty}>
-                Save SSL / TLS settings
+                {t('haproxy:ssl.save', 'Save SSL / TLS settings')}
               </Button>
               {dirty ? (
                 <Button variant="outline-secondary" onClick={() => setDraft(null)}>
-                  Discard changes
+                  {t('haproxy:common.discard', 'Discard changes')}
                 </Button>
               ) : null}
             </div>

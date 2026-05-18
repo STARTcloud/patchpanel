@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Badge, Button, Col, Dropdown, Form, Modal, Row } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { ListEditor } from './ListEditor.jsx';
 
@@ -198,40 +199,43 @@ const ACTION_DEFAULT_FIELDS = Object.freeze({
 
 const defaultActionFor = type => ({ type, ...(ACTION_DEFAULT_FIELDS[type] ?? {}) });
 
-const SimpleNameValue = ({ action, update }) => (
-  <>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Header name</Form.Label>
-        <Form.Control
-          value={action.name ?? ''}
-          onChange={e => update({ name: e.target.value })}
-          placeholder="X-Forwarded-For"
-        />
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Value</Form.Label>
-        <Form.Control
-          value={action.value ?? ''}
-          onChange={e => update({ value: e.target.value })}
-          placeholder='log-format ok, e.g. "%[src]"'
-        />
-      </Form.Group>
-    </Col>
-  </>
-);
+const SimpleNameValue = ({ action, update }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('haproxy:rule.action.headerName', 'Header name')}</Form.Label>
+          <Form.Control
+            value={action.name ?? ''}
+            onChange={e => update({ name: e.target.value })}
+            placeholder="X-Forwarded-For"
+          />
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('haproxy:rule.action.value', 'Value')}</Form.Label>
+          <Form.Control
+            value={action.value ?? ''}
+            onChange={e => update({ value: e.target.value })}
+            placeholder={t('haproxy:rule.action.valuePlaceholder', 'log-format ok, e.g. "%[src]"')}
+          />
+        </Form.Group>
+      </Col>
+    </>
+  );
+};
 
 SimpleNameValue.propTypes = {
   action: PropTypes.object.isRequired,
   update: PropTypes.func.isRequired,
 };
 
-const renderDenyOrTarpit = (action, update) => (
+const renderDenyOrTarpit = ({ action, update, t }) => (
   <Col md={4}>
     <Form.Group>
-      <Form.Label>Status code (optional)</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.statusCodeOpt', 'Status code (optional)')}</Form.Label>
       <Form.Control
         type="number"
         min={400}
@@ -248,18 +252,18 @@ const renderDenyOrTarpit = (action, update) => (
   </Col>
 );
 
-const renderRedirect = (action, update) => (
+const renderRedirect = ({ action, update, t }) => (
   <>
     <Col md={3}>
       <Form.Group>
-        <Form.Label>Type</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.type', 'Type')}</Form.Label>
         <Form.Select
           value={action.redirectType ?? 'location'}
           onChange={e => update({ redirectType: e.target.value })}
         >
-          {REDIRECT_TYPES.map(t => (
-            <option key={t} value={t}>
-              {t}
+          {REDIRECT_TYPES.map(rt => (
+            <option key={rt} value={rt}>
+              {rt}
             </option>
           ))}
         </Form.Select>
@@ -267,7 +271,7 @@ const renderRedirect = (action, update) => (
     </Col>
     <Col md={6}>
       <Form.Group>
-        <Form.Label>Target</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.target', 'Target')}</Form.Label>
         <Form.Control
           value={action.target ?? ''}
           onChange={e => update({ target: e.target.value })}
@@ -277,14 +281,14 @@ const renderRedirect = (action, update) => (
     </Col>
     <Col md={3}>
       <Form.Group>
-        <Form.Label>Code</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.code', 'Code')}</Form.Label>
         <Form.Select
           value={action.code ?? ''}
           onChange={e =>
             update({ code: e.target.value === '' ? undefined : Number(e.target.value) })
           }
         >
-          <option value="">(default 302)</option>
+          <option value="">({t('haproxy:rule.action.default302', 'default 302')})</option>
           <option value="301">301</option>
           <option value="302">302</option>
           <option value="303">303</option>
@@ -314,15 +318,15 @@ const renderRedirect = (action, update) => (
   </>
 );
 
-const renderUseBackend = (action, update, doc) => (
+const renderUseBackend = ({ action, update, doc, t }) => (
   <Col md={8}>
     <Form.Group>
-      <Form.Label>Backend</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.backend', 'Backend')}</Form.Label>
       <Form.Select
         value={action.backendId ?? ''}
         onChange={e => update({ backendId: e.target.value })}
       >
-        <option value="">— choose —</option>
+        <option value="">— {t('haproxy:rule.action.choose', 'choose')} —</option>
         {(doc.backends ?? []).map(b => (
           <option key={b.id} value={b.id}>
             {b.name} ({b.id})
@@ -333,10 +337,10 @@ const renderUseBackend = (action, update, doc) => (
   </Col>
 );
 
-const renderUseService = (action, update) => (
+const renderUseService = ({ action, update, t }) => (
   <Col md={8}>
     <Form.Group>
-      <Form.Label>Service name</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.serviceName', 'Service name')}</Form.Label>
       <Form.Control
         value={action.serviceName ?? ''}
         onChange={e => update({ serviceName: e.target.value })}
@@ -346,30 +350,30 @@ const renderUseService = (action, update) => (
   </Col>
 );
 
-const renderSimpleNameValue = (action, update) => (
+const renderSimpleNameValue = ({ action, update }) => (
   <SimpleNameValue action={action} update={update} />
 );
 
-const renderDelHeader = (action, update) => (
+const renderDelHeader = ({ action, update, t }) => (
   <Col md={6}>
     <Form.Group>
-      <Form.Label>Header name</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.headerName', 'Header name')}</Form.Label>
       <Form.Control value={action.name ?? ''} onChange={e => update({ name: e.target.value })} />
     </Form.Group>
   </Col>
 );
 
-const renderReplaceHeaderOrValue = (action, update) => (
+const renderReplaceHeaderOrValue = ({ action, update, t }) => (
   <>
     <Col md={4}>
       <Form.Group>
-        <Form.Label>Header</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.header', 'Header')}</Form.Label>
         <Form.Control value={action.name ?? ''} onChange={e => update({ name: e.target.value })} />
       </Form.Group>
     </Col>
     <Col md={4}>
       <Form.Group>
-        <Form.Label>Match regex</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.matchRegex', 'Match regex')}</Form.Label>
         <Form.Control
           value={action.matchRegex ?? ''}
           onChange={e => update({ matchRegex: e.target.value })}
@@ -378,7 +382,7 @@ const renderReplaceHeaderOrValue = (action, update) => (
     </Col>
     <Col md={4}>
       <Form.Group>
-        <Form.Label>Replacement</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.replacement', 'Replacement')}</Form.Label>
         <Form.Control
           value={action.replacement ?? ''}
           onChange={e => update({ replacement: e.target.value })}
@@ -388,11 +392,11 @@ const renderReplaceHeaderOrValue = (action, update) => (
   </>
 );
 
-const renderSetVar = (action, update) => (
+const renderSetVar = ({ action, update, t }) => (
   <>
     <Col md={3}>
       <Form.Group>
-        <Form.Label>Scope</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.scope', 'Scope')}</Form.Label>
         <Form.Select
           value={action.scope ?? 'txn'}
           onChange={e => update({ scope: e.target.value })}
@@ -407,13 +411,13 @@ const renderSetVar = (action, update) => (
     </Col>
     <Col md={4}>
       <Form.Group>
-        <Form.Label>Name</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.name', 'Name')}</Form.Label>
         <Form.Control value={action.name ?? ''} onChange={e => update({ name: e.target.value })} />
       </Form.Group>
     </Col>
     <Col md={5}>
       <Form.Group>
-        <Form.Label>Expression</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.expression', 'Expression')}</Form.Label>
         <Form.Control
           value={action.expression ?? ''}
           onChange={e => update({ expression: e.target.value })}
@@ -424,11 +428,11 @@ const renderSetVar = (action, update) => (
   </>
 );
 
-const renderUnsetVar = (action, update) => (
+const renderUnsetVar = ({ action, update, t }) => (
   <>
     <Col md={3}>
       <Form.Group>
-        <Form.Label>Scope</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.scope', 'Scope')}</Form.Label>
         <Form.Select
           value={action.scope ?? 'txn'}
           onChange={e => update({ scope: e.target.value })}
@@ -443,17 +447,17 @@ const renderUnsetVar = (action, update) => (
     </Col>
     <Col md={6}>
       <Form.Group>
-        <Form.Label>Name</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.name', 'Name')}</Form.Label>
         <Form.Control value={action.name ?? ''} onChange={e => update({ name: e.target.value })} />
       </Form.Group>
     </Col>
   </>
 );
 
-const renderExpressionOnly = (action, update) => (
+const renderExpressionOnly = ({ action, update, t }) => (
   <Col md={8}>
     <Form.Group>
-      <Form.Label>Expression</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.expression', 'Expression')}</Form.Label>
       <Form.Control
         value={action.expression ?? ''}
         onChange={e => update({ expression: e.target.value })}
@@ -462,10 +466,10 @@ const renderExpressionOnly = (action, update) => (
   </Col>
 );
 
-const renderLogLevel = (action, update) => (
+const renderLogLevel = ({ action, update, t }) => (
   <Col md={4}>
     <Form.Group>
-      <Form.Label>Level</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.level', 'Level')}</Form.Label>
       <Form.Select value={action.level ?? 'info'} onChange={e => update({ level: e.target.value })}>
         {LOG_LEVELS.map(l => (
           <option key={l} value={l}>
@@ -477,11 +481,11 @@ const renderLogLevel = (action, update) => (
   </Col>
 );
 
-const renderSetStatus = (action, update) => (
+const renderSetStatus = ({ action, update, t }) => (
   <>
     <Col md={3}>
       <Form.Group>
-        <Form.Label>Status code</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.statusCode', 'Status code')}</Form.Label>
         <Form.Control
           type="number"
           min={100}
@@ -493,7 +497,7 @@ const renderSetStatus = (action, update) => (
     </Col>
     <Col md={6}>
       <Form.Group>
-        <Form.Label>Reason (optional)</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.reasonOpt', 'Reason (optional)')}</Form.Label>
         <Form.Control
           value={action.reason ?? ''}
           onChange={e => update({ reason: e.target.value || undefined })}
@@ -503,28 +507,28 @@ const renderSetStatus = (action, update) => (
   </>
 );
 
-const renderMark = (action, update) => (
+const renderMark = ({ action, update, t }) => (
   <Col md={4}>
     <Form.Group>
-      <Form.Label>Mark</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.mark', 'Mark')}</Form.Label>
       <Form.Control value={action.mark ?? ''} onChange={e => update({ mark: e.target.value })} />
     </Form.Group>
   </Col>
 );
 
-const renderTos = (action, update) => (
+const renderTos = ({ action, update, t }) => (
   <Col md={4}>
     <Form.Group>
-      <Form.Label>ToS</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.tos', 'ToS')}</Form.Label>
       <Form.Control value={action.tos ?? ''} onChange={e => update({ tos: e.target.value })} />
     </Form.Group>
   </Col>
 );
 
-const renderPriority = (action, update) => (
+const renderPriority = ({ action, update, t }) => (
   <Col md={4}>
     <Form.Group>
-      <Form.Label>Value</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.value', 'Value')}</Form.Label>
       <Form.Control
         type="number"
         value={action.value ?? 0}
@@ -534,7 +538,7 @@ const renderPriority = (action, update) => (
   </Col>
 );
 
-const renderTrackSc = (action, update) => (
+const renderTrackSc = ({ action, update, t }) => (
   <>
     <Col md={2}>
       <Form.Group>
@@ -550,13 +554,13 @@ const renderTrackSc = (action, update) => (
     </Col>
     <Col md={4}>
       <Form.Group>
-        <Form.Label>Key (expression)</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.keyExpression', 'Key (expression)')}</Form.Label>
         <Form.Control value={action.key ?? 'src'} onChange={e => update({ key: e.target.value })} />
       </Form.Group>
     </Col>
     <Col md={5}>
       <Form.Group>
-        <Form.Label>Table</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.table', 'Table')}</Form.Label>
         <Form.Control
           value={action.table ?? ''}
           onChange={e => update({ table: e.target.value })}
@@ -567,11 +571,11 @@ const renderTrackSc = (action, update) => (
   </>
 );
 
-const renderCapture = (action, update) => (
+const renderCapture = ({ action, update, t }) => (
   <>
     <Col md={8}>
       <Form.Group>
-        <Form.Label>Expression</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.expression', 'Expression')}</Form.Label>
         <Form.Control
           value={action.expression ?? ''}
           onChange={e => update({ expression: e.target.value })}
@@ -581,7 +585,7 @@ const renderCapture = (action, update) => (
     </Col>
     <Col md={4}>
       <Form.Group>
-        <Form.Label>Length (bytes)</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.lengthBytes', 'Length (bytes)')}</Form.Label>
         <Form.Control
           type="number"
           min={1}
@@ -593,11 +597,11 @@ const renderCapture = (action, update) => (
   </>
 );
 
-const renderLua = (action, update) => (
+const renderLua = ({ action, update, t }) => (
   <>
     <Col md={4}>
       <Form.Group>
-        <Form.Label>Function name</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.functionName', 'Function name')}</Form.Label>
         {/* `function` is a reserved word — accessing/assigning it via dot or
             bare-key inside an arrow body confuses CodeQL's JS parser (the JSX
             expression brace + reserved-word key looks like a function
@@ -612,21 +616,21 @@ const renderLua = (action, update) => (
     </Col>
     <Col md={8}>
       <Form.Group>
-        <Form.Label>Args</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.args', 'Args')}</Form.Label>
         <ListEditor
           items={action.args ?? []}
           onChange={list => update({ args: list })}
-          placeholder="positional argument"
+          placeholder={t('haproxy:rule.action.argPlaceholder', 'positional argument')}
         />
       </Form.Group>
     </Col>
   </>
 );
 
-const renderAuth = (action, update) => (
+const renderAuth = ({ action, update, t }) => (
   <Col md={6}>
     <Form.Group>
-      <Form.Label>Realm (optional)</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.realmOpt', 'Realm (optional)')}</Form.Label>
       <Form.Control
         value={action.realm ?? ''}
         onChange={e => update({ realm: e.target.value || undefined })}
@@ -635,10 +639,10 @@ const renderAuth = (action, update) => (
   </Col>
 );
 
-const renderNormalizeUri = (action, update) => (
+const renderNormalizeUri = ({ action, update, t }) => (
   <Col md={6}>
     <Form.Group>
-      <Form.Label>Method</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.method', 'Method')}</Form.Label>
       <Form.Select
         value={action.method ?? 'path-merge-slashes'}
         onChange={e => update({ method: e.target.value })}
@@ -653,16 +657,16 @@ const renderNormalizeUri = (action, update) => (
   </Col>
 );
 
-const renderWaitForBody = (action, update) => (
+const renderWaitForBody = ({ action, update, t }) => (
   <Col md={4}>
     <Form.Group>
-      <Form.Label>Time</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.time', 'Time')}</Form.Label>
       <Form.Control value={action.time ?? '5s'} onChange={e => update({ time: e.target.value })} />
     </Form.Group>
   </Col>
 );
 
-const renderScIncGpc = (action, update) => (
+const renderScIncGpc = ({ action, update }) => (
   <>
     <Col md={3}>
       <Form.Group>
@@ -691,15 +695,15 @@ const renderScIncGpc = (action, update) => (
   </>
 );
 
-const renderApplySecurityProfile = (action, update, doc) => (
+const renderApplySecurityProfile = ({ action, update, doc, t }) => (
   <Col md={8}>
     <Form.Group>
-      <Form.Label>Security profile</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.securityProfile', 'Security profile')}</Form.Label>
       <Form.Select
         value={action.profileId ?? ''}
         onChange={e => update({ profileId: e.target.value })}
       >
-        <option value="">— choose —</option>
+        <option value="">— {t('haproxy:rule.action.choose', 'choose')} —</option>
         {(doc.securityProfiles ?? []).map(p => (
           <option key={p.id} value={p.id}>
             {p.kind}: {p.label} ({p.id})
@@ -707,22 +711,24 @@ const renderApplySecurityProfile = (action, update, doc) => (
         ))}
       </Form.Select>
       <Form.Text className="text-muted">
-        Sugar action — expands at render-time into the profile&apos;s deny + track-sc chain gated on
-        this rule&apos;s condition.
+        {t(
+          'haproxy:rule.action.securityProfileHelp',
+          "Sugar action — expands at render-time into the profile's deny + track-sc chain gated on this rule's condition."
+        )}
       </Form.Text>
     </Form.Group>
   </Col>
 );
 
-const renderApplyAuthProvider = (action, update, doc) => (
+const renderApplyAuthProvider = ({ action, update, doc, t }) => (
   <Col md={8}>
     <Form.Group>
-      <Form.Label>Auth provider</Form.Label>
+      <Form.Label>{t('haproxy:rule.action.authProvider', 'Auth provider')}</Form.Label>
       <Form.Select
         value={action.providerId ?? ''}
         onChange={e => update({ providerId: e.target.value })}
       >
-        <option value="">— choose —</option>
+        <option value="">— {t('haproxy:rule.action.choose', 'choose')} —</option>
         {(doc.authProviders ?? []).map(p => (
           <option key={p.id} value={p.id}>
             {p.type}: {p.id}
@@ -730,18 +736,20 @@ const renderApplyAuthProvider = (action, update, doc) => (
         ))}
       </Form.Select>
       <Form.Text className="text-muted">
-        Sugar action — expands at render-time into the provider&apos;s auth chain gated on this
-        rule&apos;s condition.
+        {t(
+          'haproxy:rule.action.authProviderHelp',
+          "Sugar action — expands at render-time into the provider's auth chain gated on this rule's condition."
+        )}
       </Form.Text>
     </Form.Group>
   </Col>
 );
 
-const renderDoResolve = (action, update) => (
+const renderDoResolve = ({ action, update, t }) => (
   <>
     <Col md={2}>
       <Form.Group>
-        <Form.Label>Var scope</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.varScope', 'Var scope')}</Form.Label>
         <Form.Select
           value={action.varScope ?? 'txn'}
           onChange={e => update({ varScope: e.target.value })}
@@ -756,7 +764,7 @@ const renderDoResolve = (action, update) => (
     </Col>
     <Col md={3}>
       <Form.Group>
-        <Form.Label>Var name</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.varName', 'Var name')}</Form.Label>
         <Form.Control
           value={action.varName ?? ''}
           onChange={e => update({ varName: e.target.value })}
@@ -765,7 +773,7 @@ const renderDoResolve = (action, update) => (
     </Col>
     <Col md={3}>
       <Form.Group>
-        <Form.Label>Resolvers</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.resolvers', 'Resolvers')}</Form.Label>
         <Form.Control
           value={action.resolvers ?? ''}
           onChange={e => update({ resolvers: e.target.value })}
@@ -775,12 +783,12 @@ const renderDoResolve = (action, update) => (
     </Col>
     <Col md={2}>
       <Form.Group>
-        <Form.Label>Family</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.family', 'Family')}</Form.Label>
         <Form.Select
           value={action.family ?? ''}
           onChange={e => update({ family: e.target.value || undefined })}
         >
-          <option value="">(any)</option>
+          <option value="">({t('haproxy:rule.action.any', 'any')})</option>
           <option value="ipv4">ipv4</option>
           <option value="ipv6">ipv6</option>
         </Form.Select>
@@ -788,7 +796,7 @@ const renderDoResolve = (action, update) => (
     </Col>
     <Col md={2}>
       <Form.Group>
-        <Form.Label>Expression</Form.Label>
+        <Form.Label>{t('haproxy:rule.action.expression', 'Expression')}</Form.Label>
         <Form.Control
           value={action.expression ?? ''}
           onChange={e => update({ expression: e.target.value })}
@@ -803,6 +811,7 @@ const BODY_KIND_OPTIONS = ['string', 'lf-string', 'file', 'lf-file'];
 const newHeaderKey = () => `h-${Math.random().toString(36).slice(2, 11)}`;
 
 const ReturnFields = ({ action, update }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const body = action.body ?? null;
   const headers = action.headers ?? [];
   const [headerKeys, setHeaderKeys] = useState(() => headers.map(() => newHeaderKey()));
@@ -831,7 +840,7 @@ const ReturnFields = ({ action, update }) => {
     <>
       <Col md={3}>
         <Form.Group>
-          <Form.Label>Status code</Form.Label>
+          <Form.Label>{t('haproxy:rule.action.statusCode', 'Status code')}</Form.Label>
           <Form.Control
             type="number"
             min={100}
@@ -858,9 +867,9 @@ const ReturnFields = ({ action, update }) => {
       </Col>
       <Col md={4}>
         <Form.Group>
-          <Form.Label>Body kind</Form.Label>
+          <Form.Label>{t('haproxy:rule.action.bodyKind', 'Body kind')}</Form.Label>
           <Form.Select value={body?.kind ?? ''} onChange={e => setBodyKind(e.target.value || null)}>
-            <option value="">(no body)</option>
+            <option value="">({t('haproxy:rule.action.noBody', 'no body')})</option>
             {BODY_KIND_OPTIONS.map(k => (
               <option key={k} value={k}>
                 {k}
@@ -872,7 +881,7 @@ const ReturnFields = ({ action, update }) => {
       {body ? (
         <Col xs={12}>
           <Form.Group>
-            <Form.Label>Body content</Form.Label>
+            <Form.Label>{t('haproxy:rule.action.bodyContent', 'Body content')}</Form.Label>
             <Form.Control
               as="textarea"
               rows={3}
@@ -881,7 +890,7 @@ const ReturnFields = ({ action, update }) => {
               placeholder={
                 body.kind?.endsWith('file')
                   ? '/etc/haproxy/errors/tpl/503.http'
-                  : 'Inline body text'
+                  : t('haproxy:rule.action.inlineBody', 'Inline body text')
               }
             />
           </Form.Group>
@@ -889,21 +898,23 @@ const ReturnFields = ({ action, update }) => {
       ) : null}
       <Col xs={12}>
         <Form.Group>
-          <Form.Label>Extra response headers</Form.Label>
+          <Form.Label>{t('haproxy:rule.action.extraHeaders', 'Extra response headers')}</Form.Label>
           {headers.length === 0 ? (
-            <p className="text-muted small mb-2">No extra headers.</p>
+            <p className="text-muted small mb-2">
+              {t('haproxy:rule.action.noExtraHeaders', 'No extra headers.')}
+            </p>
           ) : (
             headers.map((header, idx) => (
               <div key={headerKeys[idx]} className="d-flex gap-2 mb-2">
                 <Form.Control
                   size="sm"
-                  placeholder="Header name"
+                  placeholder={t('haproxy:rule.action.headerName', 'Header name')}
                   value={header.name ?? ''}
                   onChange={e => updateHeader(idx, { name: e.target.value })}
                 />
                 <Form.Control
                   size="sm"
-                  placeholder="Value"
+                  placeholder={t('haproxy:rule.action.value', 'Value')}
                   value={header.value ?? ''}
                   onChange={e => updateHeader(idx, { value: e.target.value })}
                 />
@@ -915,7 +926,7 @@ const ReturnFields = ({ action, update }) => {
           )}
           <Button variant="outline-primary" size="sm" type="button" onClick={addHeader}>
             <i className="bi bi-plus-lg me-1" />
-            Add header
+            {t('haproxy:rule.action.addHeader', 'Add header')}
           </Button>
         </Form.Group>
       </Col>
@@ -928,7 +939,7 @@ ReturnFields.propTypes = {
   update: PropTypes.func.isRequired,
 };
 
-const renderReturn = (action, update) => <ReturnFields action={action} update={update} />;
+const renderReturn = ({ action, update }) => <ReturnFields action={action} update={update} />;
 
 const NO_FIELD_ACTIONS = new Set(['allow', 'reject', 'accept', 'close', 'silent-drop']);
 
@@ -969,7 +980,7 @@ const ACTION_FIELD_RENDERERS = Object.freeze({
   'do-resolve': renderDoResolve,
 });
 
-const renderActionFields = (action, update, doc) => {
+const renderActionFields = (action, update, doc, t) => {
   if (NO_FIELD_ACTIONS.has(action.type)) {
     return null;
   }
@@ -978,15 +989,17 @@ const renderActionFields = (action, update, doc) => {
     return (
       <Col xs={12}>
         <Alert variant="warning" className="small mb-0">
-          No editor for action <code>{action.type}</code> yet.
+          {t('haproxy:rule.action.noEditor', 'No editor for action')} <code>{action.type}</code>{' '}
+          {t('haproxy:rule.action.yet', 'yet.')}
         </Alert>
       </Col>
     );
   }
-  return renderer(action, update, doc);
+  return renderer({ action, update, doc, t });
 };
 
 const ConditionTermRow = ({ term, idx, total, doc, onChange, onRemove }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const updateTerm = patch => onChange(idx, { ...term, ...patch });
   const isAclRef = term.kind === 'aclRef';
 
@@ -998,7 +1011,7 @@ const ConditionTermRow = ({ term, idx, total, doc, onChange, onRemove }) => {
           <Form.Check
             type="switch"
             id={`term-${idx}-negate`}
-            label="NOT"
+            label={t('haproxy:rule.condition.not', 'NOT')}
             checked={Boolean(term.negate)}
             onChange={e => updateTerm({ negate: e.target.checked })}
           />
@@ -1010,7 +1023,7 @@ const ConditionTermRow = ({ term, idx, total, doc, onChange, onRemove }) => {
       <Row className="g-2">
         <Col md={2}>
           <Form.Group>
-            <Form.Label>Type</Form.Label>
+            <Form.Label>{t('haproxy:rule.condition.type', 'Type')}</Form.Label>
             <Form.Select
               value={term.kind}
               onChange={e => {
@@ -1037,20 +1050,22 @@ const ConditionTermRow = ({ term, idx, total, doc, onChange, onRemove }) => {
                 }
               }}
             >
-              <option value="aclRef">ACL ref</option>
-              <option value="inline">Inline match</option>
+              <option value="aclRef">{t('haproxy:rule.condition.aclRef', 'ACL ref')}</option>
+              <option value="inline">
+                {t('haproxy:rule.condition.inlineMatch', 'Inline match')}
+              </option>
             </Form.Select>
           </Form.Group>
         </Col>
         {isAclRef ? (
           <Col md={10}>
             <Form.Group>
-              <Form.Label>ACL</Form.Label>
+              <Form.Label>{t('haproxy:rule.condition.acl', 'ACL')}</Form.Label>
               <Form.Select
                 value={term.aclName ?? ''}
                 onChange={e => updateTerm({ aclName: e.target.value })}
               >
-                <option value="">— choose —</option>
+                <option value="">— {t('haproxy:rule.action.choose', 'choose')} —</option>
                 {(doc.acls ?? []).map(a => (
                   <option key={a.id} value={a.name}>
                     {a.name}
@@ -1063,7 +1078,7 @@ const ConditionTermRow = ({ term, idx, total, doc, onChange, onRemove }) => {
           <>
             <Col md={3}>
               <Form.Group>
-                <Form.Label>Field</Form.Label>
+                <Form.Label>{t('haproxy:rule.condition.field', 'Field')}</Form.Label>
                 <Form.Select
                   value={term.field ?? ''}
                   onChange={e => updateTerm({ field: e.target.value })}
@@ -1082,24 +1097,24 @@ const ConditionTermRow = ({ term, idx, total, doc, onChange, onRemove }) => {
             </Col>
             <Col md={2}>
               <Form.Group>
-                <Form.Label>Arg</Form.Label>
+                <Form.Label>{t('haproxy:rule.condition.arg', 'Arg')}</Form.Label>
                 <Form.Control
                   value={term.fieldArg ?? ''}
                   onChange={e => updateTerm({ fieldArg: e.target.value })}
-                  placeholder="(none)"
+                  placeholder={t('haproxy:rule.condition.none', '(none)')}
                 />
               </Form.Group>
             </Col>
             <Col md={2}>
               <Form.Group>
-                <Form.Label>Op</Form.Label>
+                <Form.Label>{t('haproxy:rule.condition.op', 'Op')}</Form.Label>
                 <Form.Select
                   value={term.operator ?? ''}
                   onChange={e => updateTerm({ operator: e.target.value || undefined })}
                 >
                   {ACL_OPERATORS.map(op => (
                     <option key={op} value={op}>
-                      {op || '(none)'}
+                      {op || t('haproxy:rule.condition.noneShort', '(none)')}
                     </option>
                   ))}
                 </Form.Select>
@@ -1107,17 +1122,17 @@ const ConditionTermRow = ({ term, idx, total, doc, onChange, onRemove }) => {
             </Col>
             <Col md={3}>
               <Form.Group>
-                <Form.Label>Values</Form.Label>
+                <Form.Label>{t('haproxy:rule.condition.values', 'Values')}</Form.Label>
                 <ListEditor
                   items={term.values ?? []}
                   onChange={list => updateTerm({ values: list })}
-                  placeholder="value"
+                  placeholder={t('haproxy:rule.condition.valuePlaceholder', 'value')}
                 />
               </Form.Group>
             </Col>
             <Col md={2}>
               <Form.Group>
-                <Form.Label>Flags</Form.Label>
+                <Form.Label>{t('haproxy:rule.condition.flags', 'Flags')}</Form.Label>
                 <div className="d-flex flex-column gap-1">
                   <Form.Check
                     type="switch"
@@ -1141,20 +1156,24 @@ const ConditionTermRow = ({ term, idx, total, doc, onChange, onRemove }) => {
       </Row>
       {idx < total - 1 ? (
         <div className="mt-2 d-flex align-items-center gap-2">
-          <span className="text-muted small">Combine with next:</span>
+          <span className="text-muted small">
+            {t('haproxy:rule.condition.combineNext', 'Combine with next:')}
+          </span>
           <Dropdown>
             <Dropdown.Toggle
               size="sm"
               variant={term.combineWithNext === 'or' ? 'outline-info' : 'outline-primary'}
             >
-              {term.combineWithNext === 'or' ? 'OR (||)' : 'AND (space)'}
+              {term.combineWithNext === 'or'
+                ? t('haproxy:rule.condition.orLabel', 'OR (||)')
+                : t('haproxy:rule.condition.andLabel', 'AND (space)')}
             </Dropdown.Toggle>
             <Dropdown.Menu>
               <Dropdown.Item onClick={() => updateTerm({ combineWithNext: 'and' })}>
-                AND (space)
+                {t('haproxy:rule.condition.andLabel', 'AND (space)')}
               </Dropdown.Item>
               <Dropdown.Item onClick={() => updateTerm({ combineWithNext: 'or' })}>
-                OR (||)
+                {t('haproxy:rule.condition.orLabel', 'OR (||)')}
               </Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>
@@ -1222,6 +1241,7 @@ const emptyRule = phase => ({
 const newTermKey = () => `t-${Math.random().toString(36).slice(2, 11)}`;
 
 export const RuleEditModal = ({ show, phase, rule = null, doc, onSave, onCancel }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [draft, setDraft] = useState(() => rule ?? emptyRule(phase));
   const [termKeys, setTermKeys] = useState(() => (rule?.condition ?? []).map(() => newTermKey()));
   const [error, setError] = useState(null);
@@ -1241,7 +1261,7 @@ export const RuleEditModal = ({ show, phase, rule = null, doc, onSave, onCancel 
   const updateTerm = (idx, next) => {
     setDraft(prev => ({
       ...prev,
-      condition: prev.condition.map((t, i) => (i === idx ? next : t)),
+      condition: prev.condition.map((term, i) => (i === idx ? next : term)),
     }));
   };
 
@@ -1276,7 +1296,9 @@ export const RuleEditModal = ({ show, phase, rule = null, doc, onSave, onCancel 
 
   const handleSave = () => {
     if (!ID_REGEX.test(draft.id ?? '')) {
-      setError('id must match a-z, 0-9, _, - (starting with a letter)');
+      setError(
+        t('haproxy:rule.errors.idFormat', 'id must match a-z, 0-9, _, - (starting with a letter)')
+      );
       return;
     }
     onSave(draft);
@@ -1290,7 +1312,11 @@ export const RuleEditModal = ({ show, phase, rule = null, doc, onSave, onCancel 
     <Modal show={show} onHide={onCancel} size="xl" backdrop="static">
       <Modal.Header closeButton>
         <Modal.Title>
-          {isExisting ? `Edit rule: ${rule.name ?? rule.id}` : 'New rule'}{' '}
+          {isExisting
+            ? t('haproxy:rule.edit.editTitle', 'Edit rule: {{name}}', {
+                name: rule.name ?? rule.id,
+              })
+            : t('haproxy:rule.edit.newTitle', 'New rule')}{' '}
           <Badge bg="secondary" className="ms-2">
             {phase}
           </Badge>
@@ -1301,7 +1327,7 @@ export const RuleEditModal = ({ show, phase, rule = null, doc, onSave, onCancel 
         <Row className="g-2 mb-3">
           <Col md={4}>
             <Form.Group>
-              <Form.Label>ID</Form.Label>
+              <Form.Label>{t('haproxy:rule.edit.id', 'ID')}</Form.Label>
               <Form.Control
                 value={draft.id}
                 disabled={isExisting}
@@ -1311,11 +1337,11 @@ export const RuleEditModal = ({ show, phase, rule = null, doc, onSave, onCancel 
           </Col>
           <Col md={6}>
             <Form.Group>
-              <Form.Label>Name (display)</Form.Label>
+              <Form.Label>{t('haproxy:rule.edit.name', 'Name (display)')}</Form.Label>
               <Form.Control
                 value={draft.name ?? ''}
                 onChange={e => update({ name: e.target.value || undefined })}
-                placeholder="Friendly name"
+                placeholder={t('haproxy:rule.edit.namePlaceholder', 'Friendly name')}
               />
             </Form.Group>
           </Col>
@@ -1323,18 +1349,20 @@ export const RuleEditModal = ({ show, phase, rule = null, doc, onSave, onCancel 
             <Form.Check
               type="switch"
               id="rule-enabled"
-              label="Enabled"
+              label={t('haproxy:rule.edit.enabled', 'Enabled')}
               checked={draft.enabled !== false}
               onChange={e => update({ enabled: e.target.checked })}
             />
           </Col>
         </Row>
 
-        <h6 className="text-muted text-uppercase small">Action</h6>
+        <h6 className="text-muted text-uppercase small">
+          {t('haproxy:rule.action.heading', 'Action')}
+        </h6>
         <Row className="g-2 mb-3">
           <Col md={4}>
             <Form.Group>
-              <Form.Label>Action type</Form.Label>
+              <Form.Label>{t('haproxy:rule.action.actionType', 'Action type')}</Form.Label>
               <Form.Select value={draft.action.type} onChange={e => setActionType(e.target.value)}>
                 {availableActions.map(a => (
                   <option key={a} value={a}>
@@ -1344,17 +1372,22 @@ export const RuleEditModal = ({ show, phase, rule = null, doc, onSave, onCancel 
               </Form.Select>
             </Form.Group>
           </Col>
-          {renderActionFields(draft.action, updateActionFields, doc)}
+          {renderActionFields(draft.action, updateActionFields, doc, t)}
         </Row>
 
         <h6 className="text-muted text-uppercase small">
-          Condition
+          {t('haproxy:rule.condition.heading', 'Condition')}
           <span className="text-muted small ms-2 fst-italic">
-            (empty = always; terms join with AND by default, switch to OR per row)
+            {t(
+              'haproxy:rule.condition.note',
+              '(empty = always; terms join with AND by default, switch to OR per row)'
+            )}
           </span>
         </h6>
         {draft.condition.length === 0 ? (
-          <p className="text-muted small">No condition — rule fires unconditionally.</p>
+          <p className="text-muted small">
+            {t('haproxy:rule.condition.none1', 'No condition — rule fires unconditionally.')}
+          </p>
         ) : (
           draft.condition.map((term, idx) => (
             <ConditionTermRow
@@ -1371,28 +1404,30 @@ export const RuleEditModal = ({ show, phase, rule = null, doc, onSave, onCancel 
         <div className="d-flex gap-2 mb-3">
           <Button variant="outline-primary" size="sm" onClick={() => addTerm('aclRef')}>
             <i className="bi bi-plus-lg me-1" />
-            Add ACL ref
+            {t('haproxy:rule.condition.addAclRef', 'Add ACL ref')}
           </Button>
           <Button variant="outline-secondary" size="sm" onClick={() => addTerm('inline')}>
             <i className="bi bi-plus-lg me-1" />
-            Add inline match
+            {t('haproxy:rule.condition.addInline', 'Add inline match')}
           </Button>
         </div>
 
-        <h6 className="text-muted text-uppercase small">Condition preview</h6>
+        <h6 className="text-muted text-uppercase small">
+          {t('haproxy:rule.condition.previewHeader', 'Condition preview')}
+        </h6>
         <pre
           className="border rounded p-2 bg-body-tertiary mb-0"
           style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '0.85rem' }}
         >
-          {conditionPreview ? `if ${conditionPreview}` : '(always)'}
+          {conditionPreview ? `if ${conditionPreview}` : `(${t('haproxy:rule.always', 'always')})`}
         </pre>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t('common:buttons.cancel', 'Cancel')}
         </Button>
         <Button variant="primary" onClick={handleSave}>
-          {isExisting ? 'Update' : 'Add'}
+          {isExisting ? t('common:buttons.update', 'Update') : t('common:buttons.add', 'Add')}
         </Button>
       </Modal.Footer>
     </Modal>

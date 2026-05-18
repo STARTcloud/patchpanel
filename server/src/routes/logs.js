@@ -1,5 +1,7 @@
 import { Router } from 'express';
 
+import { errorResponse } from '../lib/api-response.js';
+import { StateError } from '../lib/errors.js';
 import { getAddonLogBroadcaster } from '../lib/log-broadcaster.js';
 import { log } from '../lib/logger.js';
 
@@ -12,11 +14,10 @@ const fetchAddonLogs = async token => {
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
-    const err = new Error(
-      `supervisor returned ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`
-    );
-    err.status = response.status;
-    throw err;
+    throw new StateError('logs.supervisorFailed', {
+      message: `supervisor returned ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ''}`,
+      replacements: { status: response.status },
+    });
   }
   return response.text();
 };
@@ -45,10 +46,7 @@ export const logsRouter = () => {
   router.get('/logs', async (req, res, next) => {
     const token = process.env.SUPERVISOR_TOKEN;
     if (!token) {
-      res.status(501).json({
-        error:
-          'supervisor token not available; the logs endpoint is only functional inside a Home Assistant addon',
-      });
+      res.status(501).json(errorResponse(req, 'logs.supervisorTokenMissing'));
       return;
     }
     log.api.debug('GET /logs', { ip: req.ip });
@@ -80,7 +78,7 @@ export const logsRouter = () => {
    */
   router.get('/logs/stream', (req, res) => {
     if (!process.env.SUPERVISOR_TOKEN) {
-      res.status(501).json({ error: 'supervisor token not available' });
+      res.status(501).json(errorResponse(req, 'logs.supervisorTokenMissing'));
       return;
     }
     log.api.debug('GET /logs/stream', { ip: req.ip });

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Badge, Card, Table } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiGet } from '../api/client.js';
 
@@ -26,6 +27,7 @@ const formatDetails = details => {
 };
 
 export const AuditPage = () => {
+  const { t } = useTranslation(['state', 'common']);
   const [entries, setEntries] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,23 +60,25 @@ export const AuditPage = () => {
   return (
     <Card>
       <Card.Body>
-        <Card.Title>Audit log</Card.Title>
+        <Card.Title>{t('state:audit.title', 'Audit log')}</Card.Title>
         <Card.Text className="text-muted">
-          Last 200 recorded operations (state changes, cert renewals, manual reloads). Refreshes
-          every 30 seconds.
+          {t(
+            'state:audit.description',
+            'Last 200 recorded operations (state changes, cert renewals, manual reloads). Refreshes every 30 seconds.'
+          )}
         </Card.Text>
         {error ? <p className="text-danger">{error.message}</p> : null}
-        {loading ? <p className="text-muted">Loading…</p> : null}
+        {loading ? <p className="text-muted">{t('common:status.loading', 'Loading…')}</p> : null}
         <Table striped bordered hover responsive size="sm">
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Actor</th>
-              <th>Category</th>
-              <th>Action</th>
-              <th>Target</th>
-              <th>Outcome</th>
-              <th>Details</th>
+              <th>{t('state:audit.col.time', 'Time')}</th>
+              <th>{t('state:audit.col.actor', 'Actor')}</th>
+              <th>{t('state:audit.col.category', 'Category')}</th>
+              <th>{t('state:audit.col.action', 'Action')}</th>
+              <th>{t('state:audit.col.target', 'Target')}</th>
+              <th>{t('state:audit.col.outcome', 'Outcome')}</th>
+              <th>{t('state:audit.col.details', 'Details')}</th>
             </tr>
           </thead>
           <tbody>

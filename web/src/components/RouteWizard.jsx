@@ -1,11 +1,17 @@
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Col, Form, Row } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { ListEditor } from './ListEditor.jsx';
 import { WizardShell } from './WizardShell.jsx';
 
-const STEP_LABELS = Object.freeze(['Pick frontend', 'Hostnames & backend', 'Names', 'Review']);
+const STEP_KEYS = Object.freeze([
+  { key: 'haproxy:routeWizard.steps.pickFrontend', fallback: 'Pick frontend' },
+  { key: 'haproxy:routeWizard.steps.hostsBackend', fallback: 'Hostnames & backend' },
+  { key: 'haproxy:routeWizard.steps.names', fallback: 'Names' },
+  { key: 'haproxy:routeWizard.steps.review', fallback: 'Review' },
+]);
 const HOSTNAME_REGEX = /^[a-zA-Z0-9*][a-zA-Z0-9.*-]{0,252}$/u;
 const ACL_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$/u;
 const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
@@ -49,17 +55,18 @@ const uniqueName = (proposed, taken) => {
 };
 
 const PickFrontendStep = ({ draft, update, doc }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const httpFrontends = (doc.frontends ?? []).filter(f => f.mode === 'http');
   return (
     <Row className="g-3">
       <Col xs={12}>
         <Form.Group>
-          <Form.Label>Frontend</Form.Label>
+          <Form.Label>{t('haproxy:routeWizard.frontend', 'Frontend')}</Form.Label>
           <Form.Select
             value={draft.frontendId}
             onChange={e => update({ frontendId: e.target.value })}
           >
-            <option value="">— choose —</option>
+            <option value="">— {t('haproxy:routeWizard.choose', 'choose')} —</option>
             {httpFrontends.map(f => (
               <option key={f.id} value={f.id}>
                 {f.name} ({f.binds?.[0]?.address ?? '?'})
@@ -68,7 +75,10 @@ const PickFrontendStep = ({ draft, update, doc }) => {
           </Form.Select>
           {httpFrontends.length === 0 ? (
             <Form.Text className="text-warning">
-              No HTTP frontends defined. Create one on the Frontends page first.
+              {t(
+                'haproxy:routeWizard.noHttpFrontends',
+                'No HTTP frontends defined. Create one on the Frontends page first.'
+              )}
             </Form.Text>
           ) : null}
         </Form.Group>
@@ -83,43 +93,58 @@ PickFrontendStep.propTypes = {
   doc: PropTypes.object.isRequired,
 };
 
-const HostsAndBackendStep = ({ draft, update, doc }) => (
-  <Row className="g-3">
-    <Col xs={12}>
-      <Form.Group>
-        <Form.Label>Hostnames</Form.Label>
-        <ListEditor
-          items={draft.hostnames}
-          onChange={list => update({ hostnames: list })}
-          placeholder="e.g. home.example.com"
-          validate={value => (HOSTNAME_REGEX.test(value) ? true : 'invalid hostname')}
-        />
-        <Form.Text className="text-muted">
-          One or more hostnames matched by <code>hdr(host) -i</code>. Wildcards allowed (
-          <code>-i</code> default).
-        </Form.Text>
-      </Form.Group>
-    </Col>
-    <Col xs={12}>
-      <Form.Group>
-        <Form.Label>Backend</Form.Label>
-        <Form.Select value={draft.backendId} onChange={e => update({ backendId: e.target.value })}>
-          <option value="">— choose —</option>
-          {(doc.backends ?? []).map(b => (
-            <option key={b.id} value={b.id}>
-              {b.name} ({b.id})
-            </option>
-          ))}
-        </Form.Select>
-        {(doc.backends ?? []).length === 0 ? (
-          <Form.Text className="text-warning">
-            No backends defined. Create one on the Backends page first.
+const HostsAndBackendStep = ({ draft, update, doc }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <Row className="g-3">
+      <Col xs={12}>
+        <Form.Group>
+          <Form.Label>{t('haproxy:routeWizard.hostnames', 'Hostnames')}</Form.Label>
+          <ListEditor
+            items={draft.hostnames}
+            onChange={list => update({ hostnames: list })}
+            placeholder={t('haproxy:routeWizard.hostnamePlaceholder', 'e.g. home.example.com')}
+            validate={value =>
+              HOSTNAME_REGEX.test(value)
+                ? true
+                : t('haproxy:routeWizard.invalidHostname', 'invalid hostname')
+            }
+          />
+          <Form.Text className="text-muted">
+            {t(
+              'haproxy:routeWizard.hostnamesHelp',
+              'One or more hostnames matched by hdr(host) -i. Wildcards allowed (-i default).'
+            )}
           </Form.Text>
-        ) : null}
-      </Form.Group>
-    </Col>
-  </Row>
-);
+        </Form.Group>
+      </Col>
+      <Col xs={12}>
+        <Form.Group>
+          <Form.Label>{t('haproxy:routeWizard.backend', 'Backend')}</Form.Label>
+          <Form.Select
+            value={draft.backendId}
+            onChange={e => update({ backendId: e.target.value })}
+          >
+            <option value="">— {t('haproxy:routeWizard.choose', 'choose')} —</option>
+            {(doc.backends ?? []).map(b => (
+              <option key={b.id} value={b.id}>
+                {b.name} ({b.id})
+              </option>
+            ))}
+          </Form.Select>
+          {(doc.backends ?? []).length === 0 ? (
+            <Form.Text className="text-warning">
+              {t(
+                'haproxy:routeWizard.noBackends',
+                'No backends defined. Create one on the Backends page first.'
+              )}
+            </Form.Text>
+          ) : null}
+        </Form.Group>
+      </Col>
+    </Row>
+  );
+};
 
 HostsAndBackendStep.propTypes = {
   draft: PropTypes.object.isRequired,
@@ -127,42 +152,49 @@ HostsAndBackendStep.propTypes = {
   doc: PropTypes.object.isRequired,
 };
 
-const NamesStep = ({ draft, update }) => (
-  <Row className="g-3">
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>ACL id</Form.Label>
-        <Form.Control value={draft.aclId} onChange={e => update({ aclId: e.target.value })} />
-        <Form.Text className="text-muted">Internal id for the host-matching ACL entity.</Form.Text>
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>ACL name (HAProxy identifier)</Form.Label>
-        <Form.Control value={draft.aclName} onChange={e => update({ aclName: e.target.value })} />
-        <Form.Text className="text-muted">
-          Rendered as <code>acl NAME hdr(host) -i …</code>.
-        </Form.Text>
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Rule id</Form.Label>
-        <Form.Control value={draft.ruleId} onChange={e => update({ ruleId: e.target.value })} />
-      </Form.Group>
-    </Col>
-    <Col md={6}>
-      <Form.Group>
-        <Form.Label>Rule label (display)</Form.Label>
-        <Form.Control
-          value={draft.ruleLabel}
-          onChange={e => update({ ruleLabel: e.target.value })}
-          placeholder="optional"
-        />
-      </Form.Group>
-    </Col>
-  </Row>
-);
+const NamesStep = ({ draft, update }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
+  return (
+    <Row className="g-3">
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('haproxy:routeWizard.aclId', 'ACL id')}</Form.Label>
+          <Form.Control value={draft.aclId} onChange={e => update({ aclId: e.target.value })} />
+          <Form.Text className="text-muted">
+            {t('haproxy:routeWizard.aclIdHelp', 'Internal id for the host-matching ACL entity.')}
+          </Form.Text>
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>
+            {t('haproxy:routeWizard.aclName', 'ACL name (HAProxy identifier)')}
+          </Form.Label>
+          <Form.Control value={draft.aclName} onChange={e => update({ aclName: e.target.value })} />
+          <Form.Text className="text-muted">
+            {t('haproxy:routeWizard.aclNameHelp', 'Rendered as acl NAME hdr(host) -i ….')}
+          </Form.Text>
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('haproxy:routeWizard.ruleId', 'Rule id')}</Form.Label>
+          <Form.Control value={draft.ruleId} onChange={e => update({ ruleId: e.target.value })} />
+        </Form.Group>
+      </Col>
+      <Col md={6}>
+        <Form.Group>
+          <Form.Label>{t('haproxy:routeWizard.ruleLabel', 'Rule label (display)')}</Form.Label>
+          <Form.Control
+            value={draft.ruleLabel}
+            onChange={e => update({ ruleLabel: e.target.value })}
+            placeholder={t('haproxy:routeWizard.optional', 'optional')}
+          />
+        </Form.Group>
+      </Col>
+    </Row>
+  );
+};
 
 NamesStep.propTypes = {
   draft: PropTypes.object.isRequired,
@@ -170,21 +202,22 @@ NamesStep.propTypes = {
 };
 
 const ReviewStep = ({ draft, doc }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const frontend = (doc.frontends ?? []).find(f => f.id === draft.frontendId);
   const backend = (doc.backends ?? []).find(b => b.id === draft.backendId);
   return (
     <div className="small">
-      <h6 className="mb-3">Will create:</h6>
+      <h6 className="mb-3">{t('haproxy:routeWizard.willCreate', 'Will create:')}</h6>
       <dl className="row mb-2">
-        <dt className="col-sm-4">Frontend</dt>
+        <dt className="col-sm-4">{t('haproxy:routeWizard.frontend', 'Frontend')}</dt>
         <dd className="col-sm-8">
           <code>{frontend?.name}</code>
         </dd>
-        <dt className="col-sm-4">Backend</dt>
+        <dt className="col-sm-4">{t('haproxy:routeWizard.backend', 'Backend')}</dt>
         <dd className="col-sm-8">
           <code>{backend?.name}</code>
         </dd>
-        <dt className="col-sm-4">Hostnames</dt>
+        <dt className="col-sm-4">{t('haproxy:routeWizard.hostnames', 'Hostnames')}</dt>
         <dd className="col-sm-8">
           {draft.hostnames.map(h => (
             <Badge bg="info" key={h} className="me-1">
@@ -193,7 +226,9 @@ const ReviewStep = ({ draft, doc }) => {
           ))}
         </dd>
       </dl>
-      <h6 className="mb-1 mt-3 text-muted text-uppercase small">Resulting state diff</h6>
+      <h6 className="mb-1 mt-3 text-muted text-uppercase small">
+        {t('haproxy:routeWizard.diffHeader', 'Resulting state diff')}
+      </h6>
       <pre className="border rounded p-2 bg-body-tertiary mb-2 small">
         {`+ state.acls += {
 +   id: "${draft.aclId}",
@@ -214,8 +249,10 @@ const ReviewStep = ({ draft, doc }) => {
 + }`}
       </pre>
       <Alert variant="info" className="small mb-0">
-        Saving applies through the normal state → render → reload pipeline. The ACL and Rule are
-        afterward fully editable from the ACLs and Rules pages.
+        {t(
+          'haproxy:routeWizard.diffNote',
+          'Saving applies through the normal state → render → reload pipeline. The ACL and Rule are afterward fully editable from the ACLs and Rules pages.'
+        )}
       </Alert>
     </div>
   );
@@ -268,6 +305,7 @@ const buildDraftFromHostnames = (hostnames, doc) => {
 };
 
 export const RouteWizard = ({ show, doc, onComplete, onCancel }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -309,7 +347,9 @@ export const RouteWizard = ({ show, doc, onComplete, onCancel }) => {
       const newAcl = {
         id: draft.aclId,
         name: draft.aclName,
-        description: `Hostname match for ${draft.hostnames.join(', ')}`,
+        description: t('haproxy:routeWizard.aclDescription', 'Hostname match for {{hostnames}}', {
+          hostnames: draft.hostnames.join(', '),
+        }),
         field: 'hdr',
         fieldArg: 'host',
         operator: 'str',
@@ -353,19 +393,20 @@ export const RouteWizard = ({ show, doc, onComplete, onCancel }) => {
   };
 
   const canAdvance = validateStep(step, draft, doc);
+  const stepLabels = STEP_KEYS.map(s => t(s.key, s.fallback));
 
   return (
     <WizardShell
       show={show}
-      title="New route"
-      stepLabels={STEP_LABELS}
+      title={t('haproxy:routeWizard.newRoute', 'New route')}
+      stepLabels={stepLabels}
       currentStep={step}
       canAdvance={canAdvance}
       saving={saving}
       error={error}
-      finishLabel="Create route"
+      finishLabel={t('haproxy:routeWizard.createRoute', 'Create route')}
       onPrev={step > 0 ? () => setStep(s => s - 1) : null}
-      onNext={step < STEP_LABELS.length - 1 ? () => setStep(s => s + 1) : null}
+      onNext={step < STEP_KEYS.length - 1 ? () => setStep(s => s + 1) : null}
       onFinish={handleFinish}
       onCancel={onCancel}
     >

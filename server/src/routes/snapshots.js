@@ -2,6 +2,7 @@ import { Router } from 'express';
 
 import { applyState } from '../lib/apply-state.js';
 import * as audit from '../lib/audit.js';
+import { errorResponse } from '../lib/api-response.js';
 import { log } from '../lib/logger.js';
 import { isValidSnapshotId, listSnapshots, readSnapshot } from '../lib/snapshots.js';
 
@@ -73,13 +74,13 @@ export const snapshotsRouter = config => {
   router.get('/snapshots/:id', async (req, res, next) => {
     const { id } = req.params;
     if (!isValidSnapshotId(id)) {
-      res.status(400).json({ error: 'invalid snapshot id' });
+      res.status(400).json(errorResponse(req, 'state.snapshot.invalidId', { id }));
       return;
     }
     try {
       const snap = await readSnapshot(config.paths.snapshotsDir, id);
       if (!snap) {
-        res.status(404).json({ error: 'snapshot not found' });
+        res.status(404).json(errorResponse(req, 'state.snapshot.notFound', { id }));
         return;
       }
       res.set('cache-control', 'no-store').json(snap);
@@ -122,14 +123,14 @@ export const snapshotsRouter = config => {
     const { id } = req.params;
     const actor = req.user?.id ?? null;
     if (!isValidSnapshotId(id)) {
-      res.status(400).json({ error: 'invalid snapshot id' });
+      res.status(400).json(errorResponse(req, 'state.snapshot.invalidId', { id }));
       return;
     }
     log.api.info('POST /snapshots/:id/restore', { ip: req.ip, actor, id });
     try {
       const snap = await readSnapshot(config.paths.snapshotsDir, id);
       if (!snap || !snap.state) {
-        res.status(404).json({ error: 'snapshot not found or invalid' });
+        res.status(404).json(errorResponse(req, 'state.snapshot.notFoundOrInvalid', { id }));
         return;
       }
       const persisted = await applyState(config, snap.state, {

@@ -2,6 +2,8 @@ import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { dirname, resolve as resolvePath, sep } from 'node:path';
 
+import { StateError } from './errors.js';
+
 // safePathUnder is the single, well-known path-containment check for any
 // user-derived filename under a known root. Mirrors the "GOOD" pattern from
 // CodeQL's js/path-injection query help (path.resolve + .startsWith(ROOT))
@@ -11,17 +13,17 @@ import { dirname, resolve as resolvePath, sep } from 'node:path';
 // See https://codeql.github.com/codeql-query-help/javascript/js-path-injection/
 export const safePathUnder = (rootDir, name) => {
   if (typeof name !== 'string' || name.length === 0) {
-    throw new Error('name must be a non-empty string');
+    throw new StateError('state.files.invalidName');
   }
   const root = resolvePath(rootDir);
   const candidate = resolvePath(root, name);
   if (!candidate.startsWith(root)) {
-    throw new Error(`name resolves outside root: ${name}`);
+    throw new StateError('state.files.pathEscape', { replacements: { name } });
   }
   // Sibling-prefix guard: reject root=/foo, candidate=/foobar/baz. The check
   // above accepts that pair because '/foobar'.startsWith('/foo') is true.
   if (candidate.length > root.length && candidate[root.length] !== sep) {
-    throw new Error(`name resolves outside root: ${name}`);
+    throw new StateError('state.files.pathEscape', { replacements: { name } });
   }
   return candidate;
 };

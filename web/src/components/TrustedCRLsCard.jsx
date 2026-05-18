@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Alert, Badge, Button, OverlayTrigger, Table, Tooltip } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiDelete } from '../api/client.js';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
@@ -45,6 +46,7 @@ FingerprintCell.propTypes = {
 };
 
 export const TrustedCRLsCard = ({ doc, onSave }) => {
+  const { t } = useTranslation(['cert', 'common']);
   const [showUpload, setShowUpload] = useState(false);
   const [error, setError] = useState(null);
   const trustedCrls = doc.trustedCrls ?? [];
@@ -70,7 +72,15 @@ export const TrustedCRLsCard = ({ doc, onSave }) => {
   const handleDelete = async crl => {
     const usage = countTrustedCrlUsage(doc, crl.id);
     if (usage > 0) {
-      setError(new Error(`Cannot delete: still referenced by ${usage} bind(s)`));
+      setError(
+        new Error(
+          t(
+            'cert:trustedCrl.list.cannotDelete',
+            'Cannot delete: still referenced by {{count}} bind(s)',
+            { count: usage }
+          )
+        )
+      );
       return;
     }
     try {
@@ -78,18 +88,24 @@ export const TrustedCRLsCard = ({ doc, onSave }) => {
     } catch (err) {
       setError(err);
     }
-    persist(trustedCrls.filter(t => t.id !== crl.id));
+    persist(trustedCrls.filter(other => other.id !== crl.id));
   };
 
   return (
     <>
       <div className="d-flex justify-content-between align-items-start mb-2 flex-wrap gap-2">
         <div>
-          <h6 className="mb-0">Trusted CRLs</h6>
+          <h6 className="mb-0">{t('cert:trustedCrl.list.title', 'Trusted CRLs')}</h6>
           <p className="text-muted small mb-0">
-            X.509 Certificate Revocation Lists. Referenced from frontend bind <code>crl-file</code>{' '}
-            when doing mTLS client cert validation — HAProxy uses the CRL to reject revoked client
-            certs at the TLS handshake.
+            {t(
+              'cert:trustedCrl.list.descPrefix',
+              'X.509 Certificate Revocation Lists. Referenced from frontend bind'
+            )}{' '}
+            <code>crl-file</code>{' '}
+            {t(
+              'cert:trustedCrl.list.descSuffix',
+              'when doing mTLS client cert validation — HAProxy uses the CRL to reject revoked client certs at the TLS handshake.'
+            )}
           </p>
         </div>
         <Button
@@ -99,7 +115,7 @@ export const TrustedCRLsCard = ({ doc, onSave }) => {
           disabled={!onSave}
         >
           <i className="bi bi-cloud-upload me-1" />
-          Upload CRL
+          {t('cert:trustedCrl.list.upload', 'Upload CRL')}
         </Button>
       </div>
       {error ? (
@@ -109,17 +125,20 @@ export const TrustedCRLsCard = ({ doc, onSave }) => {
       ) : null}
       {trustedCrls.length === 0 ? (
         <Alert variant="info" className="small mb-0">
-          No trusted CRLs uploaded yet. Upload one to gate mTLS access via revocation status.
+          {t(
+            'cert:trustedCrl.list.empty',
+            'No trusted CRLs uploaded yet. Upload one to gate mTLS access via revocation status.'
+          )}
         </Alert>
       ) : (
         <Table size="sm" responsive className="mb-0">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Fingerprint</th>
-              <th>Used by</th>
-              <th className="text-end">Actions</th>
+              <th>{t('cert:trustedCrl.list.columns.id', 'ID')}</th>
+              <th>{t('cert:trustedCrl.list.columns.name', 'Name')}</th>
+              <th>{t('cert:trustedCrl.list.columns.fingerprint', 'Fingerprint')}</th>
+              <th>{t('cert:trustedCrl.list.columns.usedBy', 'Used by')}</th>
+              <th className="text-end">{t('cert:trustedCrl.list.columns.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -140,7 +159,9 @@ export const TrustedCRLsCard = ({ doc, onSave }) => {
                     <FingerprintCell fingerprint={crl.fingerprint} />
                   </td>
                   <td>
-                    <Badge bg={usage > 0 ? 'info' : 'secondary'}>{usage} bind</Badge>
+                    <Badge bg={usage > 0 ? 'info' : 'secondary'}>
+                      {t('cert:trustedCrl.list.bindCount', '{{count}} bind', { count: usage })}
+                    </Badge>
                   </td>
                   <td className="text-end text-nowrap">
                     <Button
@@ -148,9 +169,17 @@ export const TrustedCRLsCard = ({ doc, onSave }) => {
                       size="sm"
                       onClick={() => handleDelete(crl)}
                       disabled={!onSave || usage > 0}
-                      title={usage > 0 ? `Still referenced by ${usage} bind(s)` : 'Delete'}
+                      title={
+                        usage > 0
+                          ? t(
+                              'cert:trustedCrl.list.stillReferencedTitle',
+                              'Still referenced by {{count}} bind(s)',
+                              { count: usage }
+                            )
+                          : t('common:buttons.delete', 'Delete')
+                      }
                     >
-                      Delete
+                      {t('common:buttons.delete', 'Delete')}
                     </Button>
                   </td>
                 </tr>

@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 
 import { Router } from 'express';
 
+import { errorResponse, localizeMessage } from '../lib/api-response.js';
 import * as audit from '../lib/audit.js';
 import { listCertificates } from '../lib/certbot.js';
 import {
@@ -23,6 +24,9 @@ import {
   validateProviderIdForCredentials,
   writeCredentials,
 } from '../lib/tls-credentials.js';
+
+const localizeIssues = (req, issues) =>
+  (issues ?? []).map(issue => localizeMessage(req, issue.code, issue.replacements));
 
 const TEST_TIMEOUT_MS = 8_000;
 
@@ -509,7 +513,7 @@ export const providersRouter = config => {
     const template = getDnsProviderTemplate(type);
     if (!template) {
       res.status(404).json({
-        error: `unknown provider type: ${type}`,
+        ...errorResponse(req, 'cert.provider.unknownType', { type }),
         supportedTypes: listProviderTypes(),
       });
       return;
@@ -557,14 +561,14 @@ export const providersRouter = config => {
     log.api.debug('GET /tls-providers/:id/credentials', { ip: req.ip, id });
     const idError = validateProviderIdForCredentials(id);
     if (idError) {
-      res.status(400).json({ error: idError });
+      res.status(400).json(errorResponse(req, idError.code, idError.replacements));
       return;
     }
     try {
       const state = await loadState(config.paths.state);
       const provider = findTlsProvider(state, id);
       if (!provider) {
-        res.status(404).json({ error: `tls provider not found: ${id}` });
+        res.status(404).json(errorResponse(req, 'cert.provider.notFound', { id }));
         return;
       }
       const path = credentialPath(config.paths.credentials, id);
@@ -644,21 +648,21 @@ export const providersRouter = config => {
     log.api.info('PUT /tls-providers/:id/credentials', { ip: req.ip, actor, id });
     const idError = validateProviderIdForCredentials(id);
     if (idError) {
-      res.status(400).json({ error: idError });
+      res.status(400).json(errorResponse(req, idError.code, idError.replacements));
       return;
     }
     try {
       const state = await loadState(config.paths.state);
       const provider = findTlsProvider(state, id);
       if (!provider) {
-        res.status(404).json({ error: `tls provider not found: ${id}` });
+        res.status(404).json(errorResponse(req, 'cert.provider.notFound', { id }));
         return;
       }
       const template = getDnsProviderTemplate(provider.type);
       if (!template || template.fields.length === 0) {
-        res.status(400).json({
-          error: `provider type "${provider.type}" has no credentials to manage`,
-        });
+        res
+          .status(400)
+          .json(errorResponse(req, 'cert.provider.noCredentialsToManage', { type: provider.type }));
         return;
       }
       const incoming = req.body?.fields ?? {};
@@ -676,12 +680,12 @@ export const providersRouter = config => {
       }
       const merge = mergeProviderValues(provider.type, existing, incoming);
       if (!merge.ok) {
-        res.status(400).json({ error: merge.error });
+        res.status(400).json(errorResponse(req, merge.error.code, merge.error.replacements));
         return;
       }
       const validation = validateMergedValues(provider.type, merge.merged);
       if (!validation.ok) {
-        res.status(400).json({ ok: false, errors: validation.errors });
+        res.status(400).json({ ok: false, errors: localizeIssues(req, validation.errors) });
         return;
       }
       const content = renderProviderIni(provider.type, merge.merged);
@@ -741,7 +745,7 @@ export const providersRouter = config => {
     log.api.info('DELETE /tls-providers/:id/credentials', { ip: req.ip, actor, id });
     const idError = validateProviderIdForCredentials(id);
     if (idError) {
-      res.status(400).json({ error: idError });
+      res.status(400).json(errorResponse(req, idError.code, idError.replacements));
       return;
     }
     try {
@@ -809,7 +813,7 @@ export const providersRouter = config => {
       const state = await loadState(config.paths.state);
       const provider = state?.authProviders?.find(p => p.id === id);
       if (!provider) {
-        res.status(404).json({ error: `auth provider not found: ${id}` });
+        res.status(404).json(errorResponse(req, 'cert.authProvider.notFound', { id }));
         return;
       }
       const result = await dispatchAuthTest(provider, state);
@@ -858,7 +862,7 @@ export const providersRouter = config => {
       const state = await loadState(config.paths.state);
       const provider = state?.tls?.providers?.find(p => p.id === id);
       if (!provider) {
-        res.status(404).json({ error: `tls provider not found: ${id}` });
+        res.status(404).json(errorResponse(req, 'cert.provider.notFound', { id }));
         return;
       }
       const result = await testTlsProvider(provider, config);

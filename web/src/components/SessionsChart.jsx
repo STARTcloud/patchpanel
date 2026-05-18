@@ -1,10 +1,12 @@
 import { Chart } from '@highcharts/react';
 import PropTypes from 'prop-types';
+import { useTranslation } from 'react-i18next';
 
 import { createChartOptions, seriesColor } from './chartDefaults.js';
 import './Highcharts.jsx';
 
 export const SessionsChart = ({ histories, theme = 'light', height = 260 }) => {
+  const { t } = useTranslation(['stats']);
   const series = histories.map((entry, idx) => ({
     name: entry.label,
     data: entry.history.map(p => [p.ts, p.scur]),
@@ -12,10 +14,10 @@ export const SessionsChart = ({ histories, theme = 'light', height = 260 }) => {
   }));
 
   const options = createChartOptions({
-    title: 'Active sessions per proxy',
+    title: t('stats:sessions.chartTitle', 'Active sessions per proxy'),
     height,
     theme,
-    yAxisTitle: 'sessions',
+    yAxisTitle: t('stats:sessions.axisLabel', 'sessions'),
     yAxisAllowDecimals: false,
     tooltipValueDecimals: 0,
     series,

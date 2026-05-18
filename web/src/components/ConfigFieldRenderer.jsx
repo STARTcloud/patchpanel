@@ -1,9 +1,9 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import { Button, Form, InputGroup } from 'react-bootstrap';
+import { useTranslation } from 'react-i18next';
 
 import { apiPost } from '../api/client.js';
-import { t } from '../lib/config-form.js';
 
 // Per-type renderer for a single config field. Reads `field.type` (boolean,
 // select, password, textarea, array, integer, host, url, string) and
@@ -61,6 +61,7 @@ SelectField.propTypes = {
 };
 
 const PasswordField = ({ field, currentValue, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [reveal, setReveal] = useState(false);
   return (
     <InputGroup>
@@ -76,7 +77,9 @@ const PasswordField = ({ field, currentValue, onChange }) => {
         variant="outline-secondary"
         type="button"
         onClick={() => setReveal(prev => !prev)}
-        title={reveal ? t('configField.hide', 'Hide') : t('configField.show', 'Show')}
+        title={
+          reveal ? t('haproxy:configField.hide', 'Hide') : t('haproxy:configField.show', 'Show')
+        }
       >
         <i className={`bi bi-${reveal ? 'eye-slash' : 'eye'}`} />
       </Button>
@@ -108,13 +111,14 @@ TextareaField.propTypes = {
 };
 
 const ArrayField = ({ field, currentValue, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const text = Array.isArray(currentValue) ? currentValue.join(', ') : (currentValue ?? '');
   return (
     <Form.Control
       id={fieldId(field.path)}
       type="text"
       value={text}
-      placeholder={t('configField.commaSeparated', 'item-1, item-2, item-3')}
+      placeholder={t('haproxy:configField.commaSeparated', 'item-1, item-2, item-3')}
       onChange={e =>
         onChange(
           e.target.value
@@ -176,6 +180,7 @@ StringField.propTypes = {
 };
 
 const UploadField = ({ field, currentValue, onChange }) => {
+  const { t } = useTranslation(['haproxy', 'common']);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -195,10 +200,12 @@ const UploadField = ({ field, currentValue, onChange }) => {
       if (result?.ok && result.path) {
         onChange(result.path);
       } else {
-        setError(result?.error ?? t('configField.uploadFailed', 'upload failed'));
+        setError(result?.error ?? t('haproxy:configField.uploadFailed', 'upload failed'));
       }
     } catch (err) {
-      setError(err.payload?.error ?? err.message ?? t('configField.uploadFailed', 'upload failed'));
+      setError(
+        err.payload?.error ?? err.message ?? t('haproxy:configField.uploadFailed', 'upload failed')
+      );
     } finally {
       setBusy(false);
       // Reset the file input so the same file can be re-picked after a failed
@@ -223,7 +230,9 @@ const UploadField = ({ field, currentValue, onChange }) => {
           htmlFor={fileInputId(field.path)}
         >
           <i className="bi bi-upload me-1" />
-          {busy ? t('configField.uploading', 'Uploading…') : t('configField.upload', 'Upload')}
+          {busy
+            ? t('haproxy:configField.uploading', 'Uploading…')
+            : t('haproxy:configField.upload', 'Upload')}
         </Form.Label>
         <Form.Control
           id={fileInputId(field.path)}

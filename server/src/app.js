@@ -5,6 +5,7 @@ import lusca from 'lusca';
 import { openAudit } from './lib/audit.js';
 import { i18nMiddleware } from './lib/i18n.js';
 import { requestLoggingMiddleware } from './lib/logger.js';
+import { startPullLoop } from './lib/peer-pull.js';
 import { createStatsSampler } from './lib/stats-sampler.js';
 import { apiError } from './middleware/api-error.js';
 import { authMiddleware } from './middleware/auth.js';
@@ -54,6 +55,7 @@ import { errorPagesRouter } from './routes/error-pages.js';
 import { geoipRouter } from './routes/geoip.js';
 import { haproxyRouter } from './routes/haproxy.js';
 import { healthRouter } from './routes/health.js';
+import { i18nRouter } from './routes/i18n.js';
 import { keepalivedRouter } from './routes/keepalived.js';
 import { logsRouter } from './routes/logs.js';
 import { luaPluginsRouter } from './routes/lua-plugins.js';
@@ -78,8 +80,11 @@ export const createApp = async config => {
   const statsSampler = createStatsSampler(config);
   statsSampler.start();
 
+  const stopPullLoop = startPullLoop(config);
+
   const app = express();
   app.locals.statsSampler = statsSampler;
+  app.locals.stopPullLoop = stopPullLoop;
   app.disable('x-powered-by');
   app.set('trust proxy', config.server.trustProxy ?? []);
   app.use(globalRateLimit(config.server.rateLimit ?? {}));
@@ -96,6 +101,7 @@ export const createApp = async config => {
   app.use(i18nMiddleware());
 
   app.use(healthRouter(config));
+  app.use('/api', i18nRouter());
   app.use('/api', authRouter(config));
   app.use('/api', setupRouter(config));
   app.use('/api', apiTokensRouter(config));

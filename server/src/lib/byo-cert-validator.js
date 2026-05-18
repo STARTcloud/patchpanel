@@ -42,7 +42,10 @@ const tryPublicKeysMatch = (privKeyPem, leafX509) => {
     privateKey = createPrivateKey(privKeyPem);
     publicKeyFromPriv = createPublicKey(privateKey).export({ type: 'spki', format: 'der' });
   } catch (err) {
-    return { ok: false, error: `private key parse failed: ${err.message}` };
+    return {
+      ok: false,
+      error: { code: 'cert.byo.privKeyParseFailed', replacements: { reason: err.message } },
+    };
   }
   try {
     publicKeyFromCert = createPublicKey(leafX509.publicKey).export({
@@ -50,31 +53,36 @@ const tryPublicKeysMatch = (privKeyPem, leafX509) => {
       format: 'der',
     });
   } catch (err) {
-    return { ok: false, error: `cert public key export failed: ${err.message}` };
+    return {
+      ok: false,
+      error: { code: 'cert.byo.certPubKeyExportFailed', replacements: { reason: err.message } },
+    };
   }
   if (publicKeyFromPriv.equals(publicKeyFromCert)) {
     return { ok: true };
   }
-  return { ok: false, error: 'private key does not match the leaf certificate' };
+  return { ok: false, error: { code: 'cert.byo.privKeyMismatch', replacements: {} } };
 };
 
+// Returns null when name valid, otherwise `{ code, replacements }`.
 export const validateLineageName = name => {
   if (typeof name !== 'string' || !LINEAGE_NAME_REGEX.test(name)) {
-    return 'lineageName must contain only letters, digits, dot, dash, underscore';
+    return { code: 'cert.byo.nameInvalidChars', replacements: {} };
   }
   if (name.length === 0 || name.length > 128) {
-    return 'lineageName must be 1-128 characters';
+    return { code: 'cert.byo.nameInvalidLength', replacements: {} };
   }
   return null;
 };
 
+// `errors[]` carries `{ code, replacements }` objects.
 export const validateByoBundle = ({ fullchainPem, privkeyPem }) => {
   const errors = [];
   if (typeof fullchainPem !== 'string' || fullchainPem.trim().length === 0) {
-    errors.push('fullchainPem is required');
+    errors.push({ code: 'cert.byo.fullchainRequired', replacements: {} });
   }
   if (typeof privkeyPem !== 'string' || privkeyPem.trim().length === 0) {
-    errors.push('privkeyPem is required');
+    errors.push({ code: 'cert.byo.privKeyRequired', replacements: {} });
   }
   if (errors.length > 0) {
     return { ok: false, errors };
@@ -82,14 +90,20 @@ export const validateByoBundle = ({ fullchainPem, privkeyPem }) => {
 
   const chainBlocks = findCertificatePemBlocks(fullchainPem);
   if (chainBlocks.length === 0) {
-    return { ok: false, errors: ['fullchainPem contains no CERTIFICATE blocks'] };
+    return {
+      ok: false,
+      errors: [{ code: 'cert.byo.fullchainNoCertBlocks', replacements: {} }],
+    };
   }
 
   let leaf;
   try {
     leaf = new X509Certificate(chainBlocks[0].block);
   } catch (err) {
-    return { ok: false, errors: [`leaf certificate parse failed: ${err.message}`] };
+    return {
+      ok: false,
+      errors: [{ code: 'cert.byo.leafParseFailed', replacements: { reason: err.message } }],
+    };
   }
 
   const sans = parseSansFromX509(leaf);
@@ -104,14 +118,20 @@ export const validateByoBundle = ({ fullchainPem, privkeyPem }) => {
   const notBefore = leaf.validFromDate;
   const notAfter = leaf.validToDate;
   if (notAfter && notAfter.getTime() < now) {
-    errors.push(`leaf cert already expired (notAfter ${notAfter.toISOString()})`);
+    errors.push({
+      code: 'cert.byo.leafExpired',
+      replacements: { notAfter: notAfter.toISOString() },
+    });
   }
   if (notBefore && notBefore.getTime() > now) {
-    errors.push(`leaf cert not yet valid (notBefore ${notBefore.toISOString()})`);
+    errors.push({
+      code: 'cert.byo.leafNotYetValid',
+      replacements: { notBefore: notBefore.toISOString() },
+    });
   }
 
   if (sans.length === 0) {
-    errors.push('leaf cert has no Subject Alternative Names — HAProxy needs SANs for SNI matching');
+    errors.push({ code: 'cert.byo.leafNoSans', replacements: {} });
   }
 
   if (errors.length > 0) {

@@ -1,0 +1,60 @@
+{
+  "title": "Notifications",
+  "description": "Where patchpanel sends event notifications: cert renewals, reload failures, backend health changes. Multiple channels are dispatched in parallel; per-channel failures are isolated.",
+  "addChannel": "Add channel",
+  "saveFailed": "Save failed:",
+  "noChannels": "No channels configured.",
+  "eventsAll": "all",
+  "testDispatched": "Test notification dispatched via {{channelId}}.",
+  "deleteTitle": "Delete channel?",
+  "deleteBodyPrefix": "Delete",
+  "type": {
+    "haNotify": "Home Assistant notify service",
+    "webhook": "Generic webhook",
+    "discord": "Discord webhook",
+    "ntfy": "ntfy.sh",
+    "slack": "Slack webhook"
+  },
+  "validate": {
+    "idFormat": "id must be lowercase a-z, digits, _ or - (start with letter)",
+    "labelRequired": "label is required",
+    "webhookUrl": "webhook needs a url",
+    "discordUrl": "discord needs a webhookUrl",
+    "slackUrl": "slack needs a webhookUrl",
+    "ntfyTopic": "ntfy needs a topic"
+  },
+  "form": {
+    "haService": "HA service (e.g. notify.notify, persistent_notification.create)",
+    "haServiceHelpPrefix": "The addon calls",
+    "haServiceHelpSuffix": "via the supervisor. Requires",
+    "haServiceHelpEnd": "in config.yaml (set).",
+    "postUrl": "POST URL",
+    "jsonBody": "JSON body:",
+    "discordUrl": "Discord webhook URL",
+    "ntfyUrl": "ntfy server URL",
+    "ntfyTopic": "Topic",
+    "ntfyTopicPlaceholder": "my-private-topic",
+    "bearerToken": "Bearer token (optional)",
+    "slackUrl": "Slack incoming-webhook URL"
+  },
+  "editModal": {
+    "editTitle": "Edit channel: {{label}}",
+    "newTitle": "New notification channel"
+  },
+  "field": {
+    "id": "ID",
+    "label": "Label",
+    "type": "Type",
+    "minSeverity": "Minimum severity",
+    "events": "Subscribed events (empty = all)",
+    "eventsHelp": "Cmd/Ctrl-click to select multiple. Leave empty to subscribe this channel to every event kind."
+  },
+  "col": {
+    "label": "Label",
+    "type": "Type",
+    "events": "Events",
+    "minSeverity": "Min severity",
+    "enabled": "Enabled",
+    "actions": "Actions"
+  }
+}
