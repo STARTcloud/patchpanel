@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/STARTcloud/patchpanel/compare/v0.6.0...v0.6.1) (2026-05-18)
+
+
+### Bug Fixes
+
+* finish node sync ([aed26fb](https://github.com/STARTcloud/patchpanel/commit/aed26fb6ed48d7fc918f531ec8f526693dd19978))
+* linting ([7abd1a3](https://github.com/STARTcloud/patchpanel/commit/7abd1a318478a1b12b686d68d448f73f06cf9c5e))
+
 ## [0.6.0](https://github.com/STARTcloud/patchpanel/compare/v0.5.0...v0.6.0) (2026-05-18)
 
 

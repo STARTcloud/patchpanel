@@ -1,6 +1,6 @@
 {
   "name": "@patchpanel/server",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "type": "module",
   "description": "Express backend + CLI for the HAProxy management UI",
