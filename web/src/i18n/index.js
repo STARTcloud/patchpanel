@@ -3,6 +3,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import HttpBackend from 'i18next-http-backend';
 import { initReactI18next } from 'react-i18next';
 
+import { buildUrl } from '../api/client.js';
 import { log } from '../utils/Logger.js';
 
 // i18next instance for the patchpanel SPA. Resolution order:
@@ -36,7 +37,7 @@ const i18n = createInstance();
 
 const fetchSupportedLanguages = async () => {
   try {
-    const response = await fetch('/api/i18n/languages', { credentials: 'include' });
+    const response = await fetch(buildUrl('api/i18n/languages'), { credentials: 'same-origin' });
     if (response.ok) {
       const data = await response.json();
       if (Array.isArray(data.languages) && data.languages.length > 0) {
@@ -75,7 +76,10 @@ export const i18nPromise = (async () => {
         caches: ['localStorage'],
       },
       backend: {
-        loadPath: '/locales/{{lng}}/{{ns}}.json',
+        // Resolve against document.baseURI so HA ingress (and any non-root
+        // basename deploy) hits the right path. Bare absolute `/locales/…`
+        // would 404 under /api/hassio_ingress/<token>/.
+        loadPath: buildUrl('locales/{{lng}}/{{ns}}.json'),
       },
       interpolation: {
         escapeValue: false,
