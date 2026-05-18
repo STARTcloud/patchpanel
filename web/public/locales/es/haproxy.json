@@ -1,0 +1,765 @@
+{
+  "common": {
+    "saveFailed": "Error al guardar",
+    "saved": "Guardado.",
+    "order": "Orden",
+    "id": "id",
+    "actions": "Acciones",
+    "default": "predeterminado",
+    "and": "y",
+    "discard": "Descartar cambios"
+  },
+  "frontend": {
+    "page": {
+      "title": "Frontends",
+      "description": "Una fila por sección frontend de HAProxy. Arrastre las filas para reordenar; HAProxy analiza las secciones de arriba a abajo."
+    },
+    "columns": {
+      "name": "Nombre",
+      "mode": "Modo",
+      "bind": "Bind",
+      "enabled": "Habilitado"
+    },
+    "add": "Añadir frontend",
+    "actions": {
+      "clone": "Clonar",
+      "cloneTitle": "Duplicar este frontend con un nuevo id + nombre de sección"
+    },
+    "filterPlaceholder": "Filtrar por nombre, id, modo, dirección bind…",
+    "empty": "No hay frontends. Haga clic en Añadir frontend para crear uno.",
+    "emptyFiltered": "Ningún frontend coincide con el filtro actual.",
+    "pending": {
+      "reorder": "Reordenamiento de frontends"
+    },
+    "deleteConfirm": {
+      "title": "¿Eliminar frontend?",
+      "body": "Eliminar",
+      "note": "Este cambio se aplica inmediatamente al guardar."
+    },
+    "errors": {
+      "idFormat": "id debe coincidir con a-z, 0-9, _, - (comenzando con una letra)",
+      "nameFormat": "el nombre debe ser un identificador de sección válido de HAProxy (letras/dígitos/_/-, empezar con letra)",
+      "defaultsRequired": "debe seleccionarse un bloque defaults (cree uno primero en la página Defaults)",
+      "bindRequired": "se requiere al menos un bind",
+      "bindAddressRequired": "cada bind necesita una dirección"
+    },
+    "tabs": {
+      "basics": "Básicos",
+      "binds": "Binds",
+      "options": "Opciones"
+    },
+    "edit": {
+      "editTitle": "Editar frontend: {{name}}",
+      "newTitle": "Nuevo frontend",
+      "update": "Actualizar frontend",
+      "add": "Añadir frontend",
+      "id": "ID",
+      "idHelp": "Inmutable tras la creación. Minúsculas a-z, dígitos, _ o -, empezar con una letra.",
+      "sectionName": "Nombre de sección de HAProxy",
+      "sectionNameHelp": "Se renderiza como `frontend NAME` en haproxy.cfg.",
+      "description": "Descripción",
+      "mode": "Modo",
+      "maxconnHelp": "Límite de sesiones por frontend. Dejar en blanco para el valor predeterminado.",
+      "fromDefaults": "from (bloque defaults)",
+      "fromDefaultsHelp": "Obligatorio. Cada frontend hereda de un bloque defaults con nombre. Defínalos en la página Defaults.",
+      "chooseDefaults": "elegir un bloque defaults",
+      "errorFiles": "sección errorfiles (a nivel de frontend)",
+      "errorFilesHelp": "Referencia una de las secciones `http-errors NAME` (defínalas en la pestaña Páginas de error).",
+      "noneErrorFiles": "ninguno — usar valores predeterminados o sobrescrituras por estado",
+      "enabled": "Habilitado"
+    },
+    "bind": {
+      "address": "Dirección",
+      "addressHelp": "*:443, [::]:443, 127.0.0.1:5432, quic4@*:443, /var/run/haproxy.sock, etc.",
+      "bindName": "nombre del bind (aparece en estadísticas)",
+      "label": "etiqueta (solo UX)",
+      "ipFamily": "Familia IP",
+      "thread": "thread (p. ej. g1/1-4)",
+      "tuningHeading": "Ajuste del listener",
+      "shardsHelp": "HAProxy 2.5+: by-thread / by-group / número",
+      "maxconnPerListener": "maxconn (por listener)",
+      "nice": "nice (-20..19)",
+      "mssHelp": "Limitador de TCP MSS",
+      "triStateHelp": "Tres estados: predeterminado / on / off",
+      "sslEnabled": "SSL / TLS habilitado en este bind",
+      "quicHeading": "QUIC (por bind)",
+      "quicCcAlgoHelp": "Control de congestión para este listener. `nocc` deshabilita CC (solo depuración).",
+      "quicCcWindowHelp": "Tamaño inicial opcional de la ventana de congestión (p. ej. 1m, 100k).",
+      "quicSocketHelp": "`connection` = un socket UDP por conexión QUIC (mejor rendimiento, requiere SO_REUSEPORT).",
+      "bindNumber": "Bind #{{n}}",
+      "removeTitle": "Eliminar este bind",
+      "minTitle": "Un frontend necesita al menos un bind",
+      "remove": "Eliminar bind",
+      "add": "Añadir bind"
+    },
+    "ssl": {
+      "defaultCert": "default-crt (alternativa cuando ningún SNI coincide)",
+      "alpnHelp": "Lista separada por comas (p. ej. h2,http/1.1 o h3).",
+      "none": "(ninguno)",
+      "caFile": "ca-file (validación de certificado de cliente mTLS)",
+      "noCas": "Aún no hay CAs de confianza subidas — añada una en la página Certificados.",
+      "caFileHelp": "Paquete usado para verificar los certificados de cliente presentados a este bind.",
+      "caVerifyFile": "ca-verify-file (cadena alternativa para ca-names)",
+      "caVerifyHelp": "Opcional. Permite a HAProxy anunciar nombres de CA diferentes a la cadena con la que verifica.",
+      "crlFile": "crl-file (lista de revocación)",
+      "noCrls": "Aún no hay CRLs de confianza subidas — añada una en la página Certificados.",
+      "crlHelp": "CRL que HAProxy usa para rechazar certificados de cliente revocados durante el handshake TLS."
+    },
+    "sslFlags": {
+      "strictSni": "strict-sni (rechazar TLS sin certificado coincidente)",
+      "noTlsTickets": "no-tls-tickets",
+      "allow0rtt": "allow-0rtt",
+      "preferClientCiphers": "prefer-client-ciphers",
+      "crtIgnoreErrors": "crt-ignore-err all",
+      "caIgnoreErrors": "ca-ignore-err all",
+      "noCaNames": "no-ca-names (HAProxy 2.2+)"
+    },
+    "http": {
+      "defaultBackend": "Backend predeterminado",
+      "rateLimitSessions": "rate-limit sessions (por segundo)",
+      "monitorFail": "monitor fail (expresión de HAProxy)"
+    },
+    "hsts": {
+      "enabled": "HSTS habilitado",
+      "maxAge": "max-age (segundos)"
+    },
+    "cors": {
+      "enabled": "CORS habilitado"
+    },
+    "compression": {
+      "heading": "Compresión",
+      "enabled": "Compresión habilitada",
+      "algorithm": "Algoritmo",
+      "types": "Tipos MIME (uno por línea)"
+    },
+    "capture": {
+      "none": "Sin capturas.",
+      "header": "Cabecera",
+      "maxLen": "Longitud máxima (bytes)"
+    },
+    "errorFiles": {
+      "status": "Estado",
+      "path": "Ruta del archivo",
+      "none": "Sin sobrescrituras por estado.",
+      "add": "Añadir errorfile"
+    },
+    "stats": {
+      "noUsers": "Sin usuarios de autenticación de estadísticas.",
+      "username": "Usuario",
+      "password": "Contraseña",
+      "addUser": "Añadir usuario de estadísticas"
+    },
+    "tcp": {
+      "noSniMappings": "Sin mapeos SNI.",
+      "sniPattern": "Patrón SNI",
+      "backend": "Backend",
+      "choose": "elegir",
+      "addSniMapping": "Añadir mapeo SNI"
+    }
+  },
+  "backend": {
+    "page": {
+      "title": "Backends"
+    },
+    "add": "Añadir backend",
+    "filterPlaceholder": "Filtrar por nombre, id, modo, servidor…",
+    "summary": "{{shown}} de {{total}} backends mostrados.",
+    "columns": {
+      "name": "Nombre",
+      "mode": "Modo",
+      "balance": "Balance",
+      "servers": "Servidores"
+    },
+    "actions": {
+      "clone": "Clonar",
+      "cloneTitle": "Duplicar este backend con un nuevo id/nombre. Útil cuando varios vhosts comparten el mismo grupo upstream pero desea filas de estadísticas por vhost.",
+      "inUseTitle": "En uso por al menos una regla, default_backend o mapeo SNI; elimine la referencia primero."
+    },
+    "emptyFiltered": "Ningún backend coincide con el filtro actual.",
+    "deleteConfirm": {
+      "title": "¿Eliminar backend?",
+      "body": "Eliminar backend",
+      "note": "Este cambio se aplica inmediatamente al guardar."
+    },
+    "errors": {
+      "idFormat": "id debe coincidir con a-z, 0-9, _, - (comenzando con una letra)",
+      "nameRequired": "el nombre es obligatorio",
+      "minServers": "se requiere al menos un servidor",
+      "serverNameRequired": "cada servidor necesita un nombre",
+      "serverAddrRequired": "el servidor \"{{name}}\" necesita una dirección host:puerto",
+      "timeoutFormat": "timeout.{{key}} debe ser como \"30s\" o \"5m\""
+    },
+    "edit": {
+      "editTitle": "Editar backend: {{name}}",
+      "newTitle": "Nuevo backend",
+      "update": "Actualizar backend",
+      "add": "Añadir backend",
+      "id": "ID",
+      "name": "Nombre (directiva HAProxy)",
+      "mode": "Modo",
+      "balance": "Balance",
+      "options": "options (una por línea)",
+      "advanced": "Directivas HAProxy avanzadas",
+      "advancedPlaceholder": "línea HAProxy en bruto a inyectar"
+    },
+    "servers": {
+      "title": "Servidores",
+      "help": "El orden importa cuando balance es static-rr o first, y para la secuencia de conmutación entre servidores backup. Arrastre las filas, use las flechas o haga clic en una insignia de posición para saltar a un slot específico. Al ordenar por una columna se ocultan los manejadores de arrastre — haga clic en el encabezado de posición para quitar el orden.",
+      "filter": "Filtrar servidores por nombre o dirección…",
+      "empty": "Aún no hay servidores.",
+      "emptyFiltered": "Ningún servidor coincide con el filtro actual.",
+      "add": "Añadir servidor",
+      "minServerTitle": "Un backend necesita al menos un servidor.",
+      "name": "Nombre",
+      "address": "Dirección",
+      "check": "Check",
+      "ssl": "SSL",
+      "sslVerify": "Verificación SSL",
+      "sni": "SNI",
+      "sniTitle": "Opcional. ssl_fc_sni reenvía el SNI entrante tal cual; un hostname literal lo sobrescribe.",
+      "caFile": "Archivo CA",
+      "caFileTitle": "Paquete de CA de confianza para la verificación TLS de upstream. Solo relevante cuando se requiere la verificación SSL.",
+      "systemDefault": "predeterminado del sistema",
+      "cookie": "Cookie",
+      "cookiePlaceholder": "valor de cookie",
+      "backup": "Backup"
+    }
+  },
+  "acl": {
+    "page": {
+      "title": "ACLs",
+      "description": "Comparadores nombrados reutilizables. Refiéralos por nombre desde cualquier condición de regla; el renderizador emite una línea acl NAME … al principio del cuerpo de cada frontend que lo use."
+    },
+    "add": "Añadir ACL",
+    "filterPlaceholder": "Filtrar por nombre, campo, descripción…",
+    "empty": "Aún no hay ACLs. Añada uno antes de referenciarlo desde una regla.",
+    "emptyFiltered": "Ningún ACL coincide con el filtro actual.",
+    "columns": {
+      "name": "Nombre",
+      "expression": "Expresión",
+      "usedBy": "Usado por"
+    },
+    "refs": {
+      "unused": "sin usar",
+      "referencedBy": "Referenciado por {{count}} regla",
+      "referencedBy_other": "Referenciado por {{count}} reglas",
+      "ruleCount": "{{count}} regla",
+      "ruleCount_other": "{{count}} reglas"
+    },
+    "actions": {
+      "deleteBlocked": "Referenciado por {{count}} regla(s); desvincúlelas primero."
+    },
+    "deleteConfirm": {
+      "title": "¿Eliminar ACL?",
+      "body": "Eliminar ACL"
+    },
+    "errors": {
+      "idFormat": "id debe coincidir con a-z, 0-9, _, - (comenzando con una letra)",
+      "nameFormat": "el nombre debe ser un identificador ACL válido de HAProxy (empezar con letra, letras/dígitos/_/./-)",
+      "fieldRequired": "el campo es obligatorio"
+    },
+    "previewIncomplete": "(complete el nombre + campo para previsualizar)",
+    "edit": {
+      "editTitle": "Editar ACL: {{name}}",
+      "newTitle": "Nuevo ACL",
+      "id": "ID",
+      "idPlaceholder": "p. ej. host-home-assistant",
+      "idHelp": "Id interno (inmutable). Minúsculas a-z, dígitos, _ o -, empezar con letra.",
+      "name": "Nombre ACL de HAProxy",
+      "nameHelp": "Usado en condiciones de regla para referenciar este ACL.",
+      "description": "Descripción (opcional)",
+      "descriptionPlaceholder": "p. ej. Coincide con todas las solicitudes a home.example.com",
+      "field": "Campo (fetch de HAProxy)",
+      "fieldCurrent": "(establecido actualmente; escriba personalizado en el campo de abajo)",
+      "fieldCustomPlaceholder": "fetch personalizado (p. ej. some.future_fetch)",
+      "fieldArg": "Argumento del campo",
+      "fieldArgPlaceholder": "p. ej. host, X-Forwarded-For, txn.foo",
+      "fieldArgHelp": "Para hdr(NAME), var(scope.NAME), etc.",
+      "none": "(ninguno)",
+      "operator": "Operador",
+      "caseInsensitive": "-i (sin distinguir mayúsculas/minúsculas)",
+      "noDns": "-n (sin búsqueda DNS)",
+      "values": "Valores (uno o más, separados por espacio al renderizar)",
+      "valuePlaceholder": "valor o CIDR o regex",
+      "preview": "Vista previa"
+    },
+    "fieldGroups": {
+      "common": "Común",
+      "network": "Red",
+      "tls": "TLS",
+      "request": "Solicitud",
+      "response": "Respuesta",
+      "variables": "Variables",
+      "other": "Otro"
+    },
+    "operators": {
+      "none": "(ninguno — str / booleano predeterminado)",
+      "str": "str (coincidencia exacta de cadena)",
+      "sub": "sub (subcadena)",
+      "beg": "beg (empieza con)",
+      "end": "end (termina con)",
+      "reg": "reg (regex)",
+      "dir": "dir (coincidencia de componente de ruta)",
+      "dom": "dom (coincidencia de dominio)",
+      "len": "len (coincidencia de longitud)",
+      "bin": "bin (coincidencia binaria)",
+      "found": "found (la clave existe; sin valor)",
+      "ip": "ip (coincidencia CIDR para src/dst)",
+      "int": "int (igualdad de entero)",
+      "gt": "gt (mayor que)",
+      "lt": "lt (menor que)",
+      "ge": "ge (≥)",
+      "le": "le (≤)",
+      "eq": "eq (igual)",
+      "ne": "ne (no igual)",
+      "bool": "bool (fetch booleano, sin valores)"
+    }
+  },
+  "rule": {
+    "page": {
+      "title": "Reglas",
+      "description": "Cadenas de reglas por frontend, una pestaña por fase de HAProxy. Arrastre las filas para reordenar. El orden de fases de izquierda a derecha coincide con el orden de evaluación de HAProxy."
+    },
+    "frontendLabel": "Frontend",
+    "noFrontends": "sin frontends",
+    "noFrontendsNotice": "Aún no hay frontends definidos. Cree un frontend antes de añadir reglas.",
+    "add": "Añadir regla",
+    "filterPlaceholder": "Filtrar reglas…",
+    "empty": "No hay reglas en esta fase. Haga clic en Añadir regla para crear una.",
+    "emptyFiltered": "Ninguna regla coincide con el filtro actual.",
+    "disabled": "deshabilitada",
+    "always": "siempre",
+    "columns": {
+      "name": "Nombre",
+      "action": "Acción",
+      "condition": "Condición"
+    },
+    "evaluationNote": "Las reglas se evalúan de arriba a abajo. La primera coincidencia terminadora gana para acciones como deny, redirect, use-backend. Las acciones no terminadoras (set-header, set-var) se ejecutan todas en orden.",
+    "deleteConfirm": {
+      "title": "¿Eliminar regla?",
+      "body": "Eliminar regla"
+    },
+    "errors": {
+      "idFormat": "id debe coincidir con a-z, 0-9, _, - (comenzando con una letra)"
+    },
+    "edit": {
+      "editTitle": "Editar regla: {{name}}",
+      "newTitle": "Nueva regla",
+      "id": "ID",
+      "name": "Nombre (visualización)",
+      "namePlaceholder": "Nombre amigable",
+      "enabled": "Habilitada"
+    },
+    "action": {
+      "heading": "Acción",
+      "actionType": "Tipo de acción",
+      "headerName": "Nombre de cabecera",
+      "value": "Valor",
+      "valuePlaceholder": "log-format admitido, p. ej. \"%[src]\"",
+      "statusCodeOpt": "Código de estado (opcional)",
+      "statusCode": "Código de estado",
+      "type": "Tipo",
+      "target": "Objetivo",
+      "code": "Código",
+      "default302": "302 predeterminado",
+      "backend": "Backend",
+      "serviceName": "Nombre del servicio",
+      "header": "Cabecera",
+      "matchRegex": "Regex de coincidencia",
+      "replacement": "Reemplazo",
+      "scope": "Ámbito",
+      "name": "Nombre",
+      "expression": "Expresión",
+      "level": "Nivel",
+      "reasonOpt": "Motivo (opcional)",
+      "mark": "Mark",
+      "tos": "ToS",
+      "keyExpression": "Clave (expresión)",
+      "table": "Tabla",
+      "lengthBytes": "Longitud (bytes)",
+      "functionName": "Nombre de función",
+      "args": "Args",
+      "argPlaceholder": "argumento posicional",
+      "realmOpt": "Realm (opcional)",
+      "method": "Método",
+      "time": "Tiempo",
+      "securityProfile": "Perfil de seguridad",
+      "securityProfileHelp": "Acción azucarada — se expande al renderizar en la cadena deny + track-sc del perfil, condicionada a esta regla.",
+      "authProvider": "Proveedor de autenticación",
+      "authProviderHelp": "Acción azucarada — se expande al renderizar en la cadena de autenticación del proveedor, condicionada a esta regla.",
+      "varScope": "Ámbito de variable",
+      "varName": "Nombre de variable",
+      "resolvers": "Resolvers",
+      "family": "Familia",
+      "any": "cualquiera",
+      "choose": "elegir",
+      "bodyKind": "Tipo de cuerpo",
+      "noBody": "sin cuerpo",
+      "bodyContent": "Contenido del cuerpo",
+      "inlineBody": "Texto del cuerpo en línea",
+      "extraHeaders": "Cabeceras de respuesta adicionales",
+      "noExtraHeaders": "Sin cabeceras adicionales.",
+      "addHeader": "Añadir cabecera",
+      "noEditor": "Aún no hay editor para la acción",
+      "yet": "."
+    },
+    "condition": {
+      "heading": "Condición",
+      "note": "(vacío = siempre; los términos se unen con AND por defecto, cambie a OR por fila)",
+      "none1": "Sin condición — la regla se dispara incondicionalmente.",
+      "addAclRef": "Añadir referencia ACL",
+      "addInline": "Añadir coincidencia en línea",
+      "previewHeader": "Vista previa de condición",
+      "not": "NOT",
+      "type": "Tipo",
+      "aclRef": "Referencia ACL",
+      "inlineMatch": "Coincidencia en línea",
+      "acl": "ACL",
+      "field": "Campo",
+      "arg": "Arg",
+      "op": "Op",
+      "values": "Valores",
+      "valuePlaceholder": "valor",
+      "flags": "Banderas",
+      "none": "(ninguno)",
+      "noneShort": "(ninguno)",
+      "combineNext": "Combinar con el siguiente:",
+      "andLabel": "AND (espacio)",
+      "orLabel": "OR (||)"
+    }
+  },
+  "route": {
+    "page": {
+      "title": "Rutas",
+      "lensView": "Vista de lente.",
+      "description1": "Una \"ruta\" aquí es un par: un ACL hdr(host) + una regla http-request use-backend que lo referencia. Use + Nueva ruta para crear ambos mediante un asistente. Las ediciones al ACL o regla subyacentes se hacen en las páginas",
+      "aclsLink": "ACLs",
+      "rulesLink": "Reglas",
+      "pages": "."
+    },
+    "new": "Nueva ruta",
+    "empty": "No se derivan rutas. O bien no existen reglas use-backend todavía, o ninguna regla referencia un ACL de coincidencia de host. Haga clic en + Nueva ruta para crear el primer par, o construya las primitivas directamente desde las páginas ACLs y Reglas.",
+    "columns": {
+      "frontend": "Frontend",
+      "hostnames": "Hostnames",
+      "backend": "Backend",
+      "acls": "ACL(s)",
+      "rule": "Regla",
+      "status": "Estado"
+    },
+    "status": {
+      "enabled": "habilitada",
+      "disabled": "deshabilitada"
+    },
+    "openInNewTab": "Abrir https://{{host}}/ en una nueva pestaña"
+  },
+  "routeWizard": {
+    "newRoute": "Nueva ruta",
+    "createRoute": "Crear ruta",
+    "steps": {
+      "pickFrontend": "Elegir frontend",
+      "hostsBackend": "Hostnames y backend",
+      "names": "Nombres",
+      "review": "Revisar"
+    },
+    "frontend": "Frontend",
+    "choose": "elegir",
+    "noHttpFrontends": "No hay frontends HTTP definidos. Cree uno primero en la página Frontends.",
+    "hostnames": "Hostnames",
+    "hostnamePlaceholder": "p. ej. home.example.com",
+    "invalidHostname": "hostname inválido",
+    "hostnamesHelp": "Uno o más hostnames coincididos por hdr(host) -i. Se permiten comodines (-i predeterminado).",
+    "backend": "Backend",
+    "noBackends": "No hay backends definidos. Cree uno primero en la página Backends.",
+    "aclId": "id de ACL",
+    "aclIdHelp": "Id interno para la entidad ACL de coincidencia de host.",
+    "aclName": "Nombre ACL (identificador HAProxy)",
+    "aclNameHelp": "Se renderiza como acl NAME hdr(host) -i ….",
+    "ruleId": "id de regla",
+    "ruleLabel": "Etiqueta de regla (visualización)",
+    "optional": "opcional",
+    "willCreate": "Creará:",
+    "diffHeader": "Diff de estado resultante",
+    "diffNote": "Al guardar se aplica mediante el pipeline normal estado → renderizar → recargar. El ACL y la regla quedan totalmente editables después desde las páginas ACLs y Reglas.",
+    "aclDescription": "Coincidencia de hostname para {{hostnames}}"
+  },
+  "defaults": {
+    "page": {
+      "title": "Bloques defaults",
+      "description": "Secciones nombradas defaults NAME { … }. Cada frontend elige uno mediante from. HAProxy 2.4+."
+    },
+    "add": "Añadir bloque defaults",
+    "empty": "Aún no hay bloques defaults. Necesita al menos uno antes de añadir cualquier frontend.",
+    "emptyFiltered": "Ningún bloque defaults coincide con el filtro actual.",
+    "filterPlaceholder": "Filtrar por nombre, id, modo…",
+    "columns": {
+      "name": "Nombre",
+      "mode": "Modo",
+      "retries": "Reintentos",
+      "usedBy": "Usado por"
+    },
+    "unused": "sin usar",
+    "frontendCount": "{{count}} frontend",
+    "frontendCount_other": "{{count}} frontends",
+    "actions": {
+      "deleteBlocked": "Referenciado por {{count}} frontend(s); cámbielos primero."
+    },
+    "deleteConfirm": {
+      "title": "¿Eliminar bloque defaults?",
+      "body": "Eliminar"
+    },
+    "errors": {
+      "idFormat": "id debe coincidir con a-z, 0-9, _, - (comenzando con una letra)",
+      "nameFormat": "el nombre debe ser un identificador de sección válido de HAProxy (letras/dígitos/_/-, empezar con letra)",
+      "sectionLabel": "sección errorfiles (paquete con nombre)",
+      "sectionHelp": "Referencia una de las secciones http-errors con nombre (de nivel superior).",
+      "directivesHeading": "Directivas http-error (con expansión log-format)"
+    },
+    "tabs": {
+      "basics": "Básicos",
+      "timeouts": "Timeouts",
+      "errors": "Páginas de error",
+      "advanced": "Avanzado"
+    },
+    "edit": {
+      "editTitle": "Editar bloque defaults: {{name}}",
+      "newTitle": "Nuevo bloque defaults",
+      "id": "ID",
+      "idHelp": "Inmutable tras la creación.",
+      "sectionName": "Nombre de sección de HAProxy",
+      "sectionNameHelp": "Usado como referencia `from NAME`.",
+      "mode": "Modo",
+      "description": "Descripción",
+      "initAddr": "default-server init-addr (orden de resolución)",
+      "initAddrHelp": "Cmd/Ctrl-clic para seleccionar varios. Vacío omite la directiva.",
+      "options": "options (una por línea)"
+    },
+    "httpErrors": {
+      "empty": "Sin directivas http-error.",
+      "status": "Estado",
+      "contentType": "Content-Type",
+      "bodyKind": "Tipo de cuerpo",
+      "body": "Cuerpo",
+      "add": "Añadir directiva http-error",
+      "inlinePlaceholder": "Cuerpo en línea con variables log-format"
+    },
+    "advanced": {
+      "label": "Directivas HAProxy avanzadas",
+      "placeholder": "línea HAProxy en bruto a inyectar",
+      "help": "Añadido tal cual dentro del bloque defaults."
+    }
+  },
+  "global": {
+    "stateSaveUnavailable": "Guardado de estado no disponible."
+  },
+  "globalSettings": {
+    "title": "Bloque global de HAProxy",
+    "description": "Capacidad, registro y formato de unique-id. Estos se renderizan en la sección global de haproxy.cfg. SSL / TLS, plugins Lua, ajustes QUIC y directivas en bruto se configuran en las tarjetas de abajo.",
+    "capacity": "Capacidad",
+    "process": "Proceso",
+    "loggingFormat": "Formato de registro",
+    "logLevel": "Nivel de registro",
+    "jsonLogs": "Emitir registros de acceso JSON",
+    "maxconnHelp": "Límite de conexiones simultáneas por proceso. Valor efectivo limitado por fd-hard-limit / 2 - 256.",
+    "fdHardLimitHelp": "Techo absoluto de descriptores de archivo que HAProxy solicitará al SO.",
+    "bufsizeHelp": "Tamaño de buffer por flujo en bytes. 64K cubre la mayoría de cargas de trabajo.",
+    "hardStopAfterHelp": "Período de gracia para que los trabajadores antiguos drenen tras una recarga antes de SIGKILL.",
+    "logLevelHelp": "Nivel de emisión de registro de HAProxy (pasado a log stdout format raw local0 X).",
+    "uniqueIdHeaderHelp": "Nombre de cabecera usado para exponer el id de solicitud único. En blanco deshabilita la directiva.",
+    "uniqueIdFormatHelp": "Expresión log-format de HAProxy. Predeterminado %{+X}o\\ %ci:%cp_%fi:%fp_%Ts_%rt:%pid es la forma hex canónica según los docs 8.2.1.",
+    "save": "Guardar configuración global"
+  },
+  "advancedDirectives": {
+    "title": "Directivas globales avanzadas",
+    "description": "Líneas en bruto añadidas tal cual a la sección global renderizada. Una directiva por fila. Úselo solo para características de HAProxy que patchpanel no modela nativamente — estas líneas omiten la validación de esquema.",
+    "placeholder": "p. ej. tune.h2.fe.max-concurrent-streams 100",
+    "save": "Guardar directivas avanzadas"
+  },
+  "advanced": {
+    "page": {
+      "title": "Avanzado — Infraestructura HAProxy",
+      "description": "Resolvers DNS, grupos peer-sync de stick-table, grupos de mailer SMTP para email-alert, sinks log-ring, y registro reutilizable de políticas de seguridad (rate-limit / geo-block / bot-defense). La infraestructura relacionada con certificados vive en la pestaña Certificados; las secciones de página de error viven en la pestaña Páginas de error; los listeners adicionales viven en la nueva pestaña Frontends."
+    }
+  },
+  "quic": {
+    "title": "Ajustes QUIC (global)",
+    "description": "Ajustes QUIC por proceso y por lado renderizados como directivas tune.quic.* en la sección global. Las palabras clave QUIC por bind (quic-cc-algo, quic-force-retry, quic-socket) se configuran por frontend en cada bind quic4@ / quic6@. QUIC en backend requiere una dirección de servidor con prefijo quic4@ o quic6@.",
+    "save": "Guardar ajustes QUIC",
+    "tabs": {
+      "process": "Proceso",
+      "frontend": "Frontend (tune.quic.fe.*)",
+      "backend": "Backend (tune.quic.be.*)"
+    },
+    "maxIdleTimeoutHelp": "Timeout de inactividad QUIC en este lado.",
+    "listenOn": "on (aceptar binds QUIC)",
+    "listenOff": "off (deshabilitar QUIC globalmente)",
+    "listenHelp": "Interruptor maestro para los listeners QUIC. Reemplaza la bandera global heredada no-quic.",
+    "memTxMaxHelp": "Techo de memoria TX por proceso para QUIC.",
+    "zeroCopyHelp": "Usar reenvío de salida con copia cero cuando el kernel lo soporte."
+  },
+  "ssl": {
+    "title": "Globales SSL / TLS",
+    "description": "Perfil Mozilla + sobrescrituras por cipher/curva/suite. Frontend y Backend se configuran aquí. Un arreglo vacío en cualquier campo significa que HAProxy no emitirá la directiva ssl-default-* correspondiente — los valores predeterminados de OpenSSL aplican en tiempo de ejecución.",
+    "save": "Guardar configuración SSL / TLS",
+    "override": "sobrescritura",
+    "overrideCount": "sobrescritura · {{count}} seleccionado(s)",
+    "presetCount": "preestablecido · {{count}} seleccionado(s)",
+    "overrideCountBadge": "{{count}} sobrescritura",
+    "overrideCountBadge_other": "{{count}} sobrescrituras",
+    "presetUpdated": "preestablecido actualizado",
+    "presetStale": "El preestablecido {{name}} se basaba en la versión {{old}} cuando se guardó por última vez. La versión actual del preestablecido es {{current}}.",
+    "refreshFromPreset": "Refrescar desde el preestablecido actual",
+    "resetToPreset": "Restablecer al preestablecido",
+    "revertTitle": "Revertir al valor preestablecido",
+    "resetBind": "Restablecer sobrescrituras de bind al preestablecido",
+    "resetBindTitle": "Eliminar cualquier sobrescritura del lado bind que ya coincida con el valor preestablecido",
+    "resetServer": "Restablecer sobrescrituras de servidor al preestablecido",
+    "resetServerTitle": "Eliminar cualquier sobrescritura del lado servidor que ya coincida con el valor preestablecido",
+    "profile": "Perfil",
+    "profileHelpPart1": "Valores de referencia de Mozilla de",
+    "profileHelpPart2": "custom = sin capa preestablecida; cada campo es explícito.",
+    "tabs": {
+      "frontend": "Frontend",
+      "backend": "Backend",
+      "tune": "Ajuste",
+      "extras": "Proveedores + archivos extra"
+    },
+    "noCapability": "Esta build de HAProxy / OpenSSL no reporta elementos para este campo.",
+    "custom": "personalizado",
+    "emptyWarning": "Sin elementos seleccionados — HAProxy no emitirá una directiva ssl-default-* para este campo. Los valores predeterminados de OpenSSL aplicarán en tiempo de ejecución.",
+    "knownTokens": "Tokens conocidos:",
+    "probing": "Sondeando HAProxy + OpenSSL instalados en busca de ciphers / curvas / sigalgs disponibles…",
+    "probeFailed": "El sondeo de capacidades falló",
+    "probeFailedNote": "Las listas de casillas cipher / curva / sigalg recurren a lo que ya esté en estado. Aún puede guardar.",
+    "capsSummary": "{{c}} ciphers · {{cs}} ciphersuites · {{cv}} curvas · {{sa}} sigalgs",
+    "providersLoaded": "Proveedores cargados:",
+    "noneReported": "ninguno reportado",
+    "danger": "peligro",
+    "keylogOnTitle": "tune.ssl.keylog está ACTIVADO.",
+    "keylogOnBody": "Las claves de sesión se escriben en el registro de HAProxy, permitiendo a cualquiera con acceso al registro descifrar el tráfico TLS pasado capturado en la red. Desactívelo antes de pasar a producción; esto es una bandera solo de depuración.",
+    "keylogConfirm": {
+      "title": "¿Habilitar tune.ssl.keylog?",
+      "body": "Activar tune.ssl.keylog escribe las claves de sesión en el registro de HAProxy. Cualquiera con acceso al registro puede descifrar el tráfico TLS capturado en la red. Úselo solo para depuración corta con Wireshark en un entorno controlado. Nunca lo deje activado en producción.",
+      "confirm": "Habilitar keylog"
+    },
+    "tune": {
+      "dhParamHelp": "Tamaño en bits de los parámetros DH. Mínimo 2048; predeterminado 4096.",
+      "cachesizeHelp": "Entradas de caché de sesión SSL. Predeterminado 20000.",
+      "lifetimeHelp": "TTL de la caché de sesión. Predeterminado 300.",
+      "maxrecordHelp": "Tamaño de registro TLS; 0 = auto.",
+      "captureBufferHelp": "Buffer de captura de ClientHello.",
+      "asyncHelp": "Hilos del motor asíncrono."
+    },
+    "providersLabel": "Proveedores OpenSSL cargados (solo referencia / pista)",
+    "providersHelp": "Registrado en estado para documentación. La disponibilidad real del proveedor la reporta openssl list -providers y se muestra de solo lectura arriba de esta tarjeta.",
+    "providerDefaultProps": "Propiedades predeterminadas del proveedor",
+    "extraFilesHelp": "Archivos sidecar de certificado extra para cargar junto con cada PEM. Valores comunes: ocsp, sctl, issuer.",
+    "loadExtraDelExt": "ssl-load-extra-del-ext (eliminar extensión al comparar hermanos)"
+  },
+  "bindPicker": {
+    "placeholder": "p. ej. *:443 o 172.17.1.55:443",
+    "filter": "Filtrar…",
+    "groups": {
+      "common": "Común",
+      "floating": "IPs flotantes (keepalived)",
+      "saved": "Preestablecidos guardados",
+      "other": "Otro"
+    },
+    "items": {
+      "unixSocket": "Socket Unix…",
+      "abns": "Espacio de nombres abstracto (abns@…)",
+      "fd": "fd preabierto (fd@…)",
+      "custom": "Dirección personalizada…"
+    },
+    "subtitle": {
+      "all": "todas las interfaces (dual-stack)",
+      "allV4": "todas las interfaces IPv4",
+      "allV6": "todas las interfaces IPv6",
+      "loopbackV4": "loopback IPv4",
+      "loopbackV6": "loopback IPv6",
+      "floating": "flotante"
+    },
+    "prompts": {
+      "custom": "Introduzca una dirección bind (hostname, IP o forma de dirección de HAProxy):",
+      "socket": "Ruta del socket Unix:",
+      "abns": "Nombre de socket de espacio de nombres abstracto (abns@…):",
+      "fd": "Número de fd preabierto (fd@…):"
+    },
+    "showingFiltered": "Mostrando filtrados",
+    "showFiltered": "Mostrar filtrados",
+    "showFilteredCount": "Mostrar filtrados ({{count}})",
+    "reload": "Recargar",
+    "reloadTitle": "Volver a obtener la lista de interfaces",
+    "interfacesUnavailable": "Lista de interfaces no disponible",
+    "warnings": {
+      "associatedWithVip": "Asociado con VIP",
+      "disassociate": "Desasociar",
+      "unreachable": "Esta dirección no está en ninguna interfaz local y no coincide con ninguna VIP. HAProxy fallará al hacer bind a menos que transparent esté establecido en las opciones de este bind y net.ipv4.ip_nonlocal_bind=1 esté establecido en el host. patchpanel no configurará ninguno por usted.",
+      "floating": "Esta es una IP flotante gestionada por keepalived. Para que HAProxy arranque incluso cuando este nodo no tenga la VIP, añada transparent a bindOptions y establezca net.ipv4.ip_nonlocal_bind=1 en el host. patchpanel no hará ninguno por usted.",
+      "nodeLocal": "Esta dirección solo existe en este nodo — los demás nodos del clúster fallarán al hacer bind."
+    }
+  },
+  "configField": {
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "upload": "Subir",
+    "uploading": "Subiendo…",
+    "uploadFailed": "subida fallida",
+    "commaSeparated": "elemento-1, elemento-2, elemento-3"
+  },
+  "entityForm": {
+    "item": "elemento",
+    "items": "elementos",
+    "addItem": "Añadir {{label}}",
+    "addItemPlaceholder": "Añadir {{label}} y pulsar Enter",
+    "removeItem": "Eliminar {{item}}",
+    "noItemsYet": "Aún no hay {{label}}.",
+    "fieldRequired": "{{label}} es obligatorio.",
+    "editTitle": "Editar {{label}}: {{id}}",
+    "newTitle": "Nuevo {{label}}",
+    "updateLabel": "Actualizar {{label}}",
+    "addLabel": "Añadir {{label}}",
+    "configFor": "Configuración para"
+  },
+  "entitySection": {
+    "addLabel": "Añadir {{label}}",
+    "noneConfigured": "No hay {{title}} configurados.",
+    "filter": "Filtrar {{title}}…",
+    "emptyFiltered": "Ningún {{title}} coincide con el filtro actual.",
+    "deleteTitle": "¿Eliminar {{label}}?",
+    "deleteBody": "Eliminar",
+    "deleteNote": "Este cambio se aplica inmediatamente al guardar."
+  },
+  "cfg": {
+    "stateNotInitialized": "Estado no inicializado",
+    "notFound": "Configuración de HAProxy no encontrada en {{path}}"
+  },
+  "stop": {
+    "confirmRequired": "Detener HAProxy requiere { \"confirm\": true } en el cuerpo — esto descartará todas las conexiones proxyadas"
+  },
+  "server": {
+    "invalidState": "El estado del servidor debe ser uno de: {{allowed}}",
+    "invalidWeight": "El peso del servidor debe ser un entero entre 0 y 256"
+  },
+  "reloadFailed": "Recarga de HAProxy fallida: {{output}}",
+  "master": {
+    "timeout": "El socket maestro de HAProxy expiró tras {{timeoutMs}}ms"
+  },
+  "validate": {
+    "failed": "Validación de configuración HAProxy fallida (código de salida {{code}})"
+  },
+  "stats": {
+    "timeout": "El socket de estadísticas de HAProxy expiró tras {{timeoutMs}}ms"
+  },
+  "runtime": {
+    "invalidId": "{{label}} inválido: {{value}}",
+    "invalidKey": "{{label}} inválido: {{value}}",
+    "invalidMapValue": "Valor de mapa inválido",
+    "invalidSessionId": "id de sesión inválido: {{value}}"
+  },
+  "control": {
+    "pidUnreadable": "No se pudo leer el pid de HAProxy de {{path}}",
+    "directStartUnavailable": "La estrategia de control directa no puede iniciar HAProxy — no hay supervisor configurado. Establezca HAPROXY_CONTROL_STRATEGY a s6 o systemd, o inicie HAProxy manualmente.",
+    "commandFailed": "{{action}} falló (salida {{exit}}): {{output}}"
+  }
+}

@@ -1,0 +1,474 @@
+{
+  "panels": {
+    "kpiRoutes": { "title": "Rutas", "subtitle": "Total de rutas (clic para tabla completa)." },
+    "kpiBackends": {
+      "title": "Backends",
+      "subtitle": "Total de backends (clic para tabla completa)."
+    },
+    "kpiCerts": {
+      "title": "Certificados",
+      "subtitle": "Total de certs (clic para tabla completa)."
+    },
+    "kpiProviders": {
+      "title": "Proveedores TLS",
+      "subtitle": "Total de proveedores (clic para tabla completa)."
+    },
+    "liveTotals": {
+      "title": "Totales en vivo",
+      "subtitle": "Tasa de peticiones · Ancho de banda · Sesiones · CPU en reposo (siempre en vivo)."
+    },
+    "alerts": {
+      "title": "Alertas activas",
+      "subtitle": "Backends caídos, certs próximos a expirar, rutas sin cobertura."
+    },
+    "liveRate": {
+      "title": "Tasa de peticiones en vivo",
+      "subtitle": "req/s agregada en todos los frontends + sparkline."
+    },
+    "errorRate": {
+      "title": "Tasa de errores",
+      "subtitle": "% 4xx + 5xx sobre la hora muestreada."
+    },
+    "connectionPool": {
+      "title": "Pool de conexiones",
+      "subtitle": "Sesiones actuales vs techo MaxConn."
+    },
+    "runtime": {
+      "title": "Tiempo de ejecución de HAProxy",
+      "subtitle": "Proceso / Conexiones / Tasas / Acumulado / Salud."
+    },
+    "health": {
+      "title": "Salud de backends",
+      "subtitle": "Recuentos UP / DOWN / otros por backend + por servidor."
+    },
+    "tlsCoverage": {
+      "title": "Cobertura TLS",
+      "subtitle": "Rutas por estado de cert: válido / próximo a expirar / expirado / ausente."
+    },
+    "topHosts": {
+      "title": "Top hosts",
+      "subtitle": "Las 10 rutas más activas por tasa de peticiones."
+    },
+    "geoOrigins": {
+      "title": "Top países",
+      "subtitle": "Orígenes de peticiones de clientes por país (requiere GeoIP)."
+    },
+    "originMap": {
+      "title": "Mapa de origen",
+      "subtitle": "Coroplético mundial sombreado por recuento de sesiones de cliente (requiere GeoIP)."
+    },
+    "topClients": {
+      "title": "Top clientes",
+      "subtitle": "Desglose por IP con país / ubicación (requiere GeoIP para enriquecimiento)."
+    },
+    "snapshotTimeline": {
+      "title": "Cronología de instantáneas",
+      "subtitle": "Las últimas 8 instantáneas de estado con marcas de tiempo relativas."
+    },
+    "slowest": { "title": "Backends más lentos", "subtitle": "Top 5 por promedio de rtime." },
+    "httpcodes": {
+      "title": "Códigos de estado HTTP",
+      "subtitle": "Gráfico de dona de la hora muestreada."
+    },
+    "actions": {
+      "title": "Acciones rápidas",
+      "subtitle": "Recargar HAProxy + Renovar todos los certs."
+    },
+    "certs": {
+      "title": "Estado de certificados",
+      "subtitle": "Insignias de vida útil restante por cert."
+    },
+    "activity": { "title": "Actividad reciente", "subtitle": "Últimas 10 entradas de auditoría." },
+    "frontendTraffic": {
+      "title": "Tráfico de frontend — {{name}}",
+      "subtitle": "Ancho de banda in/out en vivo para el frontend {{name}}."
+    }
+  },
+  "panel": {
+    "openPage": "Abrir página {{title}}",
+    "configureLayout": "Configurar diseño",
+    "expandFullscreen": "Expandir a pantalla completa",
+    "dragReorder": "Arrastra para reordenar"
+  },
+  "runtimeGroup": {
+    "process": "Proceso",
+    "connections": "Conexiones",
+    "rates": "Tasas",
+    "cumulative": "Acumulado",
+    "health": "Salud"
+  },
+  "runtimeCard": {
+    "title": "Tiempo de ejecución de HAProxy"
+  },
+  "health": {
+    "title": "Salud de backends",
+    "backends": "Backends:",
+    "servers": "Servidores:",
+    "upCount": "{{count}} UP",
+    "downCount": "{{count}} DOWN",
+    "otherCount": "{{count}} otros"
+  },
+  "quickActions": {
+    "title": "Acciones rápidas",
+    "reloaded": "HAProxy recargado.",
+    "stopped": "HAProxy detenido.",
+    "started": "HAProxy iniciado.",
+    "renewalCompleted": "Renovación completada (cargables: {{count}}).",
+    "stopBody1Prefix": "Esto va a",
+    "stopProcess": "detener el proceso de HAProxy",
+    "stopBody1Suffix": "Todas las conexiones proxiadas se cerrarán inmediatamente y el proxy estará inaccesible hasta que lo inicies de nuevo.",
+    "strategyLabel": "Estrategia:",
+    "unknown": "desconocido",
+    "directMode": "El modo direct no tiene supervisor — patchpanel no puede reiniciar HAProxy desde la interfaz.",
+    "restartHint": "Reinicio disponible mediante el botón Iniciar.",
+    "stopTitle": "¿Detener HAProxy?",
+    "stopHaproxy": "Detener HAProxy",
+    "checkingStatus": "Comprobando estado de HAProxy…",
+    "running": "en ejecución",
+    "haproxyStatus": "HAProxy {{state}}",
+    "strategySuffix": " · estrategia: {{strategy}}",
+    "reloading": "Recargando…",
+    "reloadHaproxy": "Recargar HAProxy",
+    "stopping": "Deteniendo…",
+    "starting": "Iniciando…",
+    "startHaproxy": "Iniciar HAProxy",
+    "directStartDisabled": "La estrategia direct no puede iniciar HAProxy — sin supervisor configurado.",
+    "renewing": "Renovando…",
+    "renewAll": "Renovar todos los certs"
+  },
+  "sampling": "Muestreando… (ticks de 5s)",
+  "samplingShort": "Muestreando…",
+  "recentActivity": {
+    "title": "Actividad reciente",
+    "empty": "Aún no hay entradas de auditoría."
+  },
+  "certStatus": {
+    "title": "Estado de certificados",
+    "empty": "No hay certificados configurados.",
+    "missing": "ausente",
+    "expired": "expirado"
+  },
+  "socket": {
+    "unavailable": "Socket de estadísticas de HAProxy no disponible",
+    "fallbackMessage": "HAProxy puede no estar todavía en ejecución, o el socket de tiempo de ejecución es inaccesible."
+  },
+  "slowest": {
+    "title": "Backends más lentos",
+    "sortedPrefix": "Ordenado por HAProxy",
+    "sortedSuffix": "(tiempo promedio de respuesta sobre las últimas 1024 peticiones por backend).",
+    "empty": "No hay backends con tiempos de respuesta registrados.",
+    "col": {
+      "backend": "Backend",
+      "rtime": "rtime",
+      "rtimeMax": "rtime-max",
+      "qtime": "qtime",
+      "scur": "scur"
+    }
+  },
+  "httpCodes": {
+    "title": "Códigos de estado HTTP",
+    "noTraffic": "Aún no hay tráfico en la ventana muestreada.",
+    "seriesName": "respuestas",
+    "distribution": "Distribución entre todos los frontends en la última hora (basada en delta)."
+  },
+  "kpi": {
+    "routes": "Rutas",
+    "backends": "Backends",
+    "certificates": "Certificados",
+    "tlsProviders": "Proveedores TLS",
+    "noCert": "{{count}} sin cert",
+    "allCovered": "todas cubiertas",
+    "upCount": "{{count}} UP",
+    "downCount": "{{count}} DOWN",
+    "expiredCount": "{{count}} expirado(s)",
+    "expiringCount": "{{count}} próximo(s) a expirar",
+    "allValid": "todos válidos",
+    "unusedCount": "{{count}} sin usar"
+  },
+  "hiddenPanels": "Paneles ocultos",
+  "showPanel": "Mostrar {{title}}",
+  "fallbackPanelTitle": "Panel",
+  "noStateDoc": "No hay documento de estado cargado.",
+  "traffic": {
+    "in": "in",
+    "out": "out"
+  },
+  "sessions": {
+    "chartTitle": "Sesiones activas por proxy",
+    "axisLabel": "sesiones"
+  },
+  "topSources": {
+    "unavailable": "Sesiones activas no disponibles:",
+    "topClientIps": "Top IPs de cliente",
+    "activeBadge": "{{count}} activas",
+    "noActive": "Sin sesiones activas.",
+    "byFrontend": "Sesiones por frontend",
+    "byBackend": "Sesiones por backend"
+  },
+  "infoCard": {
+    "title": "Tiempo de ejecución de HAProxy",
+    "noInfo": "Aún sin información."
+  },
+  "controls": {
+    "filterPlaceholder": "Filtrar por proxy / servidor / estado…",
+    "hideDown": "Ocultar servidores DOWN",
+    "clearCountersTitle": "Resetear todos los contadores max/total mediante `clear counters all` en el socket de tiempo de ejecución. Las sesiones y tasas actuales no se ven afectadas; los contadores max/total/error se ponen a cero.",
+    "clearCounters": "Borrar contadores",
+    "downloadCsv": "Descargar estadísticas como CSV",
+    "csv": "CSV",
+    "downloadJson": "Descargar estadísticas como JSON",
+    "json": "JSON"
+  },
+  "chartTile": {
+    "expand": "Expandir gráfico"
+  },
+  "tables": {
+    "title": "Frontends / Backends / Servidores",
+    "description": "Se refresca cada 5 segundos. Las filas se agrupan por proxy (FRONTEND arriba, fila BACKEND al final de cada grupo). Las acciones por servidor (Set ready / Drain / Maintenance / Set weight) y las acciones por frontend (Enable / Disable / Set maxconn) se aplican mediante el socket de estadísticas de tiempo de ejecución de HAProxy — sin recarga necesaria. Pasa el cursor sobre el nombre de cualquier fila para ver el desglose por fila de códigos HTTP + tiempos queue/connect/response/total."
+  },
+  "trends": {
+    "frontendTraffic": "Tráfico de frontend",
+    "bytesHint": "Bytes por segundo muestreados cada 5 segundos. Pulsa el icono de expandir en cualquier gráfico para una vista a pantalla completa.",
+    "backendTraffic": "Tráfico de backend"
+  },
+  "fetchingHour": "Obteniendo la hora reciente desde el muestreador de estadísticas de HAProxy…",
+  "unavailable": "Estadísticas no disponibles:",
+  "actionFailed": "Acción del servidor fallida:",
+  "actionApplied": "Acción de tiempo de ejecución aplicada.",
+  "tabs": {
+    "live": "Tablas en vivo",
+    "trends": "Tendencias"
+  },
+  "prompt": {
+    "weightTitle": "Establecer peso para {{name}}",
+    "weightLabel": "Peso (0-256)",
+    "weightHelp": "0 = drenar conexiones nuevas. Mayor peso = mayor cuota de carga.",
+    "maxconnTitle": "Establecer maxconn para el frontend {{name}}",
+    "maxconnLabel": "Conexiones concurrentes máximas",
+    "maxconnHelp": "Tope máximo de conexiones simultáneas que aceptará este frontend. 0 = ilimitado."
+  },
+  "confirmClear": {
+    "title": "¿Borrar todos los contadores de HAProxy?",
+    "body1": "Esto ejecuta",
+    "body2": "en el socket de tiempo de ejecución. Los contadores max / total / error se ponen a cero en todos los frontends, backends y servidores. Las sesiones activas y las tasas",
+    "not": "no",
+    "body3": "se ven afectadas, por lo que el tráfico sigue fluyendo.",
+    "body4": "Útil para obtener números limpios después de un despliegue / prueba de carga. La acción se registra en el rastro de auditoría."
+  },
+  "detailTooltip": {
+    "http1xx": "HTTP 1xx:",
+    "http2xx": "HTTP 2xx:",
+    "http3xx": "HTTP 3xx:",
+    "http4xx": "HTTP 4xx:",
+    "http5xx": "HTTP 5xx:",
+    "rtimeAvg": "rtime (avg):",
+    "rtimeMax": "rtime (max):",
+    "qtime": "qtime:",
+    "ctime": "ctime:",
+    "ttime": "ttime:"
+  },
+  "rowActions": {
+    "action": "Acción",
+    "frontendState": "Estado del frontend",
+    "enable": "Activar",
+    "disable": "Desactivar",
+    "setMaxconn": "Establecer maxconn…",
+    "runtimeState": "Estado de tiempo de ejecución",
+    "setReady": "Set ready",
+    "drain": "Drain",
+    "maintenance": "Maintenance",
+    "setWeight": "Establecer peso…"
+  },
+  "table": {
+    "groupLinkTitle": "Saltar a la pestaña Backends enfocada en este proxy",
+    "noRows": "Aún no hay filas de estadísticas.",
+    "noFilterMatch": "Ninguna fila coincide con el filtro actual.",
+    "col": {
+      "name": "Nombre",
+      "status": "Estado",
+      "sessions": "Sesiones",
+      "sessionRate": "Tasa de sesiones",
+      "bytes": "Bytes",
+      "errors": "Errores",
+      "warnings": "Avisos",
+      "chkFail": "Chk fail",
+      "weight": "Wght",
+      "actions": "Acciones",
+      "cur": "Cur",
+      "max": "Max",
+      "total": "Total",
+      "in": "In",
+      "out": "Out",
+      "req": "Req",
+      "conn": "Conn",
+      "resp": "Resp",
+      "retr": "Retr",
+      "redis": "Redis"
+    }
+  },
+  "customize": {
+    "title": "Mostrar / ocultar paneles",
+    "hint": "Arrastra los paneles en el propio dashboard para reordenarlos. Usa los interruptores de abajo para alternar visibilidad. Las tarjetas KPI de arriba permanecen siempre visibles.",
+    "noPanels": "No hay paneles personalizables.",
+    "reset": "Restablecer valores por defecto",
+    "buttonTitle": "Mostrar/ocultar paneles del dashboard + restablecer diseño",
+    "button": "Personalizar",
+    "showPanelAria": "Mostrar {{title}}",
+    "statsBadge": "stats"
+  },
+  "panelLayout": {
+    "cellAria": "Establecer ancho {{w}} filas {{h}}",
+    "tooSmall": "Demasiado pequeño para este panel",
+    "title": "Diseño del panel",
+    "sizeAuto": "{{w}} × auto",
+    "clickHint": "Pulsa una celda para dimensionar el panel",
+    "width": "Ancho",
+    "heightRows": "Alto (filas)",
+    "auto": "auto",
+    "fullWidth": "Ancho completo",
+    "autoHeight": "Alto automático (ajustar al contenido)",
+    "hidePanel": "Ocultar este panel",
+    "done": "Hecho"
+  },
+  "alerts": {
+    "title": "Alertas activas",
+    "allNominal": "Todos los sistemas nominales — sin backends degradados, sin certs próximos a expirar, todas las rutas cubiertas.",
+    "moreCount": "+ {{count}} más…",
+    "backendDown": "El backend {{name}} está DOWN",
+    "backendDownDetail": "{{status}} — sin servidores sanos",
+    "serversDown": "{{count}} servidor(es) caído(s) en {{pxname}}",
+    "certNoLineage": "El cert {{name}} no tiene linaje en disco",
+    "certNoLineageDetail": "Sin PEM cargado — HAProxy aún no puede servir TLS para este cert",
+    "certExpired": "El cert {{name}} expiró hace {{days}}d",
+    "certExpiredDetail": "notAfter {{date}}",
+    "certExpiring": "El cert {{name}} expira en {{days}}d",
+    "renewalRecommended": "Renovación recomendada",
+    "routesNoCert": "{{count}} ruta(s) sin un cert que las cubra"
+  },
+  "connectionPool": {
+    "title": "Pool de conexiones",
+    "activeSessions": "sesiones activas",
+    "pctOfCap": "{{pct}}% del tope"
+  },
+  "liveRate": {
+    "title": "Tasa de peticiones en vivo",
+    "subtitle": "req/s · todos los frontends"
+  },
+  "errorRate": {
+    "title": "Tasa de errores",
+    "summary": "4xx + 5xx sobre la hora muestreada"
+  },
+  "tlsCoverage": {
+    "title": "Cobertura TLS",
+    "empty": "Aún no hay rutas activadas. Añade una ruta en la pestaña Rutas para empezar.",
+    "valid": "Válido (≥14d)",
+    "expiring": "Próximo a expirar (<14d)",
+    "expired": "Expirado",
+    "missing": "Sin cert",
+    "seriesName": "rutas",
+    "enabledRouteCount": "{{count}} ruta(s) activada(s)"
+  },
+  "topHosts": {
+    "title": "Top hosts (req/s)",
+    "noTraffic": "Aún no hay tráfico en la ventana muestreada."
+  },
+  "snapshots": {
+    "title": "Cronología de instantáneas",
+    "unavailable": "Instantáneas no disponibles:",
+    "empty": "Aún no hay instantáneas. Se acumulan a medida que guardas estado."
+  },
+  "geo": {
+    "title": "Top países",
+    "unknown": "Desconocido",
+    "liveUnavailable": "Sesiones en vivo no disponibles:",
+    "checking": "Comprobando estado de GeoIP…",
+    "enrichmentPrefix": "El enriquecimiento GeoIP está",
+    "off": "desactivado",
+    "turnOnPrefix": "Actívalo en",
+    "settingsLink": "Configuración → GeoIP",
+    "turnOnSuffix": "para empezar a resolver IPs de cliente a países.",
+    "noActive": "Aún no hay sesiones activas. Los orígenes se agregarán aquí cuando llegue tráfico con IP pública.",
+    "lanOnly": "Solo tráfico LAN / IP privada ahora mismo ({{count}} sesión(es)). Las direcciones privadas no se resuelven a un país. Las sesiones de IP pública aparecerán aquí cuando lleguen.",
+    "unresolvedPrefix": "GeoIP está activado pero {{count}} sesión(es) de IP pública no se pudieron resolver.",
+    "onlineFallbackPrefix": "Estás usando solo fallback en línea ({{provider}}); revisa los registros del addon en busca de 'online geoip lookup failed' para ver por qué el proveedor está rechazando peticiones (límite de tasa / token inválido / red).",
+    "localDbSourcePrefix": "La fuente de DB local es",
+    "butDb": "pero la DB está",
+    "present": "presente",
+    "missing": "ausente",
+    "clickPrefix": "Pulsa",
+    "downloadNow": "Descargar ahora",
+    "under": "en",
+    "noCountryResolved": "Aún no hay sesiones resueltas por país ({{priv}} privadas, {{unres}} sin resolver)."
+  },
+  "liveTotals": {
+    "title": "Totales en vivo",
+    "requestRate": "Tasa de peticiones",
+    "bandwidth": "Ancho de banda",
+    "sessions": "Sesiones",
+    "cpuIdle": "CPU en reposo"
+  },
+  "originMap": {
+    "title": "Mapa de origen",
+    "empty": "Aún no hay sesiones resueltas por país. El mapa se rellena a medida que GeoIP resuelve clientes de IP pública.",
+    "pointFormat": "<b>{point.name}</b>: {point.value} sesión(es)",
+    "seriesName": "Sesiones"
+  },
+  "clients": {
+    "title": "Top clientes",
+    "empty": "Aún no hay sesiones activas. Los clientes se agregarán aquí cuando llegue tráfico.",
+    "home": "casa",
+    "lan": "LAN",
+    "col": {
+      "ip": "IP",
+      "country": "País",
+      "location": "Ubicación",
+      "sessions": "Sesiones"
+    }
+  },
+  "topology": {
+    "title": "Topología",
+    "description": "Pulsa cualquier nodo para aislar su subgrafo · doble clic para abrir su página de edición · pasa el cursor para resaltar la cadena conectada · arrastra para reposicionar (guardado por navegador).",
+    "nodesLabel": "nodos",
+    "edgesLabel": "aristas",
+    "searchPlaceholder": "Buscar hostname / ruta / backend…",
+    "clearSearch": "Limpiar búsqueda",
+    "authFilterTitle": "Filtrar rutas por gating de autenticación",
+    "authFilter": {
+      "all": "Todas las rutas",
+      "authGated": "Solo con auth",
+      "open": "Solo abiertas",
+      "gatedBy": "Con gate de: {{id}} ({{type}})"
+    },
+    "layoutDirectionTitle": "Dirección del diseño del grafo (las posiciones se guardan por dirección)",
+    "layout": {
+      "lr": "Izquierda → Derecha",
+      "rl": "Derecha → Izquierda",
+      "tb": "Arriba → Abajo",
+      "bt": "Abajo → Arriba"
+    },
+    "weathermap": "Weathermap",
+    "resetLayoutTitle": "Borrar posiciones de nodos guardadas para la dirección actual y volver a ejecutar el diseño automático",
+    "resetLayout": "Restablecer diseño",
+    "isolated": "aislado",
+    "subgraphPrefix": "Subgrafo de",
+    "clearHint": "Pulsa el lienzo vacío para limpiar.",
+    "clear": "limpiar",
+    "noNodes": "No hay nodos visibles. O no hay rutas definidas todavía, o tus filtros excluyen todo: limpia el filtro de autenticación o la búsqueda para ver el grafo completo.",
+    "throughput": "Rendimiento",
+    "kind": {
+      "frontend": "frontend",
+      "route": "ruta",
+      "backend": "backend",
+      "server": "servidor",
+      "authProvider": "proveedor de auth"
+    },
+    "authGatedBy": "Con gate de auth por {{providerId}} ({{providerType}})",
+    "serverCount": "{{count}} servidor(es)",
+    "gatedBy": "con gate de",
+    "lookup": "búsqueda"
+  },
+  "sessionsUnavailable": "Datos de sesión de HAProxy actualmente no disponibles",
+  "sampler": {
+    "notRunning": "El muestreador de estadísticas no está en ejecución"
+  }
+}

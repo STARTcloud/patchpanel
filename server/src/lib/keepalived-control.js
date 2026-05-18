@@ -157,6 +157,80 @@ export const isInstalled = (config = {}) => {
   return fileExists(bin);
 };
 
+const KEEPALIVED_DATA_PATH = '/tmp/keepalived.data';
+const SIGUSR2_SETTLE_MS = 300;
+const STATE_CACHE_TTL_MS = 2500;
+
+let stateCache = { ts: 0, data: new Map() };
+
+const parseInstanceStates = text => {
+  const result = new Map();
+  if (typeof text !== 'string' || text.length === 0) {
+    return result;
+  }
+  const blocks = text.split(/\n(?=\s*VRRP Instance =)/u);
+  for (const block of blocks) {
+    const nameMatch = block.match(/VRRP Instance = (?<name>\S+)/u);
+    const stateMatch = block.match(/State = (?<state>\S+)/u);
+    if (nameMatch?.groups?.name && stateMatch?.groups?.state) {
+      result.set(nameMatch.groups.name, stateMatch.groups.state);
+    }
+  }
+  return result;
+};
+
+const sendSigUsr2 = async (strategy, pidPath) => {
+  if (strategy === 's6') {
+    await runCommand('s6-svc', ['-2', S6_SERVICE_DIR], TIMEOUT_MS);
+    return;
+  }
+  if (strategy === 'systemd') {
+    await runCommand('systemctl', ['kill', '-s', 'USR2', 'keepalived'], TIMEOUT_MS);
+    return;
+  }
+  const pid = await readPid(pidPath);
+  process.kill(pid, 'SIGUSR2');
+};
+
+export const getInstanceStates = async (config = {}) => {
+  const now = Date.now();
+  if (now - stateCache.ts < STATE_CACHE_TTL_MS && stateCache.data.size > 0) {
+    return stateCache.data;
+  }
+  let strategy;
+  try {
+    strategy = await pickStrategy();
+    await sendSigUsr2(strategy, config.pidPath);
+  } catch {
+    stateCache = { ts: now, data: new Map() };
+    return stateCache.data;
+  }
+  await new Promise(resolve => {
+    setTimeout(resolve, SIGUSR2_SETTLE_MS);
+  });
+  let text = '';
+  try {
+    text = await fs.readFile(KEEPALIVED_DATA_PATH, 'utf8');
+  } catch {
+    stateCache = { ts: now, data: new Map() };
+    return stateCache.data;
+  }
+  let parsed = parseInstanceStates(text);
+  if (parsed.size === 0) {
+    await new Promise(resolve => {
+      setTimeout(resolve, SIGUSR2_SETTLE_MS);
+    });
+    try {
+      text = await fs.readFile(KEEPALIVED_DATA_PATH, 'utf8');
+      parsed = parseInstanceStates(text);
+    } catch {
+      // keep empty
+    }
+  }
+  stateCache = { ts: now, data: parsed };
+  return parsed;
+};
+
 // Liveness via pidfile + process check. Returns null if we can't tell
 // (no pidfile, no permission to signal); true if the pid is alive; false
 // if the pidfile exists but the process isn't there.

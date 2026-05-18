@@ -1,0 +1,13 @@
+{
+  "fieldRequired": "{{field}} es obligatorio",
+  "invalidValue": "Valor no válido para {{field}}",
+  "invalidFormat": "{{field}} tiene un formato no válido",
+  "tooShort": "{{field}} debe tener al menos {{minLength}} caracteres",
+  "tooLong": "{{field}} debe tener como máximo {{maxLength}} caracteres",
+  "outOfRange": "{{field}} debe estar entre {{min}} y {{max}}",
+  "invalidIp": "Dirección IP no válida",
+  "invalidCidr": "CIDR no válido",
+  "invalidUrl": "URL no válida",
+  "invalidPort": "El puerto debe estar entre 1 y 65535",
+  "invalidEmail": "Dirección de email no válida"
+}

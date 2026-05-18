@@ -1,0 +1,43 @@
+{
+  "plugins": {
+    "title": "Plugins Lua",
+    "description": "Entradas globales <0>lua-load</0> + <1>lua-prepend-path</1> opcionales. Cada plugin se renderiza como <2>lua-prepend-path PREPEND/?/http.lua</2> (cuando se establece) seguido de <3>lua-load PATH</3>. Los plugins registrados en esta lista exponen sus funciones <4>core.register_action</4> como <5>lua.&lt;name&gt;</5> utilizables desde la acción <6>lua</6> de una Regla.",
+    "empty": "No hay plugins Lua configurados.",
+    "col": {
+      "name": "Nombre",
+      "path": "Ruta",
+      "prepend": "Ruta prepend (opcional)"
+    },
+    "addPlugin": "Añadir plugin Lua",
+    "uploadFile": "Subir archivo .lua",
+    "savePlugins": "Guardar plugins Lua",
+    "uploaded": "Subido {{name}}. Pulsa Guardar para aplicar.",
+    "saved": "Guardado."
+  },
+  "upload": {
+    "title": "Subir plugin Lua",
+    "intro": "Elige un directorio de destino, dale nombre al plugin, elige un archivo <0>.lua</0> o pega código fuente. El plugin se ubica en <1>&lt;dir&gt;/&lt;name&gt;.lua</1>; se añade una nueva fila a la tabla de plugins Lua con esa ruta pre-rellenada para que solo necesites pulsar <2>Guardar plugins Lua</2> para conectarlo.",
+    "dirsLoadFailed": "fallo al cargar la lista de directorios de destino",
+    "dirsLoadError": "No se pudo cargar la lista de directorios de destino: {{message}}",
+    "readFailed": "No se pudo leer el archivo seleccionado. Pega el código manualmente.",
+    "failed": "subida fallida",
+    "requestFailed": "petición de subida fallida",
+    "dirLabel": "Directorio de destino",
+    "noDirs": "(sin directorios configurados)",
+    "dirHint": "Configurado mediante <0>paths.luaPluginsDirs</0> en <1>config.yaml</1>.",
+    "nameLabel": "Nombre del plugin",
+    "nameHint": "Letras minúsculas, dígitos, <0>_</0>, <1>-</1>. 1–63 caracteres, debe comenzar con letra. Usado como nombre de archivo (<2>&lt;name&gt;.lua</2>).",
+    "sourceLabel": "Código fuente Lua",
+    "sourcePlaceholder": "-- pega el código Lua aquí, o elige un archivo .lua arriba",
+    "bytesUsed": "{{used}} / {{limit}} bytes",
+    "sizeExceeded": "el código excede el límite de tamaño",
+    "uploading": "Subiendo…"
+  },
+  "plugin": {
+    "dirNotWhitelisted": "el directorio no está en la lista blanca configurada",
+    "idInvalid": "el nombre debe coincidir con a-z, 0-9, _, - (1-63 caracteres, comenzar con letra)",
+    "sourceRequired": "se requiere código fuente",
+    "sourceTooLarge": "el código excede los {{maxBytes}} bytes",
+    "notFound": "Plugin Lua no encontrado"
+  }
+}

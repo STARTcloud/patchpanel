@@ -4,6 +4,7 @@ import * as audit from '../lib/audit.js';
 import { errorResponse } from '../lib/api-response.js';
 import * as keepalivedControl from '../lib/keepalived-control.js';
 import { loadNodeConfig, NodeConfigSchema, saveNodeConfig } from '../lib/node-config.js';
+import { getLastPullResult } from '../lib/peer-pull.js';
 import { log } from '../lib/logger.js';
 
 // Per-node identity (node.yaml). Never syncs between cluster peers.
@@ -43,7 +44,7 @@ export const nodeConfigRouter = config => {
     log.api.debug('GET /node-config', { ip: req.ip });
     try {
       const cfg = await loadNodeConfig(config.paths.nodeConfig);
-      res.set('cache-control', 'no-store').json(cfg);
+      res.set('cache-control', 'no-store').json({ ...cfg, lastPullResult: getLastPullResult() });
     } catch (err) {
       next(err);
     }

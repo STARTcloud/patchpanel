@@ -1,0 +1,105 @@
+{
+  "page": {
+    "title": "Tiempo de ejecución",
+    "description": "Operaciones en vivo de HAProxy a través del socket de estadísticas de tiempo de ejecución: sin recarga de configuración, sin pérdida de sesión. Cada acción se registra en el registro de auditoría."
+  },
+  "tabs": {
+    "tables": "Tablas stick",
+    "sessions": "Sesiones",
+    "acls": "ACL",
+    "maps": "Mapas",
+    "errors": "Errores recientes",
+    "resolvers": "Resolvedores"
+  },
+  "tables": {
+    "title": "Tablas stick",
+    "help1": "Contadores clave/valor por tabla que HAProxy mantiene en memoria (p. ej.",
+    "help2": "rastreados por IP de origen para limitación de tasa). Vacío si no se declaran directivas",
+    "help3": "en ningún frontend/backend.",
+    "inspect": "Inspeccionar",
+    "help4": "vuelca el contenido actual de una tabla;",
+    "clearAll": "Borrar todo",
+    "help5": "borra la tabla; el botón por fila",
+    "help6": "expulsa una sola clave (p. ej. desbanear a un cliente IP). Efectivo al instante: sin recarga, sin pérdida de sesión.",
+    "summary": "{{count}} tabla(s) stick activa(s) en HAProxy.",
+    "col": {
+      "name": "Nombre",
+      "type": "Tipo",
+      "used": "Usado",
+      "size": "Tamaño",
+      "actions": "Acciones",
+      "key": "Clave",
+      "fields": "Campos"
+    },
+    "empty": "No hay tablas stick definidas.",
+    "entriesCount": "{{count}} entradas",
+    "modalEmpty": "Vacío."
+  },
+  "aclMap": {
+    "inline": "(en línea)",
+    "fileSource": "Archivo / origen",
+    "noneDefined": "Ninguno definido.",
+    "entriesTitle": "entradas"
+  },
+  "acls": {
+    "title": "Listas ACL de tiempo de ejecución",
+    "help": {
+      "intro1": "Solo las",
+      "fileBacked": "ACL respaldadas por archivo",
+      "intro2": "(líneas como",
+      "intro3": ") aparecen aquí: las ACL en línea que patchpanel escribe para los nombres de host de las rutas se basan en muestras y no aparecen en",
+      "usePrefix": "Para usar esta pestaña:",
+      "useBody": "añade una directiva ACL respaldada por archivo a tu configuración (pestaña Raw State, o como directiva avanzada en un frontend) y crea el archivo en disco. Entonces esta pestaña te permite",
+      "addDelete": "Añadir / Eliminar",
+      "useEnd": "entradas en tiempo de ejecución sin recargar."
+    },
+    "addHint": "Añade una ACL respaldada por archivo en tu configuración para verla aquí.",
+    "valuePlaceholder": "Valor (p. ej. 10.0.0.1)"
+  },
+  "maps": {
+    "title": "Mapas de tiempo de ejecución",
+    "help": {
+      "intro": "Los mapas son tablas de búsqueda clave→valor que HAProxy utiliza para enrutamiento geográfico, despacho de encabezado→backend, etc. Solo los mapas respaldados por archivo ya cargados por HAProxy aparecen en esta lista de tiempo de ejecución.",
+      "editPrefix": "Para crear o editar entradas de mapa:",
+      "use": "usa",
+      "advancedLink": "Avanzado → Mapas",
+      "writes": "patchpanel escribe",
+      "onApply": "en cada aplicación, sin necesidad de editar el Raw State. Para",
+      "use2": "usar",
+      "referenceFrontend": "un mapa, referéncialo desde una directiva avanzada de frontend:"
+    },
+    "addHint": "Añade un mapa respaldado por archivo en tu configuración para verlo aquí.",
+    "keyPlaceholder": "Clave",
+    "valuePlaceholder": "Valor"
+  },
+  "sessions": {
+    "title": "Sesiones de cliente activas",
+    "help1": "Cada fila es una sola conexión en vivo que HAProxy está manejando actualmente: salida de",
+    "help2": "El",
+    "source": "origen",
+    "help3": "es la IP/puerto del cliente. El",
+    "frontend": "frontend",
+    "help4": "es el listener de HAProxy que la aceptó; el",
+    "backend": "backend",
+    "help5": "es a donde se está proxiando.",
+    "shutdown": "Cerrar",
+    "help6": "cierra la sesión forzosamente a través del socket de tiempo de ejecución: útil para expulsar conexiones atascadas, terminar un cliente con mal comportamiento o probar el comportamiento de reconexión. La lista también alimenta las tarjetas Top client IPs / Sessions by frontend / Sessions by backend en la pestaña Stats.",
+    "activeCount": "{{count}} sesión(es) activa(s).",
+    "col": {
+      "sessionId": "ID de sesión",
+      "source": "Origen",
+      "frontend": "Frontend",
+      "backend": "Backend"
+    },
+    "empty": "Sin sesiones."
+  },
+  "rawEmpty": "(vacío)",
+  "rawErrorsLabel": "Salida de HAProxy `show errors`: peticiones/respuestas malformadas recientes.",
+  "rawResolversLabel": "Salida de HAProxy `show resolvers`: estado del resolvedor DNS.",
+  "map": {
+    "keyValueRequired": "Se requieren tanto la clave como el valor"
+  },
+  "maxconn": {
+    "invalid": "maxconn debe ser un entero no negativo"
+  }
+}

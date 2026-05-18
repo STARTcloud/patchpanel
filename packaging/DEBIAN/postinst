@@ -19,6 +19,24 @@ if getent group haproxy > /dev/null 2>&1; then
     usermod -aG haproxy patchpanel || true
 fi
 
+# 2b. Keepalived integration. If keepalived is installed on this host
+#     ensure patchpanel can render to /etc/keepalived/keepalived.conf.
+#     Most distros don't ship a `keepalived` group, so we set the
+#     directory mode + ownership directly. SIGUSR2-based VRRP state
+#     detection also needs CAP_KILL — granted via systemd unit
+#     AmbientCapabilities, not here.
+if [[ -d /etc/keepalived ]]; then
+    if getent group keepalived > /dev/null 2>&1; then
+        usermod -aG keepalived patchpanel || true
+    fi
+    chgrp patchpanel /etc/keepalived || true
+    chmod g+rwx /etc/keepalived || true
+    if [[ -f /etc/keepalived/keepalived.conf ]]; then
+        chgrp patchpanel /etc/keepalived/keepalived.conf || true
+        chmod g+rw /etc/keepalived/keepalived.conf || true
+    fi
+fi
+
 # 3. Directories
 install -d -o patchpanel -g patchpanel -m 755 "${DATA_DIR}"
 install -d -o patchpanel -g patchpanel -m 755 "${LOG_DIR}"

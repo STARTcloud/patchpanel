@@ -35,12 +35,30 @@ const SECTION_LIST_DEFS = Object.freeze([
   { path: ['maps'], key: 'maps', label: 'Maps' },
   { path: ['securityProfiles'], key: 'securityProfiles', label: 'Security profiles' },
   { path: ['httpErrorsSections'], key: 'errorPagesSections', label: 'Error pages sections' },
+  { path: ['trustedCas'], key: 'trustedCas', label: 'Trusted CAs' },
+  { path: ['trustedCrls'], key: 'trustedCrls', label: 'Trusted CRLs' },
+  {
+    path: ['keepalived', 'instances'],
+    key: 'keepalivedInstances',
+    label: 'Keepalived instances',
+  },
+  {
+    path: ['keepalived', 'trackScripts'],
+    key: 'keepalivedTrackScripts',
+    label: 'Keepalived track scripts',
+  },
+  {
+    path: ['keepalived', 'syncGroups'],
+    key: 'keepalivedSyncGroups',
+    label: 'Keepalived sync groups',
+  },
 ]);
 
 const SECTION_OBJECT_DEFS = Object.freeze([
   { path: ['globalSettings'], key: 'globalSettings', label: 'Global settings' },
   { path: ['letsencrypt'], key: 'letsencrypt', label: "Let's Encrypt" },
   { path: ['geoip'], key: 'geoip', label: 'GeoIP' },
+  { path: ['keepalived'], key: 'keepalived', label: 'Keepalived' },
 ]);
 
 const getByPath = (obj, path) => path.reduce((acc, key) => acc?.[key], obj);

@@ -1,0 +1,24 @@
+{
+  "title": "Registros del addon HAProxy",
+  "filterPlaceholder": "Filtrar líneas…",
+  "refreshIntervalLabel": "Intervalo de refresco",
+  "interval": {
+    "live": "en vivo (SSE)",
+    "off": "desactivado",
+    "s2": "2s",
+    "s5": "5s",
+    "s15": "15s",
+    "s60": "60s"
+  },
+  "autoScroll": "auto-desplazamiento",
+  "tailDescription": "Tail en vivo de los registros de este addon capturados por el supervisor de Home Assistant.",
+  "refreshAutoEvery": "Auto-refrescando cada {{seconds}}s.",
+  "refreshDisabled": "Auto-refresco desactivado: usa Refrescar.",
+  "sseConnected": "en vivo (SSE conectado)",
+  "sseReconnecting": "en vivo (reconectando…)",
+  "showingCount": "Mostrando {{shown}} de {{total}} líneas",
+  "filterSuffix": " (filtro: \"{{filter}}\")",
+  "loadFailed": "Fallo al cargar registros:",
+  "notInAddon": " — esto probablemente significa que patchpanel se está ejecutando fuera de un addon de Home Assistant.",
+  "empty": "(vacío)"
+}

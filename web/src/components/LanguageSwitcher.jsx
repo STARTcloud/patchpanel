@@ -1,22 +1,26 @@
 import { NavDropdown } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
-// Maps locale code → label shown in the dropdown. Add entries as we ship
-// more translations; unknown locales fall back to the upper-cased code.
-const LOCALE_LABELS = Object.freeze({
-  en: 'English',
-  es: 'Español',
-  fr: 'Français',
-  de: 'Deutsch',
-  ja: '日本語',
-  zh: '中文',
-  pt: 'Português',
-  ru: 'Русский',
-  it: 'Italiano',
-  nl: 'Nederlands',
-});
-
-const labelFor = code => LOCALE_LABELS[code] ?? code.toUpperCase();
+// Locale labels come from the browser's Intl.DisplayNames API — drop a new
+// `<lng>/*.json` set under public/locales and the dropdown picks up the
+// native-script name automatically (日本語, العربية, …) with no JS change.
+// The names are themselves locale-aware: when the UI is in Spanish, other
+// languages render in Spanish too ("Inglés" instead of "English").
+const labelFor = (code, uiLocale) => {
+  if (code === 'cimode') {
+    return 'CI mode';
+  }
+  try {
+    const display = new Intl.DisplayNames([uiLocale, code], { type: 'language' });
+    const name = display.of(code);
+    if (!name) {
+      return code.toUpperCase();
+    }
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  } catch {
+    return code.toUpperCase();
+  }
+};
 
 export const LanguageSwitcher = () => {
   const { i18n, t } = useTranslation('common');
@@ -52,7 +56,7 @@ export const LanguageSwitcher = () => {
           <span className="text-uppercase small text-muted" style={{ minWidth: '2rem' }}>
             {code}
           </span>
-          <span>{labelFor(code)}</span>
+          <span>{labelFor(code, current)}</span>
         </NavDropdown.Item>
       ))}
     </NavDropdown>

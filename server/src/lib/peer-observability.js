@@ -20,10 +20,11 @@ const buildNodeBlock = async config => {
     const nodeConfig = await loadNodeConfig(config.paths.nodeConfig);
     return {
       nodeId: nodeConfig.nodeId,
+      renewalLeader: nodeConfig.renewalLeader === true,
       vrrp: nodeConfig.vrrp ?? {},
     };
   } catch (err) {
-    return { nodeId: null, vrrp: {}, error: err.message };
+    return { nodeId: null, renewalLeader: false, vrrp: {}, error: err.message };
   }
 };
 
@@ -54,28 +55,34 @@ const buildHaproxyBlock = async config => {
   }
 };
 
-const buildKeepalivedBlock = async config => {
+const buildKeepalivedBlock = async (config, participatingIds) => {
   try {
     const installed = await keepalivedControl.isInstalled({
       keepalivedBin: config.paths.keepalivedBin,
     });
     const strategy = await keepalivedControl.getStrategy();
-    const alive = installed
+    const aliveProbe = installed
       ? await keepalivedControl.isAlive({ pidPath: config.paths.keepalivedPidFile })
       : false;
-    // VRRP instances come from state.json — failing to load state is
-    // non-fatal for this block; we just report empty instances.
+    const alive = installed ? (aliveProbe ?? false) : false;
     const state = await loadState(config.paths.state).catch(() => null);
-    const instances = (state?.keepalived?.instances ?? []).map(inst => ({
-      id: inst.id,
-      name: inst.name,
-      vip: inst.vip,
-      // MASTER/BACKUP per-instance state still needs a SIGUSR2 +
-      // /tmp/keepalived.data parse (or DBus). Left null here; UI
-      // consumers treat null as "unknown."
-      state: null,
-      holding: null,
-    }));
+    const liveStates = alive
+      ? await keepalivedControl
+          .getInstanceStates({ pidPath: config.paths.keepalivedPidFile })
+          .catch(() => new Map())
+      : new Map();
+    const instances = (state?.keepalived?.instances ?? []).map(inst => {
+      const participates = participatingIds.has(inst.id);
+      const liveState = participates ? (liveStates.get(inst.name) ?? null) : null;
+      return {
+        id: inst.id,
+        name: inst.name,
+        vip: inst.vip,
+        state: liveState,
+        holding: liveState === 'MASTER',
+        participates,
+      };
+    });
     return { ok: true, installed, alive, strategy, instances };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -83,10 +90,11 @@ const buildKeepalivedBlock = async config => {
 };
 
 export const buildLocalSnapshot = async config => {
-  const [node, haproxy, keepalived] = await Promise.all([
-    buildNodeBlock(config),
+  const node = await buildNodeBlock(config);
+  const participatingIds = new Set(Object.keys(node?.vrrp ?? {}));
+  const [haproxy, keepalived] = await Promise.all([
     buildHaproxyBlock(config),
-    buildKeepalivedBlock(config),
+    buildKeepalivedBlock(config, participatingIds),
   ]);
   return {
     ts: new Date().toISOString(),

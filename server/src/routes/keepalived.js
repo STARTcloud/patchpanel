@@ -286,18 +286,32 @@ export const keepalivedRouter = config => {
         keepalivedBin: config.paths.keepalivedBin,
       });
       const strategy = await keepalivedControl.getStrategy();
-      const alive = installed
+      const aliveProbe = installed
         ? await keepalivedControl.isAlive({ pidPath: config.paths.keepalivedPidFile })
         : false;
-      const state = await loadState(config.paths.state);
-      const instances = (state?.keepalived?.instances ?? []).map(inst => ({
-        id: inst.id,
-        name: inst.name,
-        vip: inst.vip,
-        state: null,
-        holding: null,
-      }));
-      res.set('cache-control', 'no-store').json({ installed, alive, strategy, instances });
+      const alive = installed ? (aliveProbe ?? false) : false;
+      const stateDoc = await loadState(config.paths.state);
+      const nodeConfig = await loadNodeConfig(config.paths.nodeConfig).catch(() => null);
+      const nodeId = nodeConfig?.nodeId ?? null;
+      const participatingIds = new Set(Object.keys(nodeConfig?.vrrp ?? {}));
+      const liveStates = alive
+        ? await keepalivedControl
+            .getInstanceStates({ pidPath: config.paths.keepalivedPidFile })
+            .catch(() => new Map())
+        : new Map();
+      const instances = (stateDoc?.keepalived?.instances ?? []).map(inst => {
+        const participates = participatingIds.has(inst.id);
+        const liveState = participates ? (liveStates.get(inst.name) ?? null) : null;
+        return {
+          id: inst.id,
+          name: inst.name,
+          vip: inst.vip,
+          state: liveState,
+          holding: liveState === 'MASTER',
+          participates,
+        };
+      });
+      res.set('cache-control', 'no-store').json({ installed, alive, strategy, nodeId, instances });
     } catch (err) {
       next(err);
     }

@@ -18,6 +18,10 @@ import { loadState } from './state.js';
 
 const PULL_LOCK = Symbol('peer-pull-tick-lock');
 
+let lastPullResult = null;
+
+export const getLastPullResult = () => lastPullResult;
+
 const findUpstreamPeer = async (config, pullFromPeerId) => {
   if (!pullFromPeerId) {
     return null;
@@ -185,6 +189,11 @@ const pullStateFromUpstream = async (config, upstream) => {
   }
 };
 
+const recordPullResult = result => {
+  lastPullResult = { ...result, ts: new Date().toISOString() };
+  return result;
+};
+
 export const runOnePullTick = async config => {
   if (config[PULL_LOCK]) {
     return { skipped: 'in-progress' };
@@ -194,17 +203,20 @@ export const runOnePullTick = async config => {
     const nodeConfig = await loadNodeConfig(config.paths.nodeConfig);
     const { sync } = nodeConfig;
     if (!sync || sync.pullEnabled !== true) {
-      return { skipped: 'pull-disabled' };
+      return recordPullResult({ skipped: 'pull-disabled' });
     }
     if (!sync.pullFromPeerId) {
-      return { skipped: 'no-upstream-configured' };
+      return recordPullResult({ skipped: 'no-upstream-configured' });
     }
     const upstream = await findUpstreamPeer(config, sync.pullFromPeerId);
     if (!upstream) {
       log.app.warn('peer-pull upstream peer not found in peers store', {
         pullFromPeerId: sync.pullFromPeerId,
       });
-      return { skipped: 'upstream-not-paired' };
+      return recordPullResult({
+        skipped: 'upstream-not-paired',
+        pullFromPeerId: sync.pullFromPeerId,
+      });
     }
     const stateResult = await pullStateFromUpstream(config, upstream);
     let blobResult = null;
@@ -221,7 +233,11 @@ export const runOnePullTick = async config => {
         });
       }
     }
-    return { upstream: upstream.id, state: stateResult, blobs: blobResult };
+    return recordPullResult({
+      upstream: { id: upstream.id, name: upstream.name, url: upstream.url },
+      state: stateResult,
+      blobs: blobResult,
+    });
   } finally {
     config[PULL_LOCK] = false;
   }

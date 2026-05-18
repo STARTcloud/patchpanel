@@ -26,16 +26,11 @@ const KeepalivedLiveContext = createContext(null);
 const fetchState = async setters => {
   try {
     const payload = await apiGet('api/keepalived/state');
-    // Preserve tri-state: server returns true/false when it can read the
-    // pidfile, null when it can't. Coercing null → false would show
-    // "stopped" for a probe that genuinely couldn't tell.
     setters.setAlive(payload?.alive ?? null);
     setters.setStrategy(payload?.strategy ?? null);
     setters.setInstances(payload?.instances ?? []);
-    // Default to true when the server doesn't include `installed` (older
-    // servers, or future ones that drop the flag) so existing deployments
-    // don't accidentally hide the badge after an upgrade race.
     setters.setInstalled(payload?.installed ?? true);
+    setters.setNodeId(payload?.nodeId ?? null);
     setters.setError(null);
   } catch (err) {
     setters.setError(err);
@@ -50,6 +45,7 @@ export const KeepalivedLiveProvider = ({ pollMs = DEFAULT_POLL_MS, children }) =
   const [strategy, setStrategy] = useState(null);
   const [instances, setInstances] = useState([]);
   const [installed, setInstalled] = useState(true);
+  const [nodeId, setNodeId] = useState(null);
   const [error, setError] = useState(null);
   const [loaded, setLoaded] = useState(false);
   const [version, setVersion] = useState(0);
@@ -63,6 +59,7 @@ export const KeepalivedLiveProvider = ({ pollMs = DEFAULT_POLL_MS, children }) =
       setStrategy: v => active && setStrategy(v),
       setInstances: v => active && setInstances(v),
       setInstalled: v => active && setInstalled(v),
+      setNodeId: v => active && setNodeId(v),
       setError: v => active && setError(v),
       setLoaded: v => active && setLoaded(v),
     };
@@ -80,11 +77,12 @@ export const KeepalivedLiveProvider = ({ pollMs = DEFAULT_POLL_MS, children }) =
       strategy,
       instances,
       installed,
+      nodeId,
       error,
       loaded,
       refresh,
     }),
-    [alive, strategy, instances, installed, error, loaded, refresh]
+    [alive, strategy, instances, installed, nodeId, error, loaded, refresh]
   );
 
   return <KeepalivedLiveContext.Provider value={value}>{children}</KeepalivedLiveContext.Provider>;

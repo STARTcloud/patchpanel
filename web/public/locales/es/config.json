@@ -1,0 +1,119 @@
+{
+  "page": {
+    "title": "Configuración",
+    "subtitle": "Configuración del operador (/etc/patchpanel/config.yaml). Los guardados persisten inmediatamente, pero la mayoría de los campos requieren reiniciar el proceso para surtir efecto.",
+    "restarting": "Reiniciando…",
+    "restart": "Reiniciar ahora",
+    "loadFailed": "fallo al cargar la configuración",
+    "saved": "Guardado en disco. Pulsa Reiniciar ahora para aplicar, o reinicia manualmente más tarde."
+  },
+  "restart": {
+    "title": "¿Reiniciar patchpanel?",
+    "body": "Esto termina el proceso. systemd (o el supervisor del addon de HA) lo reinicia en segundos.",
+    "note": "La pestaña del navegador se recargará automáticamente tras unos segundos.",
+    "confirm": "Reiniciar"
+  },
+  "errorPages": {
+    "title": "Páginas de error",
+    "intro": "Cada anulación por estado a continuación puede editarse en uno de dos modos:<0/><1>Raw (.http, errorfile)</1>: respuesta HTTP completa servida byte por byte, sin expansión de tokens.<2/><3>Log-format (lf-file)</3>: HAProxy expande <4>%[unique-id]</4>, <5>%[var(…)]</5>, <6>%[hdr(…)]</6>, etc. en el momento de servir; necesario si quieres que datos por petición como el ID único aparezcan en la página. Renderizado como <7>http-error status N content-type \"text/html; charset=utf-8\" lf-file …</7>.<8/>Las <9>secciones de Páginas de error</9> al final definen paquetes nombrados <10>http-errors NAME</10> que los bloques frontend y defaults pueden referenciar mediante <11>useErrorFilesId</11>.",
+    "saveUnavailable": "Guardado de estado no disponible.",
+    "editMode": {
+      "raw": "Raw .http (errorfile)",
+      "lf": "Log-format (lf-file)"
+    },
+    "previewMode": {
+      "override": "Anulación",
+      "bundled": "Incluido",
+      "both": "Lado a lado"
+    },
+    "viewport": {
+      "desktop": "Escritorio",
+      "tablet": "Tableta",
+      "mobile": "Móvil"
+    },
+    "theme": {
+      "light": "Claro",
+      "dark": "Oscuro"
+    },
+    "previewVars": {
+      "summary": "Variables de vista previa ({{count}}): reemplaza <0>%[token]</0> solo en la vista previa",
+      "token": "Token",
+      "mockValue": "Valor simulado",
+      "removeTitle": "Eliminar este token",
+      "addVariable": "Añadir variable",
+      "examples": "Ejemplos: <0>unique-id</0>, <1>hdr(host)</1>, <2>var(txn.request_id)</2>, <3>ssl_fc_protocol</3>. HAProxy mismo no expande estos en cuerpos estáticos de errorfile: para expansión real necesitas directivas <4>http-response set-header</4> / <5>http-after-response</5> o Lua. Este panel los simula para que puedas iterar sobre la apariencia de tu plantilla."
+    },
+    "preview": {
+      "overrideTitle": "vista previa de anulación",
+      "bundledTitle": "vista previa incluida",
+      "override": "Anulación",
+      "bundled": "Incluido",
+      "title": "vista previa",
+      "noContentType": "(sin content-type)",
+      "rawBody": "cuerpo raw",
+      "noHttpHeaders": "sin encabezados HTTP",
+      "bytes": "{{count}} bytes",
+      "empty": "(vacío)"
+    },
+    "modeHelp": {
+      "raw": "Servido byte por byte mediante <0>errorfile</0>. HAProxy NO expande tokens <1>%[token]</1> aquí: lo que escribas es lo que llega al cable. Escrito en <2>{{outPath}}</2>.",
+      "lf": "Servido mediante <0>http-error … lf-file</0>. HAProxy <1>sí</1> expande tokens log-format como <2>%[unique-id]</2>, <3>%[var(txn.x)]</3>, <4>%[hdr(host)]</4>, <5>%[src]</5> en tiempo de petición. Escrito en <6>{{outPath}}</6>; la directiva correspondiente <7>http-error status {{codePh}}</7> se inyecta automáticamente al guardar."
+    },
+    "modal": {
+      "overrideIn": "anulación en bloque defaults",
+      "lfBody": "Cuerpo Log-format",
+      "rawBody": "Cuerpo de respuesta raw",
+      "loadBundledTitle": "Cargar la plantilla .http incluida en el editor como punto de partida",
+      "loadBundled": "Cargar incluida",
+      "lfPlaceholder": "<!doctype html>\n<html>...\n<p>ID único: %[unique-id]</p>\n...",
+      "rawPlaceholder": "HTTP/1.0 503 Service Unavailable\nCache-Control: no-cache\nContent-Type: text/html\n\n<html>...",
+      "clearToRemove": "Borra para eliminar.",
+      "livePreview": "Vista previa en vivo",
+      "viewport": "Viewport",
+      "theme": "Tema",
+      "lfNote": "La expansión de tokens es <0>real</0> en este modo: los valores siguientes modelan lo que HAProxy sustituirá en el momento de servir.",
+      "rawNote": "Los tokens se simulan solo para la vista previa. En modo raw HAProxy sirve el archivo byte por byte; los tokens se renderizarían como texto literal en producción.",
+      "clearLf": "Borrar (lf-file)",
+      "clearRaw": "Borrar (raw)"
+    },
+    "perStatus": {
+      "title": "Anulaciones de plantilla por estado",
+      "description": "Los 19 códigos de estado HTTP canónicos. Cada fila muestra la ruta actual emitida a <0>haproxy.cfg</0> para este bloque defaults, si hay una anulación de cuerpo personalizada establecida, y un botón Editar que abre la plantilla incluida más un editor para el cuerpo de anulación.",
+      "bundledUnavailable": "Plantillas incluidas no disponibles: {{message}}",
+      "saveFailed": "Guardado fallido: {{message}}",
+      "loadingBundled": "Cargando plantillas incluidas…",
+      "noBlocks": "Aún no hay bloques defaults. Añade uno en la página Defaults primero.",
+      "defaultsBlock": "Bloque defaults <0>{{name}}</0>",
+      "col": {
+        "code": "Código",
+        "path": "Ruta",
+        "override": "Anulación"
+      },
+      "notSet": "no establecido",
+      "badge": {
+        "rawTitle": "anulación errorfile (raw)",
+        "raw": "raw",
+        "lfTitle": "http-error lf-file (expandido)",
+        "lf": "lf-file",
+        "bundled": "incluido"
+      },
+      "edit": "Editar"
+    },
+    "idSelect": {
+      "noSections": "No hay secciones <0>http-errors</0> definidas. Añade una en la pestaña <1>Páginas de error</1> primero.",
+      "noneOption": "(ninguno: usar directivas errorfile individuales)",
+      "sectionOption": "{{name}} ({{id}}) · {{count}} archivos"
+    },
+    "unsupportedCode": "Código de estado HTTP no soportado: {{code}}"
+  },
+  "loadedPathUnknown": "El cargador de configuración no conoce ruta en disco",
+  "validation": {
+    "bodyPatchObject": "body.patch debe ser un objeto",
+    "patchEmpty": "patch no debe estar vacío"
+  },
+  "upload": {
+    "targetAndContentRequired": "targetPath y content deben ser cadenas requeridas",
+    "filenamePattern": "filename debe coincidir con [a-zA-Z0-9._-]+.(pem|crt|key|ca-bundle)",
+    "targetMustBeUnderRoot": "target debe estar bajo {{root}}"
+  }
+}

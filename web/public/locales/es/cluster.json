@@ -1,0 +1,144 @@
+{
+  "ha": {
+    "page": {
+      "title": "HA / Conmutación por error (keepalived)",
+      "description": "Conmutación por error de IP flotante VRRP entre nodos de patchpanel. Cada instancia VRRP es una VIP que se mueve al nodo que tenga la prioridad más alta (y esté en buen estado). Defina aquí las VIPs + sync_groups + track_scripts — estas definiciones se COMPARTEN en todo el clúster. La prioridad/estado por nodo vive en node.yaml y se edita en la tarjeta \"Identidad de este nodo\" más abajo."
+    },
+    "toggle": {
+      "label": "Keepalived habilitado",
+      "hint": "— interruptor maestro. Cuando está apagado, el renderizador emite un keepalived.conf casi vacío sin importar cuántas instancias estén configuradas a continuación.",
+      "disabledWarning": "Keepalived está deshabilitado. Configure primero las instancias a continuación, luego active esto para renderizar + recargar."
+    },
+    "saveUnavailable": "Guardado de estado no disponible."
+  },
+  "keepalived": {
+    "power": {
+      "statusChecking": "Comprobando estado de keepalived…",
+      "statusRunning": "keepalived está en ejecución",
+      "statusStopped": "keepalived está detenido",
+      "ariaChecking": "comprobación de estado de keepalived",
+      "ariaRunning": "keepalived en ejecución",
+      "ariaStopped": "keepalived detenido",
+      "aliveChecking": "comprobando…",
+      "aliveRunning": "en ejecución",
+      "aliveStopped": "detenido",
+      "strategyLabel": " · estrategia: {{strategy}}",
+      "toggleTitle": "keepalived {{state}}{{strategy}}",
+      "managedExternally": "Estrategia `none` — keepalived se gestiona fuera de patchpanel.",
+      "reloading": "Recargando…",
+      "reloadTitle": "Volver a leer keepalived.conf mediante SIGHUP. Se conserva el estado VRRP existente.",
+      "stopping": "Deteniendo…",
+      "stopTitle": "Detener keepalived. Las VIPs que tiene este nodo conmutarán por error (o desaparecerán). Requiere confirmación.",
+      "starting": "Iniciando…",
+      "startDirectTitle": "La estrategia directa no puede iniciar keepalived — no hay supervisor configurado.",
+      "startTitle": "Iniciar keepalived mediante el supervisor configurado.",
+      "checking": "Comprobando…",
+      "stopConfirm": {
+        "title": "¿Detener keepalived?",
+        "body1": "Esto detendrá keepalived. Cualquier VIP que tenga actualmente este nodo conmutará por error a un par (si existe uno con mayor prioridad). Si este es el único nodo, las VIPs quedarán inalcanzables.",
+        "body2": "Vuelva a levantar keepalived mediante Iniciar (o su supervisor) cuando esté listo.",
+        "confirmLabel": "Detener keepalived"
+      }
+    }
+  },
+  "node": {
+    "identity": {
+      "title": "Identidad de este nodo",
+      "description": "Edita /etc/patchpanel/node.yaml. Estos valores son locales a este nodo y nunca se sincronizan con los pares. Al guardar se activa una recarga de keepalived.",
+      "loadFailed": "Error al cargar la configuración del nodo:",
+      "nodeIdLabel": "ID del nodo",
+      "nodeIdHint": "Etiqueta legible para este nodo — aparece en la lista de pares de otros nodos y en las entradas de auditoría.",
+      "overridesHeading": "Sobrescrituras por VIP",
+      "noInstances": "Aún no hay instancias VRRP definidas. Añada una en la tabla de arriba.",
+      "col": {
+        "vipId": "id de VIP",
+        "priority": "prioridad",
+        "state": "estado",
+        "interface": "interfaz"
+      },
+      "interfaceUnset": "(no establecido)",
+      "removeVipTitle": "Este nodo no participará en esta VIP",
+      "missingHint": "Este nodo no participará en esta VIP hasta que añada una prioridad/estado por nodo.",
+      "addVip": "Añadir esta VIP",
+      "saveFailed": "Error al guardar:",
+      "savedReloaded": "Guardado. keepalived se ha recargado.",
+      "saveButton": "Guardar configuración del nodo"
+    }
+  },
+  "peer": {
+    "pair": {
+      "title": "Añadir par",
+      "intro": "En el nodo par, abra esta misma página y haga clic en <1>Acuñar token entrante</1>. Pegue el token resultante aquí junto con la URL del par y un nombre amigable.<3/>Esto configura solamente la dirección <5>saliente</5> (este nodo → par). Para recibir envíos de sincronización del par, repita el flujo en la página HA del par usando un token que <7>este</7> nodo haya acuñado.",
+      "urlLabel": "URL del par",
+      "urlHint": "URL base del patchpanel del par (mismo hostname/puerto que usaría para acceder a su UI). El par debe ser accesible desde este host.",
+      "nameLabel": "Nombre para mostrar",
+      "nameHint": "Etiqueta legible que se muestra en la lista de pares de este nodo. Texto libre; no necesita coincidir con el id de nodo real del par.",
+      "tokenLabel": "Token entrante del par",
+      "tokenHint": "Pegue el token sin procesar de la tarjeta \"Mis tokens entrantes\" del par. Nunca se vuelve a mostrar en el lado del par después de la primera revelación.",
+      "adding": "Añadiendo…",
+      "submit": "Añadir par"
+    },
+    "list": {
+      "title": "Pares del clúster",
+      "description": "Pares salientes — nodos de patchpanel a los que ESTE envía estado. Estado, certificados, usuarios y tokens de API se sincronizan mediante una API con token bearer. Para añadir un par, obtenga un token entrante de la tarjeta \"Mis tokens entrantes\" del otro nodo y luego péguelo aquí junto con la URL de ese nodo.",
+      "addButton": "Añadir par…",
+      "empty": "No hay pares configurados. Este nodo está solo — la conmutación por error VRRP requiere al menos dos nodos emparejados en ambas direcciones.",
+      "errorFallback": "Lista de pares no disponible.",
+      "col": {
+        "peer": "Par",
+        "health": "Salud",
+        "clockSkew": "Desviación de reloj",
+        "added": "Añadido",
+        "lastSync": "Última sincronización"
+      },
+      "healthy": "sano",
+      "unreachable": "inalcanzable",
+      "skewCritTitle": "VRRP puede oscilar — sincronice los relojes mediante chronyd / systemd-timesyncd",
+      "skewWarnTitle": "Acercándose a advert_int de VRRP — compruebe la sincronización de tiempo",
+      "syncTitle": "Forzar una sincronización de estado + blob de certificados ahora",
+      "syncButton": "Sincronizar",
+      "unpairTitle": "Eliminar esta relación de par. El estado en el par no se toca.",
+      "unpairButton": "Desemparejar",
+      "unpairConfirm": {
+        "title": "¿Desemparejar este par?",
+        "bodyPrefix": "Eliminar",
+        "bodySuffix": "de la lista de pares de este nodo. El par en sí no se modifica — también deberá desemparejar desde el otro lado. Este nodo dejará de recibir envíos de sincronización de este par."
+      }
+    }
+  },
+  "inbound": {
+    "title": "Mis tokens entrantes",
+    "description": "Tokens bearer que ESTE nodo aceptará de los pares. Acúñelos aquí, cópielos una vez, péguelos en el modal <1>Añadir par</1> del otro nodo. Cada token es revocable de forma independiente; el valor sin procesar nunca se vuelve a mostrar después de acuñarlo.",
+    "mintButton": "Acuñar token entrante",
+    "minting": "Acuñando…",
+    "errorFallback": "Lista de tokens entrantes no disponible.",
+    "list": {
+      "empty": "Aún no se han acuñado tokens entrantes. Haga clic en <1>Acuñar token entrante</1> para crear uno."
+    },
+    "col": {
+      "label": "Etiqueta",
+      "preview": "Vista previa",
+      "minted": "Acuñado",
+      "lastUsed": "Último uso",
+      "lastUsedBy": "Último uso por"
+    },
+    "banner": {
+      "title": "Token entrante acuñado",
+      "done": "Hecho",
+      "body": "Copie este token ahora — <1>no</1> se mostrará de nuevo. Péguelo en el modal <3>Añadir par</3> del OTRO nodo para que ese nodo pueda llamar a este.",
+      "autoLabelPrefix": "Etiqueta automática:",
+      "autoLabelSuffix": "— renómbrela en línea en la lista de abajo."
+    },
+    "label": {
+      "editTitle": "Haga clic para renombrar",
+      "empty": "(sin etiqueta)"
+    },
+    "revokeTitle": "Revocar este token entrante. Cualquier par que lo use empezará a recibir respuestas 401.",
+    "revokeConfirm": {
+      "title": "¿Revocar este token entrante?",
+      "bodyPrefix": "Revocar",
+      "bodySuffix": "? Cualquier par que lo esté utilizando empezará a recibir respuestas 401 inmediatamente. Esto no se puede deshacer.",
+      "confirmLabel": "Revocar"
+    }
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "raw": {
+    "title": "Estado raw",
+    "subtitle": "Edita directamente el state.json canónico. Al guardar se ejecuta validación de esquema, se renderiza el nuevo haproxy.cfg, se valida con <0>haproxy -c</0>, y se recarga HAProxy a través del socket maestro en caso de éxito.",
+    "validationHints": "Sugerencias de validación (de haproxy -c):",
+    "lineN": "línea {{n}}",
+    "refBackend": "→ editar en la pestaña <0>Backends</0>",
+    "refServer": "→ servidor <0>{{serverName}}</0> en backend <1>{{backendId}}</1>",
+    "refRoute": "→ editar ruta <0>{{id}}</0> en la pestaña <1>Rutas</1>",
+    "noStructuralChanges": "Sin cambios estructurales: al guardar solo se refrescará la marca de tiempo meta.lastEditedAt.",
+    "changeOne": "{{count}} cambio",
+    "changeMany": "{{count}} cambios",
+    "added": "añadido:",
+    "removed": "eliminado:",
+    "modified": "modificado:",
+    "invalidJson": "JSON inválido: {{message}}",
+    "savedMessage": "guardado",
+    "reviewApply": "Revisar y aplicar",
+    "discardChanges": "Descartar cambios",
+    "confirmApply": "Confirmar aplicación",
+    "applyHint": "Aplicar volverá a renderizar <0>haproxy.cfg</0>, lo validará con <1>haproxy -c</1>, lo intercambiará atómicamente y recargará HAProxy a través del socket maestro. Si la recarga falla, se restaura la cfg anterior y se escribe una instantánea en cualquier caso.",
+    "applying": "Aplicando…",
+    "apply": "Aplicar",
+    "section": {
+      "backends": "Backends",
+      "frontends": "Frontends",
+      "defaultsBlocks": "Bloques defaults",
+      "acls": "ACL",
+      "authProviders": "Proveedores de autenticación",
+      "acmeAccounts": "Cuentas ACME",
+      "tlsProviders": "Proveedores TLS",
+      "certs": "Certificados",
+      "notificationChannels": "Canales de notificación",
+      "resolvers": "Resolvedores",
+      "peers": "Pares",
+      "mailers": "Mailers",
+      "rings": "Rings",
+      "crtStores": "Almacenes de certificados",
+      "maps": "Mapas",
+      "securityProfiles": "Perfiles de seguridad",
+      "errorPagesSections": "Secciones de páginas de error",
+      "globalSettings": "Configuración global",
+      "letsencrypt": "Let's Encrypt",
+      "geoip": "GeoIP"
+    }
+  },
+  "snapshot": {
+    "title": "Instantáneas",
+    "description": "Cada Aplicación exitosa escribe una instantánea JSON con marca de tiempo del estado en <0>/data/snapshots/</0>. Restaurar reproduce la instantánea a través del pipeline normal de validar → renderizar → recargar (con rollback en caso de fallo). Retención: últimas 50 + una por día durante 30 días.",
+    "listFailed": "Fallo al listar instantáneas: {{message}}",
+    "restoreFailed": "Restauración fallida: {{message}}",
+    "restoreSuccess": "Restaurado desde <0>{{from}}</0> (tomada {{takenAt}}). HAProxy recargado.",
+    "col": {
+      "takenAt": "Tomada en",
+      "sha": "SHA",
+      "size": "Tamaño",
+      "actions": "Acciones"
+    },
+    "empty": "Aún no hay instantáneas: se acumulan a medida que guardas estado.",
+    "preview": "Vista previa",
+    "restore": "Restaurar",
+    "previewLabel": "Vista previa:",
+    "previewLoadFailed": "(fallo al cargar instantánea: {{message}})",
+    "confirmTitle": "¿Restaurar desde instantánea?",
+    "confirmBody": "Esto reemplazará el estado actual con la instantánea tomada <0>{{takenAt}}</0> (<1>{{sha}}</1>) y recargará HAProxy. El estado actual se guardará como instantánea en el próximo guardado, así que la operación es reversible."
+  },
+  "diff": {
+    "noChanges": "Sin cambios.",
+    "identical": "<0>{{leftLabel}}</0> y <1>{{rightLabel}}</1> son idénticos: pulsar Aplicar no cambiaría el archivo.",
+    "noContent": "Sin contenido para comparar.",
+    "comparing": "comparando: <0>{{leftLabel}}</0> → <1>{{rightLabel}}</1>",
+    "onDisk": "en disco",
+    "fromState": "desde estado"
+  },
+  "rendered": {
+    "tab": {
+      "disk": "En disco",
+      "state": "Desde estado",
+      "diff": "Diff"
+    },
+    "tabTitle": {
+      "disk": "Configuración actualmente en ejecución desde disco",
+      "state": "Re-renderizar desde state.json actual (no aplica)",
+      "diff": "Diff unificado: en disco vs desde estado (lo que cambiaría si Aplicas)"
+    },
+    "subtitle": {
+      "disk": "La configuración {{name}} se está ejecutando ahora mismo, leída desde disco.",
+      "state": "Un renderizado nuevo desde el state.json actual. Útil para previsualizar lo que se aplicaría la próxima vez que guardes.",
+      "diff": "Diff unificado: líneas que cambiarían si pulsas Aplicar (en disco → desde estado)."
+    },
+    "errorSuffix": {
+      "notFound": " — {{name}} no se encontró en disco.",
+      "notInitialized": " — state.json aún no inicializado."
+    },
+    "copied": "Copiado",
+    "applying": "Aplicando…",
+    "apply": "Aplicar",
+    "empty": "(vacío)",
+    "applySuccess": "Estado reaplicado: {{name}} re-renderizado, validado y recargado.",
+    "applyFailed": "aplicación fallida",
+    "applyTitle": "Re-renderizar {{name}} desde el state.json actual, validar, escribir en disco atómicamente y recargar {{daemon}}. Útil cuando el estado y la cfg en disco se han desincronizado (p. ej. tras una edición manual de /data/state.json).",
+    "title": "Renderizado {{name}}",
+    "lineCount": "{{lines}} líneas · {{bytes}} bytes",
+    "loadFailed": "Fallo al cargar cfg: {{message}}"
+  },
+  "audit": {
+    "title": "Registro de auditoría",
+    "description": "Últimas 200 operaciones registradas (cambios de estado, renovaciones de certificados, recargas manuales). Se refresca cada 30 segundos.",
+    "col": {
+      "time": "Hora",
+      "actor": "Actor",
+      "category": "Categoría",
+      "action": "Acción",
+      "target": "Objetivo",
+      "outcome": "Resultado",
+      "details": "Detalles"
+    }
+  }
+}

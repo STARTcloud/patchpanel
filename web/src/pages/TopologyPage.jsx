@@ -31,6 +31,7 @@ import { Badge, Button, Card, Col, Form, InputGroup, Row } from 'react-bootstrap
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 
+import { useKeepalivedLive } from '../hooks/useKeepalivedLive.jsx';
 import { usePeerSnapshots } from '../hooks/usePeerSnapshots.jsx';
 import { useStatsHistory } from '../hooks/useStatsHistory.jsx';
 import { stateDocShape } from '../prop-shapes.js';
@@ -188,6 +189,18 @@ const NODE_STYLES = Object.freeze({
     border: '1px solid #0f766e',
     icon: 'bi-broadcast-pin',
   },
+  clusterSelf: {
+    background: '#0f766e',
+    color: '#fff',
+    border: '1px solid #115e59',
+    icon: 'bi-pc-display-horizontal',
+  },
+  vrrpInstance: {
+    background: '#dc3545',
+    color: '#fff',
+    border: '1px solid #b02a37',
+    icon: 'bi-broadcast',
+  },
 });
 
 const KIND_LEGEND_LABEL_KEYS = Object.freeze({
@@ -197,6 +210,8 @@ const KIND_LEGEND_LABEL_KEYS = Object.freeze({
   server: { key: 'stats:topology.kind.server', fallback: 'server' },
   authProvider: { key: 'stats:topology.kind.authProvider', fallback: 'auth provider' },
   clusterPeer: { key: 'stats:topology.kind.clusterPeer', fallback: 'cluster peer' },
+  clusterSelf: { key: 'stats:topology.kind.clusterSelf', fallback: 'this node' },
+  vrrpInstance: { key: 'stats:topology.kind.vrrpInstance', fallback: 'VRRP instance' },
 });
 
 const NodeShell = ({ data, selected }) => {
@@ -534,44 +549,255 @@ const buildPeerSubText = (entry, haproxyAlive, info) => {
   return parts.join(' · ');
 };
 
-// Renders each paired peer as a satellite "cluster-peer" node. The peer
-// satellites sit OUTSIDE the routing graph (no edges to/from the
-// frontend → route → backend → server flow) so dagre lays them out in
-// their own subgraph rank, off to the side. Each tile shows traffic
-// flow + alive state pulled from /api/peer/snapshot via the local-side
-// aggregator. Per design: traffic-flow only — no cert posture here.
-const buildClusterSection = peerEntries => {
-  const nodes = [];
-  for (const entry of peerEntries ?? []) {
-    const snap = entry.snapshot ?? null;
-    const haproxyAlive = snap?.haproxy?.alive === true;
-    const kaAlive = snap?.keepalived?.alive === true;
-    const info = snap?.haproxy?.info ?? null;
-    // Sub-line: when reachable, "N conn/s · M sess/s · idle K%". When
-    // unreachable, the error message in muted tone. Keeps the tile body
-    // a single visual rhythm regardless of peer status.
-    const sub = buildPeerSubText(entry, haproxyAlive, info);
-    nodes.push({
-      id: `peer:${entry.peerId}`,
-      type: 'shell',
-      data: {
-        kind: 'clusterPeer',
-        label: snap?.node?.nodeId ?? entry.name,
-        sub,
-        peerId: entry.peerId,
-        peerUrl: entry.url,
-        ok: entry.ok,
-        haproxyAlive,
-        keepalivedAlive: kaAlive,
-        snapshot: snap,
-      },
-      position: { x: 0, y: 0 },
-    });
+const VRRP_STATE_STYLE = Object.freeze({
+  MASTER: { stroke: '#198754', strokeWidth: 2.5, dash: undefined, label: 'MASTER' },
+  BACKUP: { stroke: '#0d6efd', strokeWidth: 1.5, dash: '4 4', label: 'BACKUP' },
+  FAULT: { stroke: '#dc3545', strokeWidth: 1.5, dash: '4 4', label: 'FAULT' },
+});
+
+const styleForVrrpState = state =>
+  VRRP_STATE_STYLE[state] ?? {
+    stroke: '#6c757d',
+    strokeWidth: 1,
+    dash: '4 4',
+    label: state ?? '?',
+  };
+
+const collectInstancesById = (doc, peerEntries) => {
+  const out = new Map();
+  for (const inst of doc?.keepalived?.instances ?? []) {
+    out.set(inst.id, inst);
   }
-  return { nodes, edges: [] };
+  for (const entry of peerEntries ?? []) {
+    for (const peerInst of entry.snapshot?.keepalived?.instances ?? []) {
+      if (!out.has(peerInst.id)) {
+        out.set(peerInst.id, peerInst);
+      }
+    }
+  }
+  return out;
 };
 
-const buildGraph = (doc, direction, t, peerEntries) => {
+const buildClusterSelfNode = localKeepalived => {
+  const sub =
+    localKeepalived?.alive === true
+      ? `keepalived ${localKeepalived.strategy ?? ''} · alive`.trim()
+      : 'keepalived stopped';
+  return {
+    id: 'self:local',
+    type: 'shell',
+    data: { kind: 'clusterSelf', label: localKeepalived?.nodeId ?? 'this node', sub },
+    position: { x: 0, y: 0 },
+  };
+};
+
+const buildPeerNode = entry => {
+  const snap = entry.snapshot ?? null;
+  const haproxyAlive = snap?.haproxy?.alive === true;
+  const kaAlive = snap?.keepalived?.alive === true;
+  const info = snap?.haproxy?.info ?? null;
+  return {
+    id: `peer:${entry.peerId}`,
+    type: 'shell',
+    data: {
+      kind: 'clusterPeer',
+      label: snap?.node?.nodeId ?? entry.name,
+      sub: buildPeerSubText(entry, haproxyAlive, info),
+      peerId: entry.peerId,
+      peerUrl: entry.url,
+      ok: entry.ok,
+      haproxyAlive,
+      keepalivedAlive: kaAlive,
+      snapshot: snap,
+    },
+    position: { x: 0, y: 0 },
+  };
+};
+
+const nodeLabelForPeer = entry => entry.snapshot?.node?.nodeId ?? entry.name;
+const nodeLabelForSelf = localKeepalived => localKeepalived?.nodeId ?? 'this node';
+
+const localRoleForInstance = (instanceId, localParticipationById, localKeepalived) => {
+  const state = localParticipationById.get(instanceId)?.state;
+  if (state === 'MASTER') {
+    return { master: nodeLabelForSelf(localKeepalived), fault: null };
+  }
+  if (state === 'FAULT') {
+    return { master: null, fault: nodeLabelForSelf(localKeepalived) };
+  }
+  return { master: null, fault: null };
+};
+
+const peerInstanceState = (entry, instanceId) =>
+  (entry.snapshot?.keepalived?.instances ?? []).find(p => p.id === instanceId);
+
+const resolveInstanceRoles = (instanceId, localParticipationById, peerEntries, localKeepalived) => {
+  const local = localRoleForInstance(instanceId, localParticipationById, localKeepalived);
+  let masterNodeLabel = local.master;
+  const faultNodes = local.fault ? [local.fault] : [];
+  for (const entry of peerEntries ?? []) {
+    const peerInst = peerInstanceState(entry, instanceId);
+    if (!peerInst) {
+      continue;
+    }
+    if (peerInst.state === 'MASTER' && !masterNodeLabel) {
+      masterNodeLabel = nodeLabelForPeer(entry);
+    } else if (peerInst.state === 'FAULT') {
+      faultNodes.push(nodeLabelForPeer(entry));
+    }
+  }
+  return { masterNodeLabel, faultNodes };
+};
+
+const vipSubText = (inst, masterNodeLabel, faultNodes) => {
+  const vipText = `${inst.vip}${inst.prefix ? `/${inst.prefix}` : ''}`;
+  if (masterNodeLabel) {
+    return `${vipText} · MASTER: ${masterNodeLabel}`;
+  }
+  if (faultNodes.length > 0) {
+    return `${vipText} · FAULT: ${faultNodes.join(', ')}`;
+  }
+  return `${vipText} · VRID ${inst.virtualRouterId ?? '?'}`;
+};
+
+const buildVrrpInstanceNode = (
+  instanceId,
+  inst,
+  localParticipationById,
+  peerEntries,
+  localKeepalived
+) => {
+  const { masterNodeLabel, faultNodes } = resolveInstanceRoles(
+    instanceId,
+    localParticipationById,
+    peerEntries,
+    localKeepalived
+  );
+  return {
+    id: `vrrp:${instanceId}`,
+    type: 'shell',
+    data: {
+      kind: 'vrrpInstance',
+      label: inst.name ?? instanceId,
+      sub: vipSubText(inst, masterNodeLabel, faultNodes),
+      instanceId,
+      masterNodeLabel,
+      faultNodes,
+    },
+    position: { x: 0, y: 0 },
+  };
+};
+
+const vrrpEdgeStyle = state => {
+  const style = styleForVrrpState(state);
+  return {
+    stroke: style.stroke,
+    strokeWidth: style.strokeWidth,
+    ...(style.dash ? { strokeDasharray: style.dash } : {}),
+  };
+};
+
+const buildSelfVrrpEdges = (localParticipationById, instancesById, localKeepalivedEnabled) => {
+  if (!localKeepalivedEnabled) {
+    return [];
+  }
+  const edges = [];
+  for (const [instanceId, inst] of localParticipationById) {
+    if (!instancesById.has(instanceId) || inst.participates === false) {
+      continue;
+    }
+    edges.push({
+      id: `e:self-vrrp-${instanceId}`,
+      source: 'self:local',
+      target: `vrrp:${instanceId}`,
+      label: styleForVrrpState(inst.state).label,
+      style: vrrpEdgeStyle(inst.state),
+      statsKey: null,
+    });
+  }
+  return edges;
+};
+
+const buildPeerVrrpEdges = peerEntries => {
+  const edges = [];
+  for (const entry of peerEntries ?? []) {
+    for (const peerInst of entry.snapshot?.keepalived?.instances ?? []) {
+      if (peerInst.participates === false) {
+        continue;
+      }
+      edges.push({
+        id: `e:peer-${entry.peerId}-vrrp-${peerInst.id}`,
+        source: `peer:${entry.peerId}`,
+        target: `vrrp:${peerInst.id}`,
+        label: styleForVrrpState(peerInst.state ?? null).label,
+        style: vrrpEdgeStyle(peerInst.state ?? null),
+        statsKey: null,
+      });
+    }
+  }
+  return edges;
+};
+
+const buildBindVipEdges = (doc, instancesById, localParticipationById) => {
+  const edges = [];
+  for (const fe of doc?.frontends ?? []) {
+    if (fe.enabled === false) {
+      continue;
+    }
+    for (const bind of fe.binds ?? []) {
+      const instanceId = bind.floatingIpInstanceId;
+      if (!instanceId || !instancesById.has(instanceId)) {
+        continue;
+      }
+      const localIsMaster = localParticipationById.get(instanceId)?.state === 'MASTER';
+      edges.push({
+        id: `e:vrrp-${instanceId}-fe-${fe.id}-${bind.id ?? ''}`,
+        source: `vrrp:${instanceId}`,
+        target: `fe:${fe.id}`,
+        label: localIsMaster ? 'binds VIP (active)' : 'binds VIP (standby)',
+        style: localIsMaster
+          ? { stroke: '#198754', strokeWidth: 2 }
+          : { stroke: '#6c757d', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.5 },
+        statsKey: localIsMaster ? `${fe.name}/FRONTEND` : null,
+      });
+    }
+  }
+  return edges;
+};
+
+const buildClusterSection = (doc, peerEntries, localKeepalived) => {
+  const localKeepalivedEnabled = doc?.keepalived?.enabled === true;
+  const localParticipationById = new Map(
+    (localKeepalived?.instances ?? []).map(inst => [inst.id, inst])
+  );
+  const instancesById = collectInstancesById(doc, peerEntries);
+
+  const showCluster =
+    localKeepalivedEnabled || instancesById.size > 0 || (peerEntries?.length ?? 0) > 0;
+  if (!showCluster) {
+    return { nodes: [], edges: [] };
+  }
+
+  const nodes = [buildClusterSelfNode(localKeepalived)];
+  for (const entry of peerEntries ?? []) {
+    nodes.push(buildPeerNode(entry));
+  }
+  for (const [instanceId, inst] of instancesById) {
+    nodes.push(
+      buildVrrpInstanceNode(instanceId, inst, localParticipationById, peerEntries, localKeepalived)
+    );
+  }
+
+  const edges = [
+    ...buildSelfVrrpEdges(localParticipationById, instancesById, localKeepalivedEnabled),
+    ...buildPeerVrrpEdges(peerEntries),
+    ...buildBindVipEdges(doc, instancesById, localParticipationById),
+  ];
+
+  return { nodes, edges };
+};
+
+const buildGraph = (doc, direction, t, peerEntries, localKeepalived) => {
   if (!doc) {
     return { nodes: [], edges: [] };
   }
@@ -591,7 +817,7 @@ const buildGraph = (doc, direction, t, peerEntries) => {
   });
   const authSection = buildAuthProviderSection(doc, backendById, t);
   const backendSection = buildBackendSection(doc, t);
-  const clusterSection = buildClusterSection(peerEntries);
+  const clusterSection = buildClusterSection(doc, peerEntries, localKeepalived);
 
   const nodes = [
     ...frontendNodes,
@@ -1212,9 +1438,19 @@ export const TopologyPage = ({ doc = null }) => {
   const navigate = useNavigate();
 
   const peerSnapshots = usePeerSnapshots();
+  const keepalivedLive = useKeepalivedLive();
+  const localKeepalived = useMemo(
+    () => ({
+      nodeId: keepalivedLive.nodeId,
+      alive: keepalivedLive.alive,
+      strategy: keepalivedLive.strategy,
+      instances: keepalivedLive.instances,
+    }),
+    [keepalivedLive.nodeId, keepalivedLive.alive, keepalivedLive.strategy, keepalivedLive.instances]
+  );
   const fullGraph = useMemo(
-    () => buildGraph(doc, layoutDir, t, peerSnapshots.peers),
-    [doc, layoutDir, t, peerSnapshots.peers]
+    () => buildGraph(doc, layoutDir, t, peerSnapshots.peers, localKeepalived),
+    [doc, layoutDir, t, peerSnapshots.peers, localKeepalived]
   );
 
   const adjacency = useMemo(() => buildAdjacency(fullGraph.edges), [fullGraph.edges]);

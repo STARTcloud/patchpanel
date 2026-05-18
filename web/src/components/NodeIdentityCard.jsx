@@ -28,6 +28,54 @@ const VRRP_STATES = Object.freeze(['MASTER', 'BACKUP']);
 
 const defaultOverride = () => ({ priority: 100, state: 'BACKUP', interface: '' });
 
+const computeRelativeFromNow = (iso, now) => {
+  if (!iso) {
+    return null;
+  }
+  const ms = now - new Date(iso).getTime();
+  if (!Number.isFinite(ms) || ms < 0) {
+    return null;
+  }
+  if (ms < 60_000) {
+    return `${Math.round(ms / 1000)}s ago`;
+  }
+  if (ms < 3_600_000) {
+    return `${Math.round(ms / 60_000)}m ago`;
+  }
+  return `${Math.round(ms / 3_600_000)}h ago`;
+};
+
+const summarizePullResult = result => {
+  if (!result) {
+    return null;
+  }
+  if (result.skipped) {
+    return { tone: 'secondary', text: result.skipped };
+  }
+  if (result.state?.applied) {
+    return {
+      tone: 'success',
+      text:
+        result.blobs?.pulled > 0
+          ? `applied state + ${result.blobs.pulled} blob${result.blobs.pulled === 1 ? '' : 's'}`
+          : 'applied state',
+    };
+  }
+  if (result.state?.ok) {
+    return { tone: 'info', text: `up to date (${result.state.reason ?? 'no-op'})` };
+  }
+  return { tone: 'danger', text: result.state?.error ?? 'failed' };
+};
+
+const extractSyncFromPayload = payload => ({
+  autoPushOnSave: payload?.sync?.autoPushOnSave === true,
+  pullEnabled: payload?.sync?.pullEnabled === true,
+  pullFromPeerId: payload?.sync?.pullFromPeerId ?? null,
+  pullIntervalSeconds: Number.isInteger(payload?.sync?.pullIntervalSeconds)
+    ? payload.sync.pullIntervalSeconds
+    : 60,
+});
+
 const collectInterfaceNames = groups => {
   const names = new Set();
   for (const group of groups ?? []) {
@@ -180,6 +228,9 @@ export const NodeIdentityCard = ({ instances }) => {
     pullIntervalSeconds: 60,
   });
   const [peers, setPeers] = useState([]);
+  const [peerSnapshots, setPeerSnapshots] = useState([]);
+  const [lastPullResult, setLastPullResult] = useState(null);
+  const [now, setNow] = useState(() => Date.now());
   const [vrrp, setVrrp] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -189,36 +240,45 @@ export const NodeIdentityCard = ({ instances }) => {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([apiGet('api/node-config'), apiGet('api/peers').catch(() => [])])
-      .then(([nodePayload, peersPayload]) => {
-        if (cancelled) {
-          return;
-        }
-        setNodeId(nodePayload?.nodeId ?? '');
-        setRenewalLeader(nodePayload?.renewalLeader !== false);
-        setSync({
-          autoPushOnSave: nodePayload?.sync?.autoPushOnSave === true,
-          pullEnabled: nodePayload?.sync?.pullEnabled === true,
-          pullFromPeerId: nodePayload?.sync?.pullFromPeerId ?? null,
-          pullIntervalSeconds: Number.isInteger(nodePayload?.sync?.pullIntervalSeconds)
-            ? nodePayload.sync.pullIntervalSeconds
-            : 60,
+    const applyPayloads = (nodePayload, peersPayload, snapshotsPayload) => {
+      setNodeId(nodePayload?.nodeId ?? '');
+      setRenewalLeader(nodePayload?.renewalLeader !== false);
+      setSync(extractSyncFromPayload(nodePayload));
+      setVrrp(nodePayload?.vrrp ?? {});
+      setLastPullResult(nodePayload?.lastPullResult ?? null);
+      setPeers(Array.isArray(peersPayload) ? peersPayload : []);
+      setPeerSnapshots(Array.isArray(snapshotsPayload?.peers) ? snapshotsPayload.peers : []);
+      setLoadError(null);
+      setLoading(false);
+    };
+    const refresh = () =>
+      Promise.all([
+        apiGet('api/node-config'),
+        apiGet('api/peers').catch(() => []),
+        apiGet('api/peers/snapshots').catch(() => ({ peers: [] })),
+      ])
+        .then(([nodePayload, peersPayload, snapshotsPayload]) => {
+          if (!cancelled) {
+            applyPayloads(nodePayload, peersPayload, snapshotsPayload);
+          }
+        })
+        .catch(err => {
+          if (!cancelled) {
+            setLoadError(err);
+            setLoading(false);
+          }
         });
-        setVrrp(nodePayload?.vrrp ?? {});
-        setPeers(Array.isArray(peersPayload) ? peersPayload : []);
-        setLoadError(null);
-        setLoading(false);
-      })
-      .catch(err => {
-        if (cancelled) {
-          return;
-        }
-        setLoadError(err);
-        setLoading(false);
-      });
+    refresh();
+    const interval = setInterval(refresh, 15_000);
     return () => {
       cancelled = true;
+      clearInterval(interval);
     };
+  }, []);
+
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 5_000);
+    return () => clearInterval(tick);
   }, []);
 
   const setOverride = (instanceId, next) => {
@@ -258,6 +318,13 @@ export const NodeIdentityCard = ({ instances }) => {
     setSaved(false);
     setSync(prev => ({ ...prev, [key]: value }));
   };
+
+  const otherLeaders = (peerSnapshots ?? [])
+    .filter(p => p.ok && p.snapshot?.node?.renewalLeader === true)
+    .map(p => p.snapshot?.node?.nodeId ?? p.name);
+
+  const pullSummary = summarizePullResult(lastPullResult);
+  const lastPullRelative = computeRelativeFromNow(lastPullResult?.ts, now);
 
   if (loading) {
     return (
@@ -328,6 +395,16 @@ export const NodeIdentityCard = ({ instances }) => {
               'Exactly one node in the cluster should be the renewal leader. The leader runs certbot, then pushes the renewed certs to peers via the peer-sync API. Non-leaders skip their cron renewal pass and receive certs from the leader instead.'
             )}
           </Form.Text>
+          {renewalLeader && otherLeaders.length > 0 ? (
+            <Alert variant="warning" className="mt-2 py-2 small mb-0">
+              <i className="bi bi-exclamation-triangle me-2" />
+              {t(
+                'cluster:node.identity.dualLeaderWarning',
+                'Multiple renewal leaders detected: this node + {{peers}}. Two nodes running certbot for the same certs will race and hit ACME rate limits. Disable renewal leader on all but one.',
+                { peers: otherLeaders.join(', ') }
+              )}
+            </Alert>
+          ) : null}
         </Form.Group>
 
         <div className="mb-2">
@@ -428,6 +505,24 @@ export const NodeIdentityCard = ({ instances }) => {
             )}
           </Form.Text>
         </Form.Group>
+
+        {sync.pullEnabled && lastPullResult ? (
+          <div className="mb-3 small d-flex align-items-center gap-2 flex-wrap">
+            <strong className="text-muted">
+              {t('cluster:node.identity.lastPullLabel', 'Last pull:')}
+            </strong>
+            <span className="font-monospace">{lastPullRelative ?? '—'}</span>
+            {lastPullResult.upstream?.name ? (
+              <span className="text-muted">
+                {t('cluster:node.identity.fromUpstream', 'from')}{' '}
+                <code>{lastPullResult.upstream.name}</code>
+              </span>
+            ) : null}
+            {pullSummary ? (
+              <span className={`badge bg-${pullSummary.tone}`}>{pullSummary.text}</span>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mb-2">
           <strong className="small text-muted text-uppercase">

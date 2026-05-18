@@ -1,0 +1,60 @@
+{
+  "title": "Notificaciones",
+  "description": "Adónde envía patchpanel notificaciones de eventos: renovaciones de certificados, fallos de recarga, cambios de salud de backends. Múltiples canales se despachan en paralelo; los fallos por canal están aislados.",
+  "addChannel": "Añadir canal",
+  "saveFailed": "Guardado fallido:",
+  "noChannels": "No hay canales configurados.",
+  "eventsAll": "todos",
+  "testDispatched": "Notificación de prueba despachada por {{channelId}}.",
+  "deleteTitle": "¿Eliminar canal?",
+  "deleteBodyPrefix": "Eliminar",
+  "type": {
+    "haNotify": "Servicio notify de Home Assistant",
+    "webhook": "Webhook genérico",
+    "discord": "Webhook de Discord",
+    "ntfy": "ntfy.sh",
+    "slack": "Webhook de Slack"
+  },
+  "validate": {
+    "idFormat": "el id debe ser minúsculas a-z, dígitos, _ o - (comenzar con letra)",
+    "labelRequired": "se requiere etiqueta",
+    "webhookUrl": "webhook necesita una url",
+    "discordUrl": "discord necesita un webhookUrl",
+    "slackUrl": "slack necesita un webhookUrl",
+    "ntfyTopic": "ntfy necesita un topic"
+  },
+  "form": {
+    "haService": "Servicio HA (p. ej. notify.notify, persistent_notification.create)",
+    "haServiceHelpPrefix": "El addon llama a",
+    "haServiceHelpSuffix": "a través del supervisor. Requiere",
+    "haServiceHelpEnd": "en config.yaml (establecido).",
+    "postUrl": "URL POST",
+    "jsonBody": "Cuerpo JSON:",
+    "discordUrl": "URL del webhook de Discord",
+    "ntfyUrl": "URL del servidor ntfy",
+    "ntfyTopic": "Topic",
+    "ntfyTopicPlaceholder": "mi-topic-privado",
+    "bearerToken": "Token Bearer (opcional)",
+    "slackUrl": "URL del incoming-webhook de Slack"
+  },
+  "editModal": {
+    "editTitle": "Editar canal: {{label}}",
+    "newTitle": "Nuevo canal de notificación"
+  },
+  "field": {
+    "id": "ID",
+    "label": "Etiqueta",
+    "type": "Tipo",
+    "minSeverity": "Severidad mínima",
+    "events": "Eventos suscritos (vacío = todos)",
+    "eventsHelp": "Cmd/Ctrl+clic para seleccionar varios. Deja vacío para suscribir este canal a cada tipo de evento."
+  },
+  "col": {
+    "label": "Etiqueta",
+    "type": "Tipo",
+    "events": "Eventos",
+    "minSeverity": "Severidad mín.",
+    "enabled": "Activado",
+    "actions": "Acciones"
+  }
+}

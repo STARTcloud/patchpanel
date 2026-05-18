@@ -1,0 +1,333 @@
+{
+  "api": {
+    "unknownError": "Se produjo un error inesperado",
+    "internalError": "Error interno del servidor",
+    "notFound": "Recurso no encontrado",
+    "badRequest": "Solicitud incorrecta",
+    "rateLimited": "Demasiadas solicitudes — reduzca el ritmo"
+  },
+  "auth": {
+    "required": "Se requiere autenticación",
+    "invalidCredentials": "Usuario o contraseña no válidos",
+    "sessionExpired": "Su sesión ha expirado — inicie sesión de nuevo",
+    "sessionInvalid": "Sesión no válida — inicie sesión de nuevo",
+    "forbidden": {
+      "default": "Acceso denegado",
+      "sessionOnly": "Este endpoint requiere una sesión de navegador, no un token de API"
+    },
+    "roleRequired": "Se requiere el rol {{role}}",
+    "tokenRequired": "Se requiere un token Bearer",
+    "tokenInvalid": "Token Bearer no válido o expirado",
+    "user": {
+      "usernameInvalid": "El nombre de usuario debe comenzar con una letra y contener solo letras minúsculas, dígitos, punto, guion bajo o guion (2-32 caracteres)",
+      "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+      "passwordTooLong": "La contraseña debe tener como máximo 256 caracteres",
+      "roleInvalid": "El rol debe ser uno de: {{roles}}",
+      "fileMalformed": "El archivo de usuarios en {{path}} está mal formado",
+      "usernameExists": "El nombre de usuario ya existe: {{username}}",
+      "notFound": "Usuario no encontrado",
+      "notFoundByName": "Usuario no encontrado: {{username}}",
+      "currentPasswordIncorrect": "La contraseña actual es incorrecta"
+    },
+    "token": {
+      "keyIdCollision": "Colisión de keyId del token de API (improbable; reintente)",
+      "nameRequired": "El nombre del token es obligatorio",
+      "nameInvalid": "El nombre del token solo puede contener letras, dígitos, punto, guion, guion bajo (1-64 caracteres)",
+      "nameExists": "Ya existe un token llamado {{name}}",
+      "notFound": "Token no encontrado",
+      "fileMalformed": "El archivo de tokens de API en {{path}} está mal formado",
+      "expiresAtInvalid": "expiresAt debe ser una cadena de fecha ISO válida",
+      "expiresAtPast": "expiresAt debe estar en el futuro"
+    },
+    "login": {
+      "fieldsRequired": "El usuario y la contraseña son obligatorios"
+    },
+    "changePassword": {
+      "fieldsRequired": "Las contraseñas actual y nueva son obligatorias"
+    },
+    "setup": {
+      "fieldsRequired": "Token, usuario y contraseña son obligatorios",
+      "notAvailable": "La configuración inicial no está disponible",
+      "tokenInvalid": "El token de configuración no es válido o ya ha sido utilizado",
+      "alreadyCompleted": "La configuración inicial ya se ha completado"
+    }
+  },
+  "validation": {
+    "fieldRequired": "{{field}} es obligatorio",
+    "invalidValue": "Valor no válido para {{field}}",
+    "invalidFormat": "{{field}} tiene un formato no válido",
+    "tooShort": "{{field}} debe tener al menos {{minLength}} caracteres",
+    "tooLong": "{{field}} debe tener como máximo {{maxLength}} caracteres",
+    "outOfRange": "{{field}} debe estar entre {{min}} y {{max}}"
+  },
+  "config": {
+    "loadedPathUnknown": "El cargador de configuración no tiene una ruta en disco conocida",
+    "validation": {
+      "bodyPatchObject": "body.patch debe ser un objeto",
+      "patchEmpty": "patch no debe estar vacío"
+    },
+    "upload": {
+      "targetAndContentRequired": "targetPath y content deben ser cadenas obligatorias",
+      "filenamePattern": "filename debe coincidir con [a-zA-Z0-9._-]+.(pem|crt|key|ca-bundle)",
+      "targetMustBeUnderRoot": "target debe estar bajo {{root}}"
+    },
+    "errorPages": {
+      "unsupportedCode": "Código de estado HTTP no admitido: {{code}}"
+    }
+  },
+  "state": {
+    "schema": {
+      "invalid": "El estado enviado no superó la validación del esquema"
+    },
+    "load": {
+      "schemaInvalid": "El estado en {{path}} no superó la validación del esquema"
+    },
+    "snapshot": {
+      "invalidId": "ID de snapshot no válido: {{id}}",
+      "notFound": "Snapshot {{id}} no encontrado",
+      "notFoundOrInvalid": "Snapshot {{id}} no encontrado o no válido"
+    },
+    "apply": {
+      "keepalivedRenderFailed": "Falló el renderizado de Keepalived: {{detail}}",
+      "keepalivedValidateFailed": "La validación de Keepalived rechazó la configuración renderizada: {{output}}",
+      "reloadFailed": "Falló la recarga tras aplicar el estado: {{detail}}"
+    },
+    "files": {
+      "invalidName": "El nombre del archivo debe ser una cadena no vacía",
+      "pathEscape": "El nombre se resuelve fuera de la raíz: {{name}}"
+    },
+    "audit": {
+      "notOpen": "El registro de auditoría no está abierto"
+    },
+    "patch": {
+      "notObject": "Patch debe ser un objeto",
+      "invalidPath": "Ruta de configuración no válida: {{path}}",
+      "unknownPath": "Ruta de configuración desconocida: {{path}}",
+      "fieldInvalid": "{{path}}: {{detail}}"
+    }
+  },
+  "cluster": {
+    "state": {
+      "notInitialized": "Estado del clúster no inicializado"
+    },
+    "keepalived": {
+      "configNotFound": "keepalived.conf no encontrado en {{path}}",
+      "stopConfirmRequired": "Stop requiere { \"confirm\": true } en el cuerpo — las VIP retenidas por este nodo se transferirán a un par (si existe alguno)",
+      "pidUnreadable": "No se pudo leer el pid de keepalived desde {{path}}",
+      "reloadFailed": "{{action}} falló (salida {{code}}): {{output}}",
+      "startUnsupported": "La estrategia direct no puede reiniciar keepalived desde cero — no hay supervisor configurado. Establezca KEEPALIVED_CONTROL_STRATEGY a s6 o systemd, o inicie keepalived manualmente."
+    },
+    "peersStore": {
+      "pathMissing": "paths.peersStore no está configurado"
+    },
+    "node": {
+      "config": {
+        "pathMissing": "paths.nodeConfig no está configurado",
+        "invalid": "Configuración de nodo no válida"
+      }
+    },
+    "peer": {
+      "tokenMissing": "Se requiere un token Bearer para el endpoint de par",
+      "tokenUnknown": "Token de entrada desconocido",
+      "urlRequired": "La URL del par es obligatoria",
+      "nameRequired": "El nombre del par es obligatorio",
+      "outboundTokenRequired": "Se requiere un token saliente — pegue un token de la lista de tokens entrantes del par",
+      "peerIdInvalid": "ID de par no válido",
+      "noLocalStateToPush": "No hay estado local para enviar",
+      "noLocalState": "No hay estado local disponible",
+      "labelMustBeString": "Label debe ser una cadena cuando se proporciona",
+      "labelRequired": "Label es obligatorio (cadena no vacía)",
+      "tokenIdInvalid": "ID de token no válido",
+      "tokenNotFound": "Token no encontrado",
+      "stateBodyRequired": "El cuerpo del estado es obligatorio",
+      "blobKindUnknown": "Tipo de blob desconocido: {{kind}}",
+      "blobIdInvalid": "ID de blob no válido",
+      "blobDirNotConfigured": "paths.{{dirKey}} no está configurado",
+      "blobPathInvalid": "Ruta de blob no válida",
+      "blobNotFound": "Blob no encontrado",
+      "blobBodyRequired": "El cuerpo del blob es obligatorio"
+    }
+  },
+  "cert": {
+    "state": {
+      "notInitialized": "El estado de certificados no está inicializado"
+    },
+    "notFound": "Certificado no encontrado: {{certId}}",
+    "renewal": {
+      "providerMissing": "El certificado {{certName}} hace referencia a un proveedor desconocido {{providerId}}",
+      "acmeAccountMissing": "El certificado {{certName}} hace referencia a una cuenta ACME desconocida {{acmeAccountId}}",
+      "certIdNotFound": "Certificado no encontrado en el estado: {{certId}}",
+      "notLeader": "Renovación omitida en el nodo {{nodeId}}: este nodo no es el líder de renovación. Configure renewalLeader: true en node.yaml o ejecute la renovación en el líder; los certificados renovados se sincronizan automáticamente con los pares."
+    },
+    "certbot": {
+      "acmeCustomDirectoryUrlMissing": "La cuenta ACME {{accountId}} tiene server \"custom\" pero no tiene directoryUrl",
+      "acmeServerUnknown": "La cuenta ACME {{accountId}} tiene un server desconocido \"{{server}}\"",
+      "byoNotApplicable": "Los certificados BYO no usan certbot",
+      "unknownProviderType": "Tipo de proveedor TLS desconocido: {{type}}",
+      "commandFailed": "Certbot finalizó con código {{exitCode}}",
+      "listFailed": "El listado de certificados de certbot finalizó con código {{exitCode}}"
+    },
+    "byo": {
+      "nameInvalidChars": "El nombre solo puede contener letras, dígitos, punto, guion, guion bajo",
+      "nameInvalidLength": "El nombre debe tener entre 1 y 128 caracteres",
+      "fullchainRequired": "fullchainPem es obligatorio",
+      "privKeyRequired": "privkeyPem es obligatorio",
+      "fullchainNoCertBlocks": "fullchainPem no contiene bloques CERTIFICATE",
+      "leafParseFailed": "Falló el parseo del certificado leaf: {{reason}}",
+      "privKeyParseFailed": "Falló el parseo de la clave privada: {{reason}}",
+      "certPubKeyExportFailed": "Falló la exportación de la clave pública del certificado: {{reason}}",
+      "privKeyMismatch": "La clave privada no coincide con el certificado leaf",
+      "leafExpired": "El certificado leaf ya ha expirado (notAfter {{notAfter}})",
+      "leafNotYetValid": "El certificado leaf aún no es válido (notBefore {{notBefore}})",
+      "leafNoSans": "El certificado leaf no tiene Subject Alternative Names — HAProxy necesita SANs para la coincidencia SNI",
+      "fileNotFound": "{{basename}} no encontrado para {{name}}"
+    },
+    "trustedCa": {
+      "idInvalid": "Id debe coincidir con a-z, 0-9, _, - (1-63 caracteres, empezando por letra)",
+      "notFound": "CA de confianza no encontrada: {{id}}",
+      "pemRequired": "pem es obligatorio",
+      "noCertBlocks": "No se encontraron bloques CERTIFICATE",
+      "certParseFailed": "Falló el parseo del certificado #{{index}}: {{reason}}",
+      "certExpired": "Certificado #{{index}} ({{subject}}) expirado {{notAfter}}",
+      "certNotYetValid": "Certificado #{{index}} aún no es válido (notBefore {{notBefore}})",
+      "noCaTrueCert": "Ningún certificado del paquete tiene BasicConstraints CA:TRUE — esto es inusual para un archivo de CA de confianza"
+    },
+    "trustedCrl": {
+      "idInvalid": "Id debe coincidir con a-z, 0-9, _, - (1-63 caracteres, empezando por letra)",
+      "notFound": "CRL no encontrada: {{id}}",
+      "pemRequired": "pem es obligatorio",
+      "noCrlBlock": "No se encontró ningún bloque X509 CRL — se esperaba -----BEGIN X509 CRL----- … -----END X509 CRL-----",
+      "bodyNotBase64": "El cuerpo de la CRL no es base64 válido"
+    },
+    "provider": {
+      "idInvalid": "Id debe coincidir con a-z, 0-9, _, - (1-63 caracteres, empezando por letra)",
+      "notFound": "Proveedor TLS no encontrado: {{id}}",
+      "unknownType": "Tipo de proveedor desconocido: {{type}}",
+      "unknownField": "Campo desconocido: {{field}}",
+      "noCredentialsToManage": "El tipo de proveedor \"{{type}}\" no tiene credenciales que gestionar",
+      "requiredFieldMissing": "Falta un campo obligatorio: {{field}}",
+      "fieldNotInteger": "El campo {{field}} debe ser un entero",
+      "fieldNotInOptions": "El campo {{field}} debe ser uno de: {{options}}",
+      "serviceAccountJsonInvalid": "service_account_json no es JSON válido: {{reason}}"
+    },
+    "authProvider": {
+      "notFound": "Proveedor de autenticación no encontrado: {{id}}"
+    }
+  },
+  "lua": {
+    "plugin": {
+      "dirNotWhitelisted": "dir no está en la lista blanca configurada",
+      "idInvalid": "name debe coincidir con a-z, 0-9, _, - (1-63 caracteres, empezando por letra)",
+      "sourceRequired": "source es obligatorio",
+      "sourceTooLarge": "source supera los {{maxBytes}} bytes",
+      "notFound": "Plugin Lua no encontrado"
+    }
+  },
+  "haproxy": {
+    "cfg": {
+      "stateNotInitialized": "Estado no inicializado",
+      "notFound": "Configuración de HAProxy no encontrada en {{path}}"
+    },
+    "stop": {
+      "confirmRequired": "Detener HAProxy requiere { \"confirm\": true } en el cuerpo — esto interrumpirá todas las conexiones proxyficadas"
+    },
+    "server": {
+      "invalidState": "El estado del servidor debe ser uno de: {{allowed}}",
+      "invalidWeight": "El peso del servidor debe ser un entero entre 0 y 256"
+    },
+    "reloadFailed": "Falló la recarga de HAProxy: {{output}}",
+    "master": {
+      "timeout": "El socket master de HAProxy expiró tras {{timeoutMs}}ms"
+    },
+    "validate": {
+      "failed": "Falló la validación de la configuración de HAProxy (código de salida {{code}})"
+    },
+    "stats": {
+      "timeout": "El socket de stats de HAProxy expiró tras {{timeoutMs}}ms"
+    },
+    "runtime": {
+      "invalidId": "{{label}} no válido: {{value}}",
+      "invalidKey": "{{label}} no válido: {{value}}",
+      "invalidMapValue": "Valor de map no válido",
+      "invalidSessionId": "ID de sesión no válido: {{value}}"
+    },
+    "control": {
+      "pidUnreadable": "No se pudo leer el pid de HAProxy desde {{path}}",
+      "directStartUnavailable": "La estrategia de control direct no puede iniciar HAProxy — no hay supervisor configurado. Establezca HAPROXY_CONTROL_STRATEGY a s6 o systemd, o inicie HAProxy manualmente.",
+      "commandFailed": "{{action}} falló (salida {{exit}}): {{output}}"
+    }
+  },
+  "runtime": {
+    "map": {
+      "keyValueRequired": "Tanto la clave como el valor son obligatorios"
+    },
+    "maxconn": {
+      "invalid": "maxconn debe ser un entero no negativo"
+    }
+  },
+  "stats": {
+    "unavailable": "Las estadísticas de HAProxy no están disponibles actualmente",
+    "sessions": {
+      "unavailable": "Los datos de sesión de HAProxy no están disponibles actualmente"
+    },
+    "sampler": {
+      "notRunning": "El muestreador de estadísticas no está en ejecución"
+    }
+  },
+  "logs": {
+    "supervisorTokenMissing": "Token de supervisor no disponible; el endpoint de logs solo es funcional dentro de un addon de Home Assistant",
+    "supervisorFailed": "El supervisor devolvió HTTP {{status}}"
+  },
+  "notify": {
+    "channel": {
+      "notFound": "Canal de notificación no encontrado: {{channelId}}",
+      "unsupportedType": "Tipo de canal de notificación no admitido: {{type}}"
+    },
+    "haNotify": {
+      "tokenMissing": "SUPERVISOR_TOKEN no establecido; el canal de notificaciones HA solo funciona dentro de un addon de Home Assistant",
+      "invalidService": "Servicio de notificación HA no válido: {{service}}",
+      "failed": "Falló la notificación HA: HTTP {{status}} {{body}}"
+    },
+    "webhook": {
+      "urlMissing": "Falta la URL del webhook",
+      "failed": "El webhook {{url}} devolvió HTTP {{status}}: {{body}}"
+    },
+    "discord": {
+      "webhookUrlMissing": "Falta la URL del webhook de Discord",
+      "failed": "El webhook de Discord devolvió HTTP {{status}}: {{body}}"
+    },
+    "ntfy": {
+      "topicMissing": "Falta el topic de ntfy",
+      "failed": "ntfy devolvió HTTP {{status}}: {{body}}"
+    },
+    "slack": {
+      "webhookUrlMissing": "Falta la URL del webhook de Slack",
+      "failed": "El webhook de Slack devolvió HTTP {{status}}: {{body}}"
+    }
+  },
+  "geoip": {
+    "invalidIp": "Dirección IP no válida",
+    "notEnabled": "GeoIP no está habilitado",
+    "noData": "No hay datos GeoIP para esa IP",
+    "bulk": {
+      "empty": "body.ips debe ser una matriz no vacía",
+      "invalidEntry": "Cada IP debe ser una cadena v4 o v6 válida"
+    },
+    "download": {
+      "sourceNone": "El origen de base de datos local está establecido en \"none\"; no hay nada que descargar",
+      "maxmindKeyRequired": "Se requiere la clave de licencia de MaxMind cuando localDbSource es \"maxmind\"",
+      "maxmindFailed": "Falló la descarga de MaxMind: HTTP {{status}}",
+      "maxmindEmpty": "La descarga de MaxMind devolvió un cuerpo vacío",
+      "maxmindMissingMmdb": "El tarball de MaxMind no contenía ningún archivo .mmdb",
+      "dbipFailed": "Falló la descarga de DB-IP: HTTP {{status}} desde {{url}}",
+      "dbipEmpty": "La descarga de DB-IP devolvió un cuerpo vacío",
+      "sourceUnavailable": "El origen de base de datos local es \"{{source}}\"; no hay descarga disponible"
+    }
+  },
+  "cron": {
+    "noFutureOccurrence": "La expresión cron no tiene ocurrencias futuras: {{expression}}"
+  },
+  "lock": {
+    "acquireTimeout": "No se pudo adquirir el lock en {{path}} dentro del tiempo de espera"
+  }
+}

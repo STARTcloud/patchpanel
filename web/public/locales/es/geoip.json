@@ -1,0 +1,71 @@
+{
+  "page": {
+    "saveUnavailable": "Guardado de estado no disponible."
+  },
+  "card": {
+    "title": "GeoIP",
+    "description": "Cuando está activado, patchpanel enriquece los datos de sesión en vivo con búsquedas de ciudad / país / región desde una MMDB local. La fuente por defecto es <0>DB-IP city-lite</0> (gratis, CC-BY 4.0, sin registro, actualizaciones mensuales). MaxMind GeoLite2-City también es compatible si ya tienes una clave de licencia. Las IPs de cliente nunca abandonan el addon. El panel Top countries del dashboard y la tarjeta Top client IPs en Stats usan esto."
+  },
+  "saved": "Guardado.",
+  "fallback": {
+    "none": "Ninguno — solo DB local",
+    "ipApi": "ip-api.com (gratis, sin token)",
+    "ipinfo": "ipinfo.io (token recomendado)"
+  },
+  "localDb": {
+    "dbip": "DB-IP city-lite (gratis, sin registro — recomendado)",
+    "maxmind": "MaxMind GeoLite2-City (requiere clave de licencia gratuita)",
+    "none": "Sin DB local — solo fallback en línea"
+  },
+  "badge": {
+    "disabled": "desactivado",
+    "present": "presente",
+    "notDownloaded": "no descargado"
+  },
+  "download": {
+    "maxmind": "Descargar GeoLite2-City",
+    "dbip": "Descargar DB-IP city-lite",
+    "now": "Descargar ahora",
+    "titleDisabled": "DB local desactivada — elige DB-IP o MaxMind primero",
+    "titleNeedKey": "Establece una clave de licencia de MaxMind primero",
+    "titleMaxmind": "Disparar una descarga inmediata de GeoLite2-City",
+    "titleDbip": "Disparar una descarga inmediata de DB-IP city-lite (gratis, sin registro)",
+    "success": "Descargados {{size}} a {{path}}",
+    "downloading": "Descargando…"
+  },
+  "status": {
+    "statusLabel": "Estado:",
+    "enabled": "activado",
+    "disabled": "desactivado",
+    "sourceLabel": "Fuente:",
+    "licenseKeyLabel": "Clave de licencia:",
+    "licenseSet": "establecida",
+    "licenseMissing": "ausente",
+    "localDbLabel": "DB local:",
+    "sizeLabel": "Tamaño:",
+    "lastUpdatedLabel": "Última actualización:",
+    "unavailable": "Estado de GeoIP no disponible: {{message}}"
+  },
+  "form": {
+    "enrichmentEnabled": "Enriquecimiento GeoIP activado",
+    "localDbSource": "Fuente de DB local",
+    "localDbHint": "DB-IP city-lite funciona sin configuración (sin registro). Elige MaxMind si ya tienes una clave de licencia GeoLite2; elige Ninguno para desactivar búsquedas locales y usar solo el fallback en línea.",
+    "maxmindLicense": "Clave de licencia MaxMind",
+    "maxmindPlaceholder": "consigue una gratis en maxmind.com/en/geolite2/signup",
+    "maxmindHint": "Requerida para descargar GeoLite2-City. Almacenada en <0>state.json</0>; protege ese archivo en consecuencia.",
+    "fallbackProvider": "Proveedor de fallback en línea",
+    "fallbackHint": "Usado para búsquedas puntuales de IP cuando la DB local no existe o no cubre una dirección. El enriquecimiento masivo de sesiones siempre usa la DB local.",
+    "fallbackToken": "Token del proveedor de fallback (opcional)",
+    "fallbackTokenPlaceholder": "token de ipinfo",
+    "cron": "Programación cron de auto-actualización",
+    "cronHint": "Semanal lunes 04:17 por defecto. DB-IP publica el día 1 de cada mes; MaxMind publica GeoLite2 dos veces por semana.",
+    "homeLocationHint": "<0>Ubicación de casa para tráfico LAN (opcional).</0> Cuando las cuatro están establecidas, las IPs de origen privadas / RFC1918 se resuelven a estas coordenadas en lugar de ser ignoradas: útil para atribuir sesiones LAN a tu ubicación física en el panel Top countries del dashboard.",
+    "homeLat": "Latitud de casa",
+    "homeLon": "Longitud de casa",
+    "homeCountry": "País (ISO-2)",
+    "homeLabel": "Etiqueta de casa",
+    "homeLabelPlaceholder": "Casa",
+    "homeLabelHint": "Se muestra como la \"ciudad\" en Top client IPs para tráfico LAN.",
+    "saveSettings": "Guardar configuración GeoIP"
+  }
+}
