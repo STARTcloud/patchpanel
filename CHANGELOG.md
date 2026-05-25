@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/STARTcloud/patchpanel/compare/v0.6.3...v0.7.0) (2026-05-25)
+
+
+### Features
+
+* fixing AI slop with probably more AI slop, trying to fix translations, server management on baremetal systems, etc ([e4893e7](https://github.com/STARTcloud/patchpanel/commit/e4893e76c3b8b21bf7b069c119ca275c4bafcb62))
+
 ## [0.6.3](https://github.com/STARTcloud/patchpanel/compare/v0.6.2...v0.6.3) (2026-05-18)
 
 
