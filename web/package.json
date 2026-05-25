@@ -16,7 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@dr.pogodin/react-helmet": "^3.0.4",
+    "@dr.pogodin/react-helmet": "^3.2.2",
     "@highcharts/map-collection": "^2.3.2",
     "@highcharts/react": "^5.0.1",
     "@xyflow/react": "^12.4.0",
