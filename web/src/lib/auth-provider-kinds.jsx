@@ -2,17 +2,15 @@ import PropTypes from 'prop-types';
 import { Alert, Button, Col, Form, Table } from 'react-bootstrap';
 
 import { ListEditor } from '../components/ListEditor.jsx';
+import { stripInternal } from '../utils/entity-naming.js';
 import { genKey } from '../utils/keys.js';
+import { CIDR_REGEX, LUA_FN_REGEX, TENANT_ID_REGEX } from '../utils/regexes.js';
 
 import { buildKindRegistry } from './provider-kind-registry.jsx';
 
 // v0.2.39 — Auth provider kinds registry. One entry per discriminated-union
 // arm of `AuthProviderSchema`. Adding a new auth kind is a single entry
 // here + the matching zod schema arm + the rendering hook in render.js.
-
-const CIDR_REGEX = /^[0-9a-fA-F:.]+\/\d{1,3}$/u;
-const TENANT_ID_REGEX = /^[a-zA-Z0-9-]+$/u;
-const LUA_FN_REGEX = /^[a-zA-Z_][a-zA-Z0-9_]*$/u;
 
 const AuthRequestBackendIdSelector = ({ value, onChange, doc, label, helpText }) => {
   const backends = doc?.backends ?? [];
@@ -53,16 +51,6 @@ AuthRequestBackendIdSelector.propTypes = {
   doc: PropTypes.object,
   label: PropTypes.string.isRequired,
   helpText: PropTypes.node,
-};
-
-const stripInternal = obj => {
-  const result = {};
-  for (const [k, v] of Object.entries(obj)) {
-    if (!k.startsWith('_')) {
-      result[k] = v;
-    }
-  }
-  return result;
 };
 
 // ---- Authelia (existing) ----

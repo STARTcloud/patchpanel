@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { SortableHeader } from '../components/SortableHeader.jsx';
 import { useTableControls } from '../hooks/useTableControls.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
+import { uniquifyCopy } from '../utils/entity-naming.js';
 
 export const BackendsPage = ({ doc = null, onSave = null }) => {
   const { t } = useTranslation(['haproxy', 'common']);
@@ -70,13 +71,8 @@ export const BackendsPage = ({ doc = null, onSave = null }) => {
   };
 
   const handleClone = backend => {
-    const existingIds = new Set(doc.backends.map(b => b.id));
-    let candidate = `${backend.id}-copy`;
-    let suffix = 1;
-    while (existingIds.has(candidate)) {
-      suffix += 1;
-      candidate = `${backend.id}-copy-${suffix}`;
-    }
+    const taken = new Set(doc.backends.map(b => b.id));
+    const candidate = uniquifyCopy(backend.id, taken);
     const cloned = { ...backend, id: candidate, name: candidate };
     persist([...doc.backends, cloned]);
   };
@@ -222,7 +218,7 @@ export const BackendsPage = ({ doc = null, onSave = null }) => {
                         'Duplicate this backend with a fresh id/name. Useful when several vhosts share the same upstream pool but you want per-vhost stats rows.'
                       )}
                     >
-                      {t('haproxy:backend.actions.clone', 'Clone')}
+                      {t('common:buttons.clone', 'Clone')}
                     </Button>
                     <Button
                       variant="outline-danger"

@@ -3,24 +3,14 @@ import { useState } from 'react';
 import { Alert, Button, Col, Form, Modal, Row, Tab, Table, Tabs } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
+import { stripInternal } from '../utils/entity-naming.js';
 import { genKey } from '../utils/keys.js';
+import { ID_REGEX, SECTION_NAME_REGEX } from '../utils/regexes.js';
 
 import { ErrorFilesIdSelect } from './ErrorFilesIdSelect.jsx';
 import { ListEditor } from './ListEditor.jsx';
 
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
-const SECTION_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_-]*$/u;
 const INIT_ADDR_OPTIONS = Object.freeze(['last', 'libc', 'none', 'ip']);
-
-const stripInternal = obj => {
-  const out = {};
-  for (const [k, v] of Object.entries(obj)) {
-    if (!k.startsWith('_')) {
-      out[k] = v;
-    }
-  }
-  return out;
-};
 
 const newHttpErrorEntry = () => ({
   _key: genKey(),

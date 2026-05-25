@@ -22,7 +22,6 @@
     },
     "add": "Añadir frontend",
     "actions": {
-      "clone": "Clonar",
       "cloneTitle": "Duplicar este frontend con un nuevo id + nombre de sección"
     },
     "filterPlaceholder": "Filtrar por nombre, id, modo, dirección bind…",
@@ -171,7 +170,6 @@
       "servers": "Servidores"
     },
     "actions": {
-      "clone": "Clonar",
       "cloneTitle": "Duplicar este backend con un nuevo id/nombre. Útil cuando varios vhosts comparten el mismo grupo upstream pero desea filas de estadísticas por vhost.",
       "inUseTitle": "En uso por al menos una regla, default_backend o mapeo SNI; elimine la referencia primero."
     },

@@ -5,14 +5,11 @@ import { useTranslation } from 'react-i18next';
 
 import { apiPut } from '../api/client.js';
 import { stateDocShape } from '../prop-shapes.js';
+import { collectRuleIds, slugifyId, slugifyName, uniquify } from '../utils/entity-naming.js';
+import { ADDR_PORT_REGEX, EMAIL_REGEX, HOSTNAME_REGEX, ID_REGEX } from '../utils/regexes.js';
 
 import { ListEditor } from './ListEditor.jsx';
 import { WizardShell } from './WizardShell.jsx';
-
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
-const HOSTNAME_REGEX = /^[a-zA-Z0-9*][a-zA-Z0-9.*-]{0,252}$/u;
-const ADDR_PORT_REGEX = /^(?:\[[0-9a-fA-F:]+\]|[A-Za-z0-9.-]+):\d{1,5}$/u;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
 
 const STEP_LABEL_KEYS = Object.freeze([
   { key: 'auth:onboardingWizard.steps.welcome', fallback: 'Welcome' },
@@ -44,32 +41,8 @@ const PROVIDER_OPTIONS = Object.freeze([
   },
 ]);
 
-const slugifyId = source =>
-  source
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/gu, '-')
-    .replace(/^-+|-+$/gu, '')
-    .slice(0, 63) || 'default';
-
-const slugifyName = source =>
-  source
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, '_')
-    .replace(/^_+|_+$/gu, '')
-    .slice(0, 63) || 'default';
-
-const uniqueIn = (proposed, taken) => {
-  if (!taken.has(proposed)) {
-    return proposed;
-  }
-  let s = 2;
-  let cand = `${proposed}-${s}`;
-  while (taken.has(cand)) {
-    s += 1;
-    cand = `${proposed}-${s}`;
-  }
-  return cand;
-};
+const slugId = source => slugifyId(source, { fallback: 'default' });
+const slugName = source => slugifyName(source, { fallback: 'default' });
 
 const emptyDraft = () => ({
   email: '',
@@ -356,7 +329,7 @@ const ReviewStep = ({ draft }) => {
         </dd>
         <dt className="col-sm-4">{t('auth:onboardingWizard.review.aclRow', 'ACL + rule')}</dt>
         <dd className="col-sm-8">
-          host_{slugifyName(draft.routeHostname || 'host')} →{' '}
+          host_{slugName(draft.routeHostname || 'host')} →{' '}
           {t('auth:onboardingWizard.review.useBackend', 'use-backend')}{' '}
           <code>{draft.backendName}</code>
         </dd>
@@ -414,12 +387,11 @@ const validateStep = (step, draft) => {
     }
     case 2:
       return (
-        ID_REGEX.test(slugifyId(draft.backendName)) &&
-        ADDR_PORT_REGEX.test(draft.backendServerAddress)
+        ID_REGEX.test(slugId(draft.backendName)) && ADDR_PORT_REGEX.test(draft.backendServerAddress)
       );
     case 3:
       return (
-        ID_REGEX.test(slugifyId(draft.frontendName)) && draft.frontendBindAddress.trim().length > 0
+        ID_REGEX.test(slugId(draft.frontendName)) && draft.frontendBindAddress.trim().length > 0
       );
     case 4:
       return HOSTNAME_REGEX.test(draft.routeHostname);
@@ -430,13 +402,13 @@ const validateStep = (step, draft) => {
 
 const buildDefaultsBlock = doc => {
   const takenIds = new Set((doc.defaultsBlocks ?? []).map(b => b.id));
-  const id = uniqueIn('default', takenIds);
+  const id = uniquify('default', takenIds);
   return { id, name: id, mode: 'http' };
 };
 
 const buildProvider = (doc, providerOpt) => {
   const takenIds = new Set((doc.tls?.providers ?? []).map(p => p.id));
-  const id = uniqueIn(slugifyId(`tls-${providerOpt.value}`), takenIds);
+  const id = uniquify(slugId(`tls-${providerOpt.value}`), takenIds);
   return {
     id,
     type: providerOpt.providerType,
@@ -447,7 +419,7 @@ const buildProvider = (doc, providerOpt) => {
 
 const buildBackend = (doc, draft) => {
   const takenIds = new Set((doc.backends ?? []).map(b => b.id));
-  const id = uniqueIn(slugifyId(draft.backendName), takenIds);
+  const id = uniquify(slugId(draft.backendName), takenIds);
   return {
     id,
     name: draft.backendName,
@@ -473,7 +445,7 @@ const buildBackend = (doc, draft) => {
 
 const buildAcmeAccount = (doc, draft) => {
   const takenIds = new Set((doc.acmeAccounts ?? []).map(a => a.id));
-  const id = uniqueIn('default', takenIds);
+  const id = uniquify('default', takenIds);
   return {
     id,
     email: draft.email,
@@ -484,7 +456,7 @@ const buildAcmeAccount = (doc, draft) => {
 
 const buildCert = (doc, draft, providerId, acmeAccountId) => {
   const takenIds = new Set((doc.tls?.certs ?? []).map(c => c.id));
-  const id = uniqueIn(slugifyId(`cert-${draft.routeHostname}`), takenIds);
+  const id = uniquify(slugId(`cert-${draft.routeHostname}`), takenIds);
   return {
     id,
     certName: draft.routeHostname.replace(/[^a-zA-Z0-9-]/gu, '-').slice(0, 127),
@@ -496,22 +468,11 @@ const buildCert = (doc, draft, providerId, acmeAccountId) => {
   };
 };
 
-const uniqueAclName = (slug, takenNames) => {
-  if (!takenNames.has(slug)) {
-    return slug;
-  }
-  let i = 2;
-  while (takenNames.has(`${slug}_${i}`)) {
-    i += 1;
-  }
-  return `${slug}_${i}`;
-};
-
 const buildAcl = (doc, draft) => {
   const takenIds = new Set((doc.acls ?? []).map(a => a.id));
   const takenNames = new Set((doc.acls ?? []).map(a => a.name));
-  const id = uniqueIn(slugifyId(`host-${draft.routeHostname}`), takenIds);
-  const name = uniqueAclName(slugifyName(`host_${draft.routeHostname}`), takenNames);
+  const id = uniquify(slugId(`host-${draft.routeHostname}`), takenIds);
+  const name = uniquify(slugName(`host_${draft.routeHostname}`), takenNames, { separator: '_' });
   return {
     id,
     name,
@@ -525,20 +486,13 @@ const buildAcl = (doc, draft) => {
   };
 };
 
-const collectRuleIds = doc => {
-  const taken = new Set();
-  for (const fe of doc.frontends ?? []) {
-    for (const r of fe.rulePhases?.httpRequest ?? []) {
-      taken.add(r.id);
-    }
-  }
-  return taken;
-};
-
 const buildFrontend = (doc, draft, defaultsId, aclName, backendId) => {
   const takenFeIds = new Set((doc.frontends ?? []).map(f => f.id));
-  const frontendId = uniqueIn(slugifyId(draft.frontendName), takenFeIds);
-  const ruleId = uniqueIn(slugifyId(`route-${draft.routeHostname}`), collectRuleIds(doc));
+  const frontendId = uniquify(slugId(draft.frontendName), takenFeIds);
+  const ruleId = uniquify(
+    slugId(`route-${draft.routeHostname}`),
+    collectRuleIds(doc, { phase: 'httpRequest' })
+  );
   const newRule = {
     id: ruleId,
     name: `route to ${draft.backendName}`,

@@ -3,24 +3,12 @@ import { useState } from 'react';
 import { Alert, Button, Col, Form, Modal, Row } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
+import { stripInternal } from '../utils/entity-naming.js';
 import { genKey } from '../utils/keys.js';
+import { ADDR_PORT_REGEX, DURATION_REGEX, ID_REGEX } from '../utils/regexes.js';
 
 import { ListEditor } from './ListEditor.jsx';
 import { ReorderableTable } from './ReorderableTable.jsx';
-
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
-const ADDR_PORT_REGEX = /^(?:\[[0-9a-fA-F:]+\]|[A-Za-z0-9.-]+):\d{1,5}$/u;
-const DURATION_REGEX = /^\d+(?:ms|s|m|h|d)$/u;
-
-const stripInternal = obj => {
-  const result = {};
-  for (const [k, v] of Object.entries(obj)) {
-    if (!k.startsWith('_')) {
-      result[k] = v;
-    }
-  }
-  return result;
-};
 
 const newServer = () => ({
   _key: genKey(),

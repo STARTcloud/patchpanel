@@ -4,6 +4,7 @@ import { Trans, useTranslation } from 'react-i18next';
 
 import { apiGet, apiPost } from '../api/client.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
+import { formatTimestamp } from '../utils/format.js';
 
 const formatBytes = n => {
   if (!Number.isFinite(n)) {
@@ -16,14 +17,6 @@ const formatBytes = n => {
     return `${(n / 1024).toFixed(1)} KB`;
   }
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
-};
-
-const formatTimestamp = iso => {
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return iso;
-  }
 };
 
 const fetchSnapshot = id => apiGet(`api/snapshots/${encodeURIComponent(id)}`);

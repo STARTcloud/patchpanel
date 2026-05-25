@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 
-import { StateError } from './errors.js';
+import { ReloadError, StateError } from './errors.js';
+import * as haproxyMaster from './haproxy-master.js';
 import { log } from './logger.js';
 
 // Process-control strategies. The patchpanel addon runs under s6-overlay in
@@ -148,3 +149,74 @@ export const start = async () => {
 // derives `alive` from that. This module only resolves the supervisor
 // strategy so the UI knows whether the Start button is operable.
 export const getStrategy = () => pickStrategy();
+
+const readHaproxyPid = async pidPath => {
+  const path = pidPath ?? DEFAULT_PID_PATH;
+  let raw;
+  try {
+    raw = await fs.readFile(path, 'utf8');
+  } catch (err) {
+    throw new ReloadError('haproxy.reload.pidUnreadable', {
+      message: `failed to read HAProxy pid from ${path}: ${err.message}`,
+      replacements: { path },
+      cause: err,
+    });
+  }
+  const pid = Number.parseInt(raw.trim().split(/\s+/u)[0], 10);
+  if (!Number.isInteger(pid) || pid <= 1) {
+    throw new ReloadError('haproxy.reload.pidInvalid', {
+      message: `invalid HAProxy pid in ${path}: ${raw.trim()}`,
+      replacements: { path },
+    });
+  }
+  return pid;
+};
+
+const reloadViaSignal = async config => {
+  const pid = await readHaproxyPid(config.paths?.haproxyPidFile);
+  try {
+    process.kill(pid, 'SIGUSR2');
+  } catch (err) {
+    throw new ReloadError('haproxy.reload.signalFailed', {
+      message: `failed to send SIGUSR2 to HAProxy master pid ${pid}: ${err.message}`,
+      replacements: { pid, signal: 'SIGUSR2' },
+      cause: err,
+    });
+  }
+  log.app.info('haproxy reload triggered via SIGUSR2', { pid });
+  return `SIGUSR2 sent to HAProxy master pid ${pid}`;
+};
+
+const reloadViaSystemctl = async () => {
+  const result = await runCommand('systemctl', ['reload', 'haproxy'], TIMEOUT_MS);
+  if (result.code !== 0) {
+    const output = (result.stderr || result.stdout).trim();
+    throw new ReloadError('haproxy.reload.systemctlFailed', {
+      message: `systemctl reload haproxy exited ${result.code}: ${output}`,
+      replacements: { exit: result.code, output },
+    });
+  }
+  log.app.info('haproxy reload via systemctl complete');
+  return (result.stdout || 'systemctl reload haproxy exit 0').trim();
+};
+
+const reloadViaMasterSocket = config => haproxyMaster.reload(config.paths.haproxyMasterSocket);
+
+const RELOAD_METHODS = Object.freeze({
+  'master-socket': reloadViaMasterSocket,
+  systemctl: reloadViaSystemctl,
+  'child-process': reloadViaSignal,
+});
+
+export const reload = config => {
+  const method = config.haproxy?.reload?.method ?? 'master-socket';
+  const fn = RELOAD_METHODS[method];
+  if (!fn) {
+    throw new ReloadError('haproxy.reload.unknownMethod', {
+      message: `unknown reload method: ${method}`,
+      replacements: { method },
+    });
+  }
+  log.app.info('haproxy reload requested', { method });
+  return fn(config);
+};

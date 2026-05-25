@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { ReorderableTable } from '../components/ReorderableTable.jsx';
 import { RuleEditModal } from '../components/RuleEditModal.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
+import { collectRuleIds, uniquifyCopy } from '../utils/entity-naming.js';
 
 const PHASES = Object.freeze([
   { key: 'tcpRequestConnection', label: 'tcp-request connection' },
@@ -56,6 +57,12 @@ const renderConditionPreview = condition => {
   return out;
 };
 
+const cloneRule = (rule, doc) => {
+  const cloned = structuredClone(rule);
+  cloned.id = uniquifyCopy(rule.id, collectRuleIds(doc));
+  return cloned;
+};
+
 const summarizeAction = action => {
   switch (action.type) {
     case 'use-backend':
@@ -96,6 +103,15 @@ const RowActions = ({ row, ctx }) => {
         disabled={ctx.saving || !ctx.onSave}
       >
         {t('common:buttons.edit', 'Edit')}
+      </Button>
+      <Button
+        variant="outline-info"
+        size="sm"
+        className="me-1"
+        onClick={() => ctx.onClone(row)}
+        disabled={ctx.saving || !ctx.onSave}
+      >
+        {t('common:buttons.clone', 'Clone')}
       </Button>
       <Button
         variant="outline-danger"
@@ -144,6 +160,10 @@ const PhaseTabPanel = ({ phase, doc, frontend, onSaveFrontend, saving }) => {
     const { id } = deleting;
     setDeleting(null);
     persistRules(rules.filter(r => r.id !== id));
+  };
+
+  const handleClone = rule => {
+    persistRules([...rules, cloneRule(rule, doc)]);
   };
 
   const handleReorder = nextRows => persistRules(nextRows);
@@ -206,7 +226,13 @@ const PhaseTabPanel = ({ phase, doc, frontend, onSaveFrontend, saving }) => {
         reorderable
         onReorder={handleReorder}
         RowActions={RowActions}
-        rowActionsContext={{ saving, onSave: onSaveFrontend, setEditing, setDeleting }}
+        rowActionsContext={{
+          saving,
+          onSave: onSaveFrontend,
+          setEditing,
+          setDeleting,
+          onClone: handleClone,
+        }}
         emptyState={t(
           'haproxy:rule.empty',
           'No rules in this phase. Click Add rule to create one.'

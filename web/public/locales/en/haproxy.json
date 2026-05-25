@@ -22,7 +22,6 @@
     },
     "add": "Add frontend",
     "actions": {
-      "clone": "Clone",
       "cloneTitle": "Duplicate this frontend with a fresh id + section name"
     },
     "filterPlaceholder": "Filter by name, id, mode, bind address…",
@@ -171,7 +170,6 @@
       "servers": "Servers"
     },
     "actions": {
-      "clone": "Clone",
       "cloneTitle": "Duplicate this backend with a fresh id/name. Useful when several vhosts share the same upstream pool but you want per-vhost stats rows.",
       "inUseTitle": "In use by at least one rule, default_backend, or SNI mapping; remove the reference first."
     },

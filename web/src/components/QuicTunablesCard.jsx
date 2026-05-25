@@ -4,14 +4,7 @@ import { Alert, Button, Card, Col, Form, Row, Tab, Tabs } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next';
 
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
-
-const parseIntOrUndef = raw => {
-  if (raw === '' || raw === null || raw === undefined) {
-    return undefined;
-  }
-  const n = Number.parseInt(raw, 10);
-  return Number.isInteger(n) ? n : undefined;
-};
+import { parseIntOrUndef } from '../utils/format.js';
 
 const triStateBoolToString = value => {
   if (value === true) {

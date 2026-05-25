@@ -4,6 +4,7 @@ import { Button, Form, InputGroup } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
 import { apiPost } from '../api/client.js';
+import { readFileAsText } from '../utils/files.js';
 
 // Per-type renderer for a single config field. Reads `field.type` (boolean,
 // select, password, textarea, array, integer, host, url, string) and
@@ -15,14 +16,6 @@ import { apiPost } from '../api/client.js';
 const fieldId = path => `cfg-${path.replace(/\./gu, '-')}`;
 
 const fileInputId = path => `${fieldId(path)}-upload`;
-
-const readFileAsText = file =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(file);
-  });
 
 const BooleanField = ({ field, currentValue, onChange }) => (
   <Form.Check

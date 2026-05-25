@@ -3,11 +3,12 @@ import { join as joinPath } from 'node:path';
 
 import * as audit from './audit.js';
 import { buildCertsList } from './cert-lineage.js';
+import { mirrorCrtListToReferencedPaths } from './crt-list-mirror.js';
 import { ReloadError, StateError } from './errors.js';
 import { parseValidationOutput } from './haproxy-error-parser.js';
 import { ensureDir, fileExists, readText, writeAtomic } from './files.js';
 import { assertValidRenderedCfg } from './haproxy-validate.js';
-import * as haproxyMaster from './haproxy-master.js';
+import * as haproxyControl from './haproxy-control.js';
 import * as keepalivedControl from './keepalived-control.js';
 import { withLock } from './lock.js';
 import { log } from './logger.js';
@@ -247,6 +248,63 @@ const renderAndValidateKeepalivedConfig = async (config, candidateParsed) => {
   return rendered;
 };
 
+const addPathIfSet = (paths, p) => {
+  if (typeof p === 'string' && p.length > 0) {
+    paths.add(p);
+  }
+};
+
+const collectDefaultsBlockPaths = (paths, block) => {
+  for (const p of Object.values(block.errorFiles ?? {})) {
+    addPathIfSet(paths, p);
+  }
+  for (const d of block.httpErrors ?? []) {
+    addPathIfSet(paths, d.lfFile);
+  }
+};
+
+const collectFrontendPaths = (paths, fe) => {
+  for (const bind of fe.binds ?? []) {
+    addPathIfSet(paths, bind.ssl?.crtListRef);
+  }
+  for (const p of Object.values(fe.httpOpts?.errorFiles ?? {})) {
+    addPathIfSet(paths, p);
+  }
+};
+
+const collectReferencedFilePaths = state => {
+  const paths = new Set();
+  for (const block of state.defaultsBlocks ?? []) {
+    collectDefaultsBlockPaths(paths, block);
+  }
+  for (const sec of state.httpErrorsSections ?? []) {
+    for (const p of Object.values(sec.errorFiles ?? {})) {
+      addPathIfSet(paths, p);
+    }
+  }
+  for (const fe of state.frontends ?? []) {
+    collectFrontendPaths(paths, fe);
+  }
+  return paths;
+};
+
+const ensureFileStub = async p => {
+  if (await fileExists(p)) {
+    return;
+  }
+  const lastSlash = p.lastIndexOf('/');
+  if (lastSlash > 0) {
+    await ensureDir(p.slice(0, lastSlash));
+  }
+  await writeAtomic(p, '', { mode: 0o644 });
+  log.app.warn('created empty stub for referenced file', { path: p });
+};
+
+const ensureReferencedFilesExist = async state => {
+  const paths = collectReferencedFilePaths(state);
+  await Promise.all([...paths].map(ensureFileStub));
+};
+
 const validateHaproxyCfg = async (haproxyBin, rendered, candidateParsed) => {
   try {
     await assertValidRenderedCfg(haproxyBin, rendered);
@@ -258,6 +316,55 @@ const validateHaproxyCfg = async (haproxyBin, rendered, candidateParsed) => {
   }
 };
 
+const writeConfigsWithBackup = async (config, rendered, renderedKeepalived) => {
+  await preserveForeignConfig(config.paths.haproxyConfig);
+  if (renderedKeepalived !== null) {
+    await preserveForeignConfig(config.paths.keepalivedConfig);
+  }
+  const backupPath = await backupCfg(config.paths.haproxyConfig);
+  let keepalivedBackupPath = null;
+  if (renderedKeepalived !== null && (await fileExists(config.paths.keepalivedConfig))) {
+    keepalivedBackupPath = `${config.paths.keepalivedConfig}.bak`;
+    await fs.copyFile(config.paths.keepalivedConfig, keepalivedBackupPath).catch(() => undefined);
+  }
+  await writeAtomic(config.paths.haproxyConfig, rendered, { mode: 0o644 });
+  log.app.info('haproxy.cfg written', { path: config.paths.haproxyConfig });
+  if (renderedKeepalived !== null) {
+    await writeAtomic(config.paths.keepalivedConfig, renderedKeepalived, { mode: 0o644 });
+    log.app.info('keepalived.conf written', { path: config.paths.keepalivedConfig });
+  }
+  return { backupPath, keepalivedBackupPath };
+};
+
+const reloadKeepalivedIfNeeded = async (config, renderedKeepalived, editor) => {
+  if (renderedKeepalived === null) {
+    return;
+  }
+  try {
+    await keepalivedControl.reload({ pidPath: config.paths.keepalivedPidFile });
+  } catch (err) {
+    log.app.warn('keepalived reload failed (non-fatal — config is on disk)', {
+      error: err.message,
+    });
+    audit.record({
+      actor: editor,
+      category: 'keepalived',
+      action: 'reload',
+      outcome: 'error',
+      details: { trigger: 'auto-after-apply', error: err.message },
+    });
+  }
+};
+
+const writeOptionalSnapshot = (config, next, editor, reason) => {
+  if (!config.paths.snapshotsDir) {
+    return;
+  }
+  writeSnapshot(config.paths.snapshotsDir, next, { actor: editor, reason }).catch(err =>
+    log.app.warn('snapshot write failed (non-fatal)', { error: err.message })
+  );
+};
+
 const reloadHaproxyWithRollback = async (
   config,
   backupPath,
@@ -266,13 +373,13 @@ const reloadHaproxyWithRollback = async (
   loadableCertCount
 ) => {
   try {
-    await haproxyMaster.reload(config.paths.haproxyMasterSocket);
+    await haproxyControl.reload(config);
   } catch (err) {
     await restoreCfgFromBackup(config.paths.haproxyConfig, backupPath);
     if (keepalivedBackupPath) {
       await fs.copyFile(keepalivedBackupPath, config.paths.keepalivedConfig).catch(() => undefined);
     }
-    await haproxyMaster.reload(config.paths.haproxyMasterSocket).catch(rollbackErr => {
+    await haproxyControl.reload(config).catch(rollbackErr => {
       log.app.error('reload after rollback also failed; HAProxy may be in inconsistent state', {
         error: rollbackErr.message,
       });
@@ -315,6 +422,7 @@ const triggerPeerSyncIfEnabled = async (config, next, editor) => {
 export const applyState = (config, candidate, options = {}) =>
   withLock(reloadLockPath(config), async () => {
     const editor = options.editor ?? null;
+    const reason = options.reason ?? null;
     const candidateBase = StateSchema.parse(candidate);
     const candidateParsed = await persistCustomErrorPages(config, candidateBase);
     await persistMaps(config, candidateParsed);
@@ -326,6 +434,8 @@ export const applyState = (config, candidate, options = {}) =>
     );
     const loadableCertCount = emitted.length;
 
+    await mirrorCrtListToReferencedPaths(config, candidateParsed);
+
     const rendered = withWatermark(
       renderHaproxyConfig(candidateParsed, {
         certsListPath: config.paths.haproxyCertsList,
@@ -335,34 +445,16 @@ export const applyState = (config, candidate, options = {}) =>
       })
     );
 
+    await ensureReferencedFilesExist(candidateParsed);
     await validateHaproxyCfg(config.paths.haproxyBin, rendered, candidateParsed);
 
     const renderedKeepalived = await renderAndValidateKeepalivedConfig(config, candidateParsed);
-    let keepalivedBackupPath = null;
 
-    // One-shot: preserve the operator's hand-written configs (no watermark)
-    // before we overwrite them. After the first successful write the files
-    // carry our marker and preservation is a no-op on subsequent applies.
-    await preserveForeignConfig(config.paths.haproxyConfig);
-    if (renderedKeepalived !== null) {
-      await preserveForeignConfig(config.paths.keepalivedConfig);
-    }
-
-    const backupPath = await backupCfg(config.paths.haproxyConfig);
-    if (renderedKeepalived !== null && (await fileExists(config.paths.keepalivedConfig))) {
-      keepalivedBackupPath = `${config.paths.keepalivedConfig}.bak`;
-      await fs.copyFile(config.paths.keepalivedConfig, keepalivedBackupPath).catch(() => undefined);
-    }
-
-    await writeAtomic(config.paths.haproxyConfig, rendered, { mode: 0o644 });
-    log.app.info('haproxy.cfg written', {
-      path: config.paths.haproxyConfig,
-      loadableCertCount,
-    });
-    if (renderedKeepalived !== null) {
-      await writeAtomic(config.paths.keepalivedConfig, renderedKeepalived, { mode: 0o644 });
-      log.app.info('keepalived.conf written', { path: config.paths.keepalivedConfig });
-    }
+    const { backupPath, keepalivedBackupPath } = await writeConfigsWithBackup(
+      config,
+      rendered,
+      renderedKeepalived
+    );
 
     await reloadHaproxyWithRollback(
       config,
@@ -372,22 +464,7 @@ export const applyState = (config, candidate, options = {}) =>
       loadableCertCount
     );
 
-    if (renderedKeepalived !== null) {
-      try {
-        await keepalivedControl.reload({ pidPath: config.paths.keepalivedPidFile });
-      } catch (err) {
-        log.app.warn('keepalived reload failed (non-fatal — config is on disk)', {
-          error: err.message,
-        });
-        audit.record({
-          actor: editor,
-          category: 'keepalived',
-          action: 'reload',
-          outcome: 'error',
-          details: { trigger: 'auto-after-apply', error: err.message },
-        });
-      }
-    }
+    await reloadKeepalivedIfNeeded(config, renderedKeepalived, editor);
 
     await cleanupBackup(backupPath);
     await cleanupBackup(keepalivedBackupPath);
@@ -397,19 +474,14 @@ export const applyState = (config, candidate, options = {}) =>
     const next = await saveState(config.paths.state, candidateBase, options);
     log.app.info('state saved after successful reload', { path: config.paths.state });
 
-    if (config.paths.snapshotsDir) {
-      writeSnapshot(config.paths.snapshotsDir, next, {
-        actor: editor,
-        reason: options.reason ?? null,
-      }).catch(err => log.app.warn('snapshot write failed (non-fatal)', { error: err.message }));
-    }
+    writeOptionalSnapshot(config, next, editor, reason);
 
     audit.record({
       actor: editor,
       category: 'state',
       action: 'apply',
       outcome: 'ok',
-      details: { loadableCertCount, reason: options.reason ?? null },
+      details: { loadableCertCount, reason },
     });
 
     await triggerPeerSyncIfEnabled(config, next, editor);

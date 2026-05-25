@@ -4,9 +4,7 @@ import { Alert, Badge, Button, Col, Form, Modal, Row, Table } from 'react-bootst
 import { useTranslation } from 'react-i18next';
 
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
-
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u;
+import { EMAIL_REGEX, ID_REGEX } from '../utils/regexes.js';
 
 const SERVER_OPTIONS = Object.freeze([
   {

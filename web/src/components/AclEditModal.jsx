@@ -3,10 +3,9 @@ import { useState } from 'react';
 import { Alert, Button, Col, Form, Modal, Row } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
-import { ListEditor } from './ListEditor.jsx';
+import { ACL_NAME_REGEX, ID_REGEX } from '../utils/regexes.js';
 
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
-const ACL_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$/u;
+import { ListEditor } from './ListEditor.jsx';
 
 const OPERATORS = Object.freeze([
   {

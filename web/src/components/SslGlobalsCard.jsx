@@ -16,6 +16,7 @@ import {
   VERSION as PROFILE_VERSION,
 } from '../lib/ssl-profiles.js';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
+import { parseIntOrUndef } from '../utils/format.js';
 
 import { ListEditor } from './ListEditor.jsx';
 
@@ -394,13 +395,6 @@ SidePanel.propTypes = {
 const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
   const { t } = useTranslation(['haproxy', 'common']);
   const setField = (field, value) => onUpdate({ ...tune, [field]: value });
-  const numericOrUndef = raw => {
-    if (raw === '' || raw === null || raw === undefined) {
-      return undefined;
-    }
-    const n = Number.parseInt(raw, 10);
-    return Number.isFinite(n) ? n : undefined;
-  };
   return (
     <div className="pt-3">
       <Row className="g-3">
@@ -411,7 +405,7 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               type="number"
               min={1024}
               value={tune.defaultDhParam ?? 4096}
-              onChange={e => setField('defaultDhParam', numericOrUndef(e.target.value) ?? 4096)}
+              onChange={e => setField('defaultDhParam', parseIntOrUndef(e.target.value) ?? 4096)}
             />
             <Form.Text className="text-muted">
               {t('haproxy:ssl.tune.dhParamHelp', 'DH params bit size. 2048 min; 4096 default.')}
@@ -425,7 +419,7 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               type="number"
               min={0}
               value={tune.cachesize ?? ''}
-              onChange={e => setField('cachesize', numericOrUndef(e.target.value))}
+              onChange={e => setField('cachesize', parseIntOrUndef(e.target.value))}
             />
             <Form.Text className="text-muted">
               {t('haproxy:ssl.tune.cachesizeHelp', 'SSL session cache entries. Default 20000.')}
@@ -439,7 +433,7 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               type="number"
               min={0}
               value={tune.lifetime ?? ''}
-              onChange={e => setField('lifetime', numericOrUndef(e.target.value))}
+              onChange={e => setField('lifetime', parseIntOrUndef(e.target.value))}
             />
             <Form.Text className="text-muted">
               {t('haproxy:ssl.tune.lifetimeHelp', 'Session cache TTL. Default 300.')}
@@ -453,7 +447,7 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               type="number"
               min={0}
               value={tune.maxrecord ?? ''}
-              onChange={e => setField('maxrecord', numericOrUndef(e.target.value))}
+              onChange={e => setField('maxrecord', parseIntOrUndef(e.target.value))}
             />
             <Form.Text className="text-muted">
               {t('haproxy:ssl.tune.maxrecordHelp', 'TLS record size; 0 = auto.')}
@@ -467,7 +461,7 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               type="number"
               min={0}
               value={tune.captureBufferSize ?? ''}
-              onChange={e => setField('captureBufferSize', numericOrUndef(e.target.value))}
+              onChange={e => setField('captureBufferSize', parseIntOrUndef(e.target.value))}
             />
             <Form.Text className="text-muted">
               {t('haproxy:ssl.tune.captureBufferHelp', 'ClientHello capture buffer.')}
@@ -481,7 +475,7 @@ const TuneTab = ({ tune, onUpdate, requestKeylogConfirm }) => {
               type="number"
               min={0}
               value={tune.numAsync ?? ''}
-              onChange={e => setField('numAsync', numericOrUndef(e.target.value))}
+              onChange={e => setField('numAsync', parseIntOrUndef(e.target.value))}
             />
             <Form.Text className="text-muted">
               {t('haproxy:ssl.tune.asyncHelp', 'Async engine threads.')}

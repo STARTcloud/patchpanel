@@ -8,6 +8,7 @@ import { FrontendEditModal } from '../components/FrontendEditModal.jsx';
 import { ReorderableTable } from '../components/ReorderableTable.jsx';
 import { usePendingChanges } from '../hooks/usePendingChanges.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
+import { uniquifyCopy } from '../utils/entity-naming.js';
 import { genKey } from '../utils/keys.js';
 
 const BindSummary = ({ binds }) => {
@@ -71,7 +72,7 @@ const FrontendRowActions = ({ row, ctx }) => {
           'Duplicate this frontend with a fresh id + section name'
         )}
       >
-        {t('haproxy:frontend.actions.clone', 'Clone')}
+        {t('common:buttons.clone', 'Clone')}
       </Button>
       <Button
         variant="outline-danger"
@@ -125,19 +126,6 @@ const buildColumns = t => [
     className: 'text-center',
   },
 ];
-
-const uniqueIdFrom = (proposed, takenIds) => {
-  if (!takenIds.has(proposed)) {
-    return proposed;
-  }
-  let suffix = 2;
-  let candidate = `${proposed}-${suffix}`;
-  while (takenIds.has(candidate)) {
-    suffix += 1;
-    candidate = `${proposed}-${suffix}`;
-  }
-  return candidate;
-};
 
 export const FrontendsPage = ({ doc = null, onSave = null }) => {
   const { t } = useTranslation(['haproxy', 'common']);
@@ -194,12 +182,10 @@ export const FrontendsPage = ({ doc = null, onSave = null }) => {
   const handleClone = fe => {
     const takenIds = new Set(frontends.map(f => f.id));
     const takenNames = new Set(frontends.map(f => f.name));
-    const baseId = `${fe.id}-copy`;
-    const baseName = `${fe.name}_copy`;
     const cloned = {
       ...fe,
-      id: uniqueIdFrom(baseId, takenIds),
-      name: uniqueIdFrom(baseName, takenNames),
+      id: uniquifyCopy(fe.id, takenIds),
+      name: uniquifyCopy(fe.name, takenNames, { separator: '_' }),
       binds: (fe.binds ?? []).map(b => ({ ...b, id: `b${genKey()}` })),
     };
     persistDoc({ ...effectiveDoc, frontends: [...frontends, cloned] });

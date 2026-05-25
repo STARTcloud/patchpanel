@@ -71,7 +71,7 @@ jobs:
 
       - name: Create Debian package tree
         run: |
-          mkdir -p "${PACKAGE_NAME}_${VERSION}_${ARCH}"/{opt/patchpanel/web,opt/patchpanel/bin,opt/patchpanel/config-templates,etc/systemd/system,usr/bin,var/lib/patchpanel,var/log/patchpanel,usr/share/man/man8,usr/share/man/man5,DEBIAN}
+          mkdir -p "${PACKAGE_NAME}_${VERSION}_${ARCH}"/{opt/patchpanel/web,opt/patchpanel/bin,opt/patchpanel/config-templates,etc/systemd/system,etc/polkit-1/rules.d,usr/bin,var/lib/patchpanel,var/log/patchpanel,usr/share/man/man8,usr/share/man/man5,DEBIAN}
 
       - name: Copy application files
         run: |
@@ -96,6 +96,7 @@ jobs:
       - name: Copy systemd + maintainer scripts
         run: |
           cp packaging/DEBIAN/systemd/patchpanel.service "${PACKAGE_NAME}_${VERSION}_${ARCH}/etc/systemd/system/"
+          cp packaging/DEBIAN/polkit/50-patchpanel-haproxy.rules "${PACKAGE_NAME}_${VERSION}_${ARCH}/etc/polkit-1/rules.d/"
           cp packaging/DEBIAN/preinst packaging/DEBIAN/postinst packaging/DEBIAN/prerm packaging/DEBIAN/postrm "${PACKAGE_NAME}_${VERSION}_${ARCH}/DEBIAN/"
 
       - name: Install man pages

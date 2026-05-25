@@ -3,6 +3,9 @@ import { useMemo, useState } from 'react';
 import { Alert, Badge, Col, Form, Row } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
+import { collectRuleIds, slugifyId, slugifyName, uniquify } from '../utils/entity-naming.js';
+import { ACL_NAME_REGEX, HOSTNAME_REGEX, ID_REGEX } from '../utils/regexes.js';
+
 import { ListEditor } from './ListEditor.jsx';
 import { WizardShell } from './WizardShell.jsx';
 
@@ -12,47 +15,6 @@ const STEP_KEYS = Object.freeze([
   { key: 'haproxy:routeWizard.steps.names', fallback: 'Names' },
   { key: 'haproxy:routeWizard.steps.review', fallback: 'Review' },
 ]);
-const HOSTNAME_REGEX = /^[a-zA-Z0-9*][a-zA-Z0-9.*-]{0,252}$/u;
-const ACL_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$/u;
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
-
-const slugifyName = source =>
-  source
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, '_')
-    .replace(/^_+|_+$/gu, '');
-
-const slugifyId = source =>
-  source
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/gu, '-')
-    .replace(/^-+|-+$/gu, '');
-
-const uniqueId = (proposed, taken) => {
-  if (!taken.has(proposed)) {
-    return proposed;
-  }
-  let suffix = 2;
-  let candidate = `${proposed}-${suffix}`;
-  while (taken.has(candidate)) {
-    suffix += 1;
-    candidate = `${proposed}-${suffix}`;
-  }
-  return candidate;
-};
-
-const uniqueName = (proposed, taken) => {
-  if (!taken.has(proposed)) {
-    return proposed;
-  }
-  let suffix = 2;
-  let candidate = `${proposed}_${suffix}`;
-  while (taken.has(candidate)) {
-    suffix += 1;
-    candidate = `${proposed}_${suffix}`;
-  }
-  return candidate;
-};
 
 const PickFrontendStep = ({ draft, update, doc }) => {
   const { t } = useTranslation(['haproxy', 'common']);
@@ -291,16 +253,10 @@ const buildDraftFromHostnames = (hostnames, doc) => {
   const slugId = slugifyId(`host-${baseHost}`);
   const takenAclIds = new Set((doc.acls ?? []).map(a => a.id));
   const takenAclNames = new Set((doc.acls ?? []).map(a => a.name));
-  const aclId = uniqueId(slugId, takenAclIds);
-  const aclName = uniqueName(slugName, takenAclNames);
+  const aclId = uniquify(slugId, takenAclIds);
+  const aclName = uniquify(slugName, takenAclNames, { separator: '_' });
   const ruleIdSlug = slugifyId(`route-${baseHost}`);
-  const takenRuleIds = new Set();
-  for (const fe of doc.frontends ?? []) {
-    for (const r of fe.rulePhases?.httpRequest ?? []) {
-      takenRuleIds.add(r.id);
-    }
-  }
-  const ruleId = uniqueId(ruleIdSlug, takenRuleIds);
+  const ruleId = uniquify(ruleIdSlug, collectRuleIds(doc, { phase: 'httpRequest' }));
   return { aclId, aclName, ruleId };
 };
 

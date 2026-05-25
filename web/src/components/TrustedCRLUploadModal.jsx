@@ -4,22 +4,16 @@ import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner } from 'react-boot
 import { useTranslation } from 'react-i18next';
 
 import { apiPost } from '../api/client.js';
+import { uniquify } from '../utils/entity-naming.js';
+import { readFileAsText } from '../utils/files.js';
+import { ID_REGEX } from '../utils/regexes.js';
 
 // Upload an X.509 Certificate Revocation List (PEM). The server checks the
 // PEM markers + base64, writes it to <trustedCrlsDir>/<id>.pem, returns the
 // SHA-256 fingerprint. The modal augments state.trustedCrls with the new
 // entry and the page persists via PUT /api/state.
 
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
 const NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_.-]*$/u;
-
-const readFileAsText = file =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(file);
-  });
 
 const deriveIdFromName = name => {
   if (!name) {
@@ -34,19 +28,6 @@ const deriveIdFromName = name => {
     return base.slice(0, 63);
   }
   return `crl-${base.slice(0, 59)}`;
-};
-
-const uniqueId = (proposed, taken) => {
-  if (!taken.has(proposed)) {
-    return proposed;
-  }
-  let suffix = 2;
-  let candidate = `${proposed}-${suffix}`;
-  while (taken.has(candidate)) {
-    suffix += 1;
-    candidate = `${proposed}-${suffix}`;
-  }
-  return candidate;
 };
 
 const PemTextarea = ({ value, onChange, fileInputKey }) => {
@@ -190,7 +171,7 @@ export const TrustedCRLUploadModal = ({ show, doc, onUploaded, onCancel }) => {
       const result = await apiPost('api/trusted-crls/validate', { pem });
       setValidation(result);
       if (result?.ok && !autoFilled && !id && name) {
-        setId(uniqueId(deriveIdFromName(name), takenIds));
+        setId(uniquify(deriveIdFromName(name), takenIds));
         setAutoFilled(true);
       }
     } catch (err) {

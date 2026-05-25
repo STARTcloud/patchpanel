@@ -4,13 +4,10 @@ import { Alert, Badge, Col, Form, Row } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
 import { stateDocShape } from '../prop-shapes.js';
+import { collectRuleIds, slugifyId, slugifyName, uniquify } from '../utils/entity-naming.js';
+import { ACL_NAME_REGEX, ADDR_PORT_REGEX, HOSTNAME_REGEX, ID_REGEX } from '../utils/regexes.js';
 
 import { WizardShell } from './WizardShell.jsx';
-
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
-const ACL_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_.-]{0,63}$/u;
-const HOSTNAME_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}$/u;
-const ADDR_PORT_REGEX = /^(?:\[[0-9a-fA-F:]+\]|[A-Za-z0-9.-]+):\d{1,5}$/u;
 
 const STEP_LABEL_KEYS = Object.freeze([
   { key: 'auth:autheliaWizard.steps.upstream', fallback: 'Authelia upstream' },
@@ -19,45 +16,8 @@ const STEP_LABEL_KEYS = Object.freeze([
   { key: 'auth:autheliaWizard.steps.review', fallback: 'Review' },
 ]);
 
-const slugifyId = source =>
-  source
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/gu, '-')
-    .replace(/^-+|-+$/gu, '')
-    .slice(0, 63) || 'authelia';
-
-const slugifyName = source =>
-  source
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/gu, '_')
-    .replace(/^_+|_+$/gu, '')
-    .slice(0, 63) || 'authelia';
-
-const uniqueIn = (proposed, taken) => {
-  if (!taken.has(proposed)) {
-    return proposed;
-  }
-  let s = 2;
-  let cand = `${proposed}-${s}`;
-  while (taken.has(cand)) {
-    s += 1;
-    cand = `${proposed}-${s}`;
-  }
-  return cand;
-};
-
-const uniqueNameIn = (proposed, taken) => {
-  if (!taken.has(proposed)) {
-    return proposed;
-  }
-  let s = 2;
-  let cand = `${proposed}_${s}`;
-  while (taken.has(cand)) {
-    s += 1;
-    cand = `${proposed}_${s}`;
-  }
-  return cand;
-};
+const slugId = source => slugifyId(source, { fallback: 'authelia' });
+const slugName = source => slugifyName(source, { fallback: 'authelia' });
 
 const AUTH_REQUEST_LUA_PATH = '/etc/haproxy/haproxy-lua-http/auth-request.lua';
 const AUTH_REQUEST_LUA_NAME = 'haproxy-auth-request';
@@ -518,20 +478,16 @@ const collisionFreeDraft = (draft, doc) => {
   const takenBackendNames = new Set((doc.backends ?? []).map(b => b.name));
   const takenAclIds = new Set((doc.acls ?? []).map(a => a.id));
   const takenAclNames = new Set((doc.acls ?? []).map(a => a.name));
-  const takenRuleIds = new Set();
-  for (const fe of doc.frontends ?? []) {
-    for (const r of fe.rulePhases?.httpRequest ?? []) {
-      takenRuleIds.add(r.id);
-    }
-  }
+  const takenRuleIds = collectRuleIds(doc, { phase: 'httpRequest' });
+  const nameOpts = { separator: '_' };
   return {
     ...draft,
-    providerId: uniqueIn(slugifyId(draft.providerId), takenProviderIds),
-    backendId: uniqueIn(slugifyId(draft.backendId), takenBackendIds),
-    backendName: uniqueNameIn(slugifyName(draft.backendName), takenBackendNames),
-    aclId: uniqueIn(slugifyId(draft.aclId), takenAclIds),
-    aclName: uniqueNameIn(slugifyName(draft.aclName), takenAclNames),
-    routeRuleId: uniqueIn(slugifyId(draft.routeRuleId), takenRuleIds),
+    providerId: uniquify(slugId(draft.providerId), takenProviderIds),
+    backendId: uniquify(slugId(draft.backendId), takenBackendIds),
+    backendName: uniquify(slugName(draft.backendName), takenBackendNames, nameOpts),
+    aclId: uniquify(slugId(draft.aclId), takenAclIds),
+    aclName: uniquify(slugName(draft.aclName), takenAclNames, nameOpts),
+    routeRuleId: uniquify(slugId(draft.routeRuleId), takenRuleIds),
   };
 };
 

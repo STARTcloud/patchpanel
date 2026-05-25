@@ -7,6 +7,7 @@ import { apiPost } from '../api/client.js';
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
 import { genKey } from '../utils/keys.js';
+import { ID_REGEX } from '../utils/regexes.js';
 
 const TYPE_LABEL_KEYS = Object.freeze({
   'ha-notify': { key: 'notify:type.haNotify', fallback: 'Home Assistant notify service' },
@@ -29,8 +30,6 @@ const EVENTS = Object.freeze([
   'backend.down',
   'test',
 ]);
-
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
 
 const emptyChannel = () => ({
   id: '',

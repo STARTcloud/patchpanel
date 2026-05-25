@@ -1,10 +1,11 @@
 import * as audit from './audit.js';
 import { buildCertsList, ensureCertsDirs } from './cert-lineage.js';
 import { renewCert } from './certbot.js';
+import { mirrorCrtListToReferencedPaths } from './crt-list-mirror.js';
 import { StateError } from './errors.js';
 import { writeAtomic } from './files.js';
+import * as haproxyControl from './haproxy-control.js';
 import { assertValidRenderedCfg } from './haproxy-validate.js';
-import * as haproxyMaster from './haproxy-master.js';
 import { log } from './logger.js';
 import { loadNodeConfig } from './node-config.js';
 import { pushStateToAllPeers } from './peer-sync.js';
@@ -96,6 +97,7 @@ const recordRenewalResults = (results, { actor, renewalState, certIdFilter }) =>
 const rebuildAndReload = async (config, state, actor) => {
   const emitted = await buildCertsList(config.paths, state.tls.certs, state.tls.providers);
   const loadableCertCount = emitted.length;
+  await mirrorCrtListToReferencedPaths(config, state);
   const rendered = renderHaproxyConfig(state, {
     certsListPath: config.paths.haproxyCertsList,
     trustedCasDir: config.paths.trustedCasDir,
@@ -109,7 +111,7 @@ const rebuildAndReload = async (config, state, actor) => {
   let reloadOk = true;
   let reloadError = null;
   try {
-    await haproxyMaster.reload(config.paths.haproxyMasterSocket);
+    await haproxyControl.reload(config);
     log.app.info('haproxy reloaded after renewal');
   } catch (err) {
     reloadOk = false;

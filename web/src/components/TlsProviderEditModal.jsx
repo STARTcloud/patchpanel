@@ -5,10 +5,9 @@ import { useTranslation } from 'react-i18next';
 
 import { apiGet, apiPut } from '../api/client.js';
 import { TLS_PROVIDER_REGISTRY } from '../lib/tls-provider-kinds.jsx';
+import { ID_REGEX } from '../utils/regexes.js';
 
 import { stripEmptyFields, TlsCredentialsForm } from './TlsCredentialsForm.jsx';
-
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
 
 const emptyProvider = () => {
   const firstKind = TLS_PROVIDER_REGISTRY.get(TLS_PROVIDER_REGISTRY.firstKindValue);

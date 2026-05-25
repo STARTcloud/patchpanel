@@ -6,12 +6,12 @@ import { useState } from 'react';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Tab, Table, Tabs } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
+import { stripInternal } from '../utils/entity-naming.js';
+import { parseIntOrUndef } from '../utils/format.js';
 import { genKey } from '../utils/keys.js';
+import { ID_REGEX, SECTION_NAME_REGEX } from '../utils/regexes.js';
 
 import { BindAddressPicker } from './BindAddressPicker.jsx';
-
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
-const SECTION_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_-]*$/u;
 
 const ERROR_FILE_CODES = Object.freeze([
   '200',
@@ -71,16 +71,6 @@ const validateFrontend = (draft, t) => {
 const updateAtIndex = (list, idx, patch) =>
   list.map((item, i) => (i === idx ? { ...item, ...patch } : item));
 
-const stripInternalKeys = obj => {
-  const out = {};
-  for (const [k, v] of Object.entries(obj)) {
-    if (!k.startsWith('_')) {
-      out[k] = v;
-    }
-  }
-  return out;
-};
-
 const Field = ({ label, children, helpText, md = 6 }) => (
   <Col md={md}>
     <Form.Group className="mb-2">
@@ -130,14 +120,6 @@ const SectionHeading = ({ children }) => (
 
 SectionHeading.propTypes = {
   children: PropTypes.node.isRequired,
-};
-
-const parseIntOrUndef = raw => {
-  if (raw === '' || raw === null || raw === undefined) {
-    return undefined;
-  }
-  const n = Number.parseInt(raw, 10);
-  return Number.isInteger(n) ? n : undefined;
 };
 
 const triStateBoolToString = value => {
@@ -2496,7 +2478,7 @@ const ensureFormKeys = fe => {
   };
 };
 
-const stripArrayKeys = list => (list ?? []).map(stripInternalKeys);
+const stripArrayKeys = list => (list ?? []).map(stripInternal);
 
 const serializeForSave = draft => {
   const httpOpts = draft.httpOpts ?? {};

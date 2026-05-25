@@ -7,6 +7,7 @@ import { AclEditModal } from '../components/AclEditModal.jsx';
 import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { ReorderableTable } from '../components/ReorderableTable.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
+import { uniquifyCopy } from '../utils/entity-naming.js';
 
 const RULE_PHASE_KEYS = Object.freeze([
   'tcpRequestConnection',
@@ -82,6 +83,15 @@ RefcountBadge.propTypes = {
   references: PropTypes.arrayOf(PropTypes.string).isRequired,
 };
 
+const cloneAclInList = (acl, existingAcls) => {
+  const existingIds = new Set(existingAcls.map(a => a.id));
+  const existingNames = new Set(existingAcls.map(a => a.name));
+  const cloned = structuredClone(acl);
+  cloned.id = uniquifyCopy(acl.id, existingIds);
+  cloned.name = uniquifyCopy(acl.name, existingNames, { separator: '_' });
+  return cloned;
+};
+
 const renderExprSummary = acl => {
   const parts = [acl.fieldArg ? `${acl.field}(${acl.fieldArg})` : acl.field];
   if (acl.operator && acl.operator !== 'bool') {
@@ -115,6 +125,15 @@ const RowActions = ({ row, ctx }) => {
         disabled={ctx.saving || !ctx.onSave}
       >
         {t('common:buttons.edit', 'Edit')}
+      </Button>
+      <Button
+        variant="outline-info"
+        size="sm"
+        className="me-1"
+        onClick={() => ctx.onClone(row)}
+        disabled={ctx.saving || !ctx.onSave}
+      >
+        {t('common:buttons.clone', 'Clone')}
       </Button>
       <Button
         variant="outline-danger"
@@ -187,6 +206,10 @@ export const AclsPage = ({ doc = null, onSave = null }) => {
     persist(acls.filter(a => a.id !== id));
   };
 
+  const handleClone = acl => {
+    persist([...acls, cloneAclInList(acl, acls)]);
+  };
+
   const columns = [
     {
       key: 'name',
@@ -257,7 +280,14 @@ export const AclsPage = ({ doc = null, onSave = null }) => {
             'Filter by name, field, description…'
           )}
           RowActions={RowActions}
-          rowActionsContext={{ saving, onSave, setEditing, setDeleting, refcounts }}
+          rowActionsContext={{
+            saving,
+            onSave,
+            setEditing,
+            setDeleting,
+            refcounts,
+            onClone: handleClone,
+          }}
           emptyState={t(
             'haproxy:acl.empty',
             'No ACLs yet. Add one before referencing it from a rule.'

@@ -69,7 +69,7 @@ export const setupRouter = config => {
    * /api/setup/status:
    *   get:
    *     summary: First-run wizard status probe
-   *     description: Public probe the SPA calls on boot. Setup is available when (1) `users.json` has zero users AND (2) the postinst-written `setup.token` file is still on disk. HA-ingress mode skips this entirely (the SPA never asks because `/api/auth/whoami` returns `source: ingress`).
+   *     description: 'Public probe the SPA calls on boot. Setup is available when (1) `users.json` has zero users AND (2) the postinst-written `setup.token` file is still on disk. HA-ingress mode skips this entirely (the SPA never asks because `/api/auth/whoami` returns `source: ingress`).'
    *     tags: [Auth]
    *     security: []
    *     responses:

@@ -34,6 +34,7 @@ import { useHaproxyLive } from '../hooks/useHaproxyLive.jsx';
 import { useStatsHistory } from '../hooks/useStatsHistory.jsx';
 import { stateDocShape } from '../prop-shapes.js';
 import { findCoveringCertsForRoute } from '../utils/certMatch.js';
+import { formatTimestamp } from '../utils/format.js';
 
 // v0.2.40 — Smarter KPI tile. Optional `statusBadge` shows an inline
 // indicator below the count so the four top tiles read as "27 routes
@@ -96,14 +97,6 @@ Tile.propTypes = {
 };
 
 const OUTCOME_VARIANTS = Object.freeze({ ok: 'success', error: 'danger' });
-
-const formatTimestamp = ts => {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return ts;
-  }
-};
 
 const RUNTIME_GROUPS = Object.freeze([
   {

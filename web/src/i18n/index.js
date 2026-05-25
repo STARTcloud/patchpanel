@@ -33,7 +33,33 @@ const NAMESPACES = Object.freeze([
   'geoip',
 ]);
 
-const i18n = createInstance();
+// Static config — bound at module load so getI18n() returns a usable instance
+// from the first React render. Dynamic config (supportedLngs, loadPath) is
+// applied in init() below once the server reports which languages exist.
+const i18n = createInstance({
+  fallbackLng: 'en',
+  ns: NAMESPACES,
+  defaultNS: 'common',
+  load: 'languageOnly',
+  debug: import.meta.env.DEV,
+  detection: {
+    order: ['querystring', 'localStorage', 'navigator'],
+    lookupQuerystring: 'lang',
+    lookupLocalStorage: 'i18nextLng',
+    caches: ['localStorage'],
+  },
+  interpolation: {
+    escapeValue: false,
+  },
+  react: {
+    useSuspense: true,
+  },
+});
+
+// Register plugins synchronously to avoid NO_I18NEXT_INSTANCE during the
+// first React render. The plugins themselves don't fire until i18n.init()
+// resolves, but `getI18n()` returns this bound instance immediately.
+i18n.use(HttpBackend).use(LanguageDetector).use(initReactI18next);
 
 const fetchSupportedLanguages = async () => {
   try {
@@ -58,36 +84,13 @@ const fetchSupportedLanguages = async () => {
 export const i18nPromise = (async () => {
   const { languages, defaultLanguage } = await fetchSupportedLanguages();
 
-  await i18n
-    .use(HttpBackend)
-    .use(LanguageDetector)
-    .use(initReactI18next)
-    .init({
-      fallbackLng: defaultLanguage,
-      supportedLngs: languages,
-      ns: NAMESPACES,
-      defaultNS: 'common',
-      load: 'languageOnly',
-      debug: import.meta.env.DEV,
-      detection: {
-        order: ['querystring', 'localStorage', 'navigator'],
-        lookupQuerystring: 'lang',
-        lookupLocalStorage: 'i18nextLng',
-        caches: ['localStorage'],
-      },
-      backend: {
-        // Resolve against document.baseURI so HA ingress (and any non-root
-        // basename deploy) hits the right path. Bare absolute `/locales/…`
-        // would 404 under /api/hassio_ingress/<token>/.
-        loadPath: buildUrl('locales/{{lng}}/{{ns}}.json'),
-      },
-      interpolation: {
-        escapeValue: false,
-      },
-      react: {
-        useSuspense: true,
-      },
-    });
+  await i18n.init({
+    fallbackLng: defaultLanguage,
+    supportedLngs: languages,
+    backend: {
+      loadPath: '/locales/{{lng}}/{{ns}}.json',
+    },
+  });
 
   log.app.info('i18n initialized', { languages, defaultLanguage });
   return { languages, defaultLanguage };

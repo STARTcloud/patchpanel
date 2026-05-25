@@ -5,13 +5,12 @@ import { useTranslation } from 'react-i18next';
 
 import { apiPost, buildUrl } from '../api/client.js';
 import { stateDocShape } from '../prop-shapes.js';
+import { uniquify } from '../utils/entity-naming.js';
+import { readFileAsText } from '../utils/files.js';
+import { CERT_NAME_REGEX, HOSTNAME_REGEX, ID_REGEX, NAME_REGEX } from '../utils/regexes.js';
 
 import { ListEditor } from './ListEditor.jsx';
 
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
-const HOSTNAME_REGEX = /^[a-zA-Z0-9*][a-zA-Z0-9.*-]{0,252}$/u;
-const CERT_NAME_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/u;
-const NAME_REGEX = /^[a-zA-Z0-9._-]+$/u;
 const BYO_UPLOAD_OPTION = '__byo_upload__';
 
 const emptyCert = () => ({
@@ -23,14 +22,6 @@ const emptyCert = () => ({
   expanding: true,
   keyType: 'ecdsa',
 });
-
-const readFileAsText = file =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(file);
-  });
 
 const deriveDefaultName = info => {
   const first = info?.sans?.[0] ?? info?.commonName ?? null;
@@ -55,26 +46,13 @@ const deriveId = name => {
   return `cert-${base.slice(0, 56)}`;
 };
 
-const uniqueId = (proposed, taken) => {
-  if (!taken.has(proposed)) {
-    return proposed;
-  }
-  let suffix = 2;
-  let candidate = `${proposed}-${suffix}`;
-  while (taken.has(candidate)) {
-    suffix += 1;
-    candidate = `${proposed}-${suffix}`;
-  }
-  return candidate;
-};
-
 const ensureByoProvider = doc => {
   const existing = doc.tls.providers.find(p => p.type === 'byo');
   if (existing) {
     return { providerId: existing.id, nextDoc: doc };
   }
   const takenProviderIds = new Set(doc.tls.providers.map(p => p.id));
-  const providerId = uniqueId('byo', takenProviderIds);
+  const providerId = uniquify('byo', takenProviderIds);
   const nextDoc = {
     ...doc,
     tls: {
@@ -91,7 +69,7 @@ const ensureByoProvider = doc => {
 const buildAugmentedDocForByoUpload = ({ doc, name, info }) => {
   const { providerId, nextDoc } = ensureByoProvider(doc);
   const takenCertIds = new Set(nextDoc.tls.certs.map(c => c.id));
-  const certId = uniqueId(deriveId(name), takenCertIds);
+  const certId = uniquify(deriveId(name), takenCertIds);
   const domains = (info?.sans ?? []).filter(Boolean);
   const newCert = {
     id: certId,
@@ -1028,7 +1006,7 @@ export const CertEditModal = ({ show, cert = null, doc, liveCert = null, onSave,
             onClick={handleValidatePem}
             disabled={!canValidate || saving}
           >
-            {t('cert:certEdit.validate', 'Validate')}
+            {t('cert:certEdit.validateButton', 'Validate')}
           </Button>
         ) : null}
         <Button variant="primary" onClick={handlePrimary} disabled={primaryDisabled}>

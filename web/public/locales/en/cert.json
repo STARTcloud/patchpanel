@@ -79,8 +79,7 @@
     "action": {
       "issue": "Issue",
       "renew": "Renew",
-      "force": "Force",
-      "clone": "Clone"
+      "force": "Force"
     },
     "actionTitle": "{{action}} {{name}}",
     "forceIssueTitle": "Force issue {{name}}, ignoring certbot's renewal interval",
@@ -193,7 +192,7 @@
     "primary": {
       "uploading": "Uploading…"
     },
-    "validate": "Validate",
+    "validateButton": "Validate",
     "pickProviderHint": "Pick a TLS provider above to continue.",
     "providerSelect": {
       "label": "TLS provider",

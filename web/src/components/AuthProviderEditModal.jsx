@@ -8,13 +8,12 @@ import {
   stripBasicInternalKeys,
   withBasicInternalKeys,
 } from '../lib/auth-provider-kinds.jsx';
+import { ID_REGEX } from '../utils/regexes.js';
 
 // v0.2.39 — Thin shell over `AUTH_PROVIDER_REGISTRY`. The registry owns
 // the per-kind config templates, subforms, and validators; the modal is
 // generic dispatch. Adding a new auth provider kind is a single entry in
 // `lib/auth-provider-kinds.jsx`.
-
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
 
 const emptyProvider = () => {
   const firstKind = AUTH_PROVIDER_REGISTRY.get(AUTH_PROVIDER_REGISTRY.firstKindValue);

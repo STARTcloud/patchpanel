@@ -154,7 +154,7 @@ export const byoCertsRouter = config => {
    *               privkeyPem: { type: string, description: 'PEM-encoded private key (unencrypted)' }
    *     responses:
    *       200:
-   *         description: Validation result (`ok: false` does NOT mean a 4xx — inspect the body)
+   *         description: 'Validation result (`ok: false` does NOT mean a 4xx — inspect the body)'
    *         content:
    *           application/json:
    *             schema:

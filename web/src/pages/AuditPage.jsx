@@ -3,19 +3,12 @@ import { Badge, Card, Table } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
 import { apiGet } from '../api/client.js';
+import { formatTimestamp } from '../utils/format.js';
 
 const OUTCOME_VARIANTS = Object.freeze({
   ok: 'success',
   error: 'danger',
 });
-
-const formatTimestamp = ts => {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return ts;
-  }
-};
 
 const formatDetails = details => {
   if (!details) {

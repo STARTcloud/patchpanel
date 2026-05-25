@@ -4,7 +4,6 @@ import * as audit from '../lib/audit.js';
 import * as haproxyControl from '../lib/haproxy-control.js';
 import { errorResponse } from '../lib/api-response.js';
 import { fileExists, readText } from '../lib/files.js';
-import * as haproxyMaster from '../lib/haproxy-master.js';
 import { fetchSslCapabilities } from '../lib/haproxy-ssl-capabilities.js';
 import * as haproxyStats from '../lib/haproxy-stats.js';
 import { log } from '../lib/logger.js';
@@ -102,15 +101,20 @@ export const haproxyRouter = config => {
     const actor = req.user?.id ?? null;
     log.api.info('POST /haproxy/reload', { ip: req.ip, actor });
     try {
-      const output = await haproxyMaster.reload(config.paths.haproxyMasterSocket);
+      const output = await haproxyControl.reload(config);
+      const text = typeof output === 'string' ? output.trim() : '';
       audit.record({
         actor,
         category: 'haproxy',
         action: 'reload',
         outcome: 'ok',
-        details: { trigger: 'manual', output: output.trim().slice(0, 500) },
+        details: {
+          trigger: 'manual',
+          method: config.haproxy?.reload?.method ?? 'master-socket',
+          output: text.slice(0, 500),
+        },
       });
-      res.json({ ok: true, output: output.trim() });
+      res.json({ ok: true, output: text });
     } catch (err) {
       audit.record({
         actor,
@@ -159,7 +163,7 @@ export const haproxyRouter = config => {
    * /api/haproxy/stop:
    *   post:
    *     summary: Stop the HAProxy process
-   *     description: Stops HAProxy via the detected control strategy. Drops every proxied connection — requires explicit `{"confirm": true}` body acknowledgement.
+   *     description: 'Stops HAProxy via the detected control strategy. Drops every proxied connection — requires explicit `{"confirm": true}` body acknowledgement.'
    *     tags: [HAProxy Runtime]
    *     security:
    *       - BearerAuth: []

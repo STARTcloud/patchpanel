@@ -4,6 +4,9 @@ import { Alert, Badge, Button, Col, Form, Modal, Row, Spinner } from 'react-boot
 import { useTranslation } from 'react-i18next';
 
 import { apiPost } from '../api/client.js';
+import { uniquify } from '../utils/entity-naming.js';
+import { readFileAsText } from '../utils/files.js';
+import { ID_REGEX } from '../utils/regexes.js';
 
 // Upload a trusted CA bundle (PEM with one or more X.509 certs). Mirrors the
 // BYO-cert upload flow but simpler — no private key, no SAN check, no need to
@@ -12,16 +15,7 @@ import { apiPost } from '../api/client.js';
 // augments state.trustedCas with the new entry and calls onUploaded so the
 // page can persist via PUT /api/state.
 
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
 const NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_.-]*$/u;
-
-const readFileAsText = file =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(file);
-  });
 
 const deriveIdFromName = name => {
   if (!name) {
@@ -36,19 +30,6 @@ const deriveIdFromName = name => {
     return base.slice(0, 63);
   }
   return `ca-${base.slice(0, 60)}`;
-};
-
-const uniqueId = (proposed, taken) => {
-  if (!taken.has(proposed)) {
-    return proposed;
-  }
-  let suffix = 2;
-  let candidate = `${proposed}-${suffix}`;
-  while (taken.has(candidate)) {
-    suffix += 1;
-    candidate = `${proposed}-${suffix}`;
-  }
-  return candidate;
 };
 
 const PemTextarea = ({ value, onChange, fileInputKey }) => {
@@ -220,7 +201,7 @@ export const TrustedCAUploadModal = ({ show, doc, onUploaded, onCancel }) => {
       const result = await apiPost('api/trusted-cas/validate', { pem });
       setValidation(result);
       if (result?.ok && !autoFilled && !id && name) {
-        setId(uniqueId(deriveIdFromName(name), takenIds));
+        setId(uniquify(deriveIdFromName(name), takenIds));
         setAutoFilled(true);
       }
     } catch (err) {

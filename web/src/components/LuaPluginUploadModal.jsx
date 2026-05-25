@@ -4,6 +4,8 @@ import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { apiGet, apiPost } from '../api/client.js';
+import { readFileAsText } from '../utils/files.js';
+import { ID_REGEX } from '../utils/regexes.js';
 
 // Upload a Lua plugin source file. The operator configures the list of
 // allowed upload-target directories in config.yaml (`paths.luaPluginsDirs`);
@@ -11,16 +13,8 @@ import { apiGet, apiPost } from '../api/client.js';
 // the .lua source, and on success the modal returns the resulting
 // absolute path so the LuaPluginsCard can fill a new row with it.
 
-const NAME_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
+const NAME_REGEX = ID_REGEX;
 const MAX_SOURCE_BYTES = 524_288;
-
-const readFileAsText = file =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(file);
-  });
 
 export const LuaPluginUploadModal = ({ show, onUploaded, onCancel }) => {
   const { t } = useTranslation(['lua', 'common']);

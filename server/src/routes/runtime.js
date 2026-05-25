@@ -108,7 +108,7 @@ export const runtimeRouter = config => {
    * /api/runtime/tables/{name}/clear:
    *   post:
    *     summary: Clear stick table (all or one key)
-   *     description: Clears the entire table by default. Pass `{key: "..."}` in the body to clear only one key.
+   *     description: 'Clears the entire table by default. Pass `{key: "..."}` in the body to clear only one key.'
    *     tags: [HAProxy Runtime]
    *     security:
    *       - BearerAuth: []

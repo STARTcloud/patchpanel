@@ -43,6 +43,24 @@ install -d -o patchpanel -g patchpanel -m 755 "${LOG_DIR}"
 install -d -o patchpanel -g patchpanel -m 755 "${CONFIG_DIR}"
 install -d -o patchpanel -g patchpanel -m 700 "${CONFIG_DIR}/ssl"
 
+# HAProxy paths that patchpanel renders into (haproxy.cfg + reload lock,
+# crt-list, certs dir, maps dir, error-pages dir). Owned by patchpanel so
+# the apply pipeline can write the lock + atomic-swap the cfg without root.
+install -d -o patchpanel -g patchpanel -m 755 /etc/haproxy
+install -d -o patchpanel -g patchpanel -m 755 /etc/haproxy/certs
+install -d -o patchpanel -g patchpanel -m 755 /etc/haproxy/maps
+install -d -o patchpanel -g patchpanel -m 755 "${DATA_DIR}/errors"
+
+# Let's Encrypt / certbot dirs. patchpanel invokes certbot as the patchpanel
+# user, so config-dir, work-dir, and logs-dir must be readable + writable by
+# patchpanel. Default Debian perms are 700/750 root-owned which blocks
+# non-root certbot. Create if missing, then chown recursively to patchpanel
+# so existing trees from a prior root certbot also work.
+install -d -o patchpanel -g patchpanel -m 755 /etc/letsencrypt
+install -d -o patchpanel -g patchpanel -m 755 /var/lib/letsencrypt
+install -d -o patchpanel -g patchpanel -m 755 /var/log/letsencrypt
+chown -R patchpanel:patchpanel /etc/letsencrypt /var/lib/letsencrypt /var/log/letsencrypt 2>/dev/null || true
+
 # 4. Fresh install vs upgrade
 case "$1" in
     configure)

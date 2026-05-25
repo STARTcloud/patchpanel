@@ -64,7 +64,8 @@
     "remove": "Remove",
     "import": "Import",
     "export": "Export",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "clone": "Clone"
   },
   "status": {
     "loading": "Loading…",
@@ -168,7 +169,8 @@
   "listEditor": {
     "invalidValue": "invalid value",
     "duplicateEntry": "duplicate entry",
-    "noEntries": "No entries."
+    "noEntries": "No entries.",
+    "bulkSummary": "Added {{added}} · {{dup}} duplicate · {{invalid}} invalid"
   },
   "wizard": {
     "working": "Working…",

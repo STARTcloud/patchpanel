@@ -1,9 +1,12 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
-import { Alert, Badge, Button, Form, InputGroup, Modal } from 'react-bootstrap';
+import { Alert, Badge, Button, Form, Modal } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
+import { stripInternalDeep } from '../utils/entity-naming.js';
 import { genKey } from '../utils/keys.js';
+
+import { ListEditor } from './ListEditor.jsx';
 
 // Declarative form renderer for the Phase 1 schema arrays. A field config
 // looks like:
@@ -23,22 +26,6 @@ import { genKey } from '../utils/keys.js';
 //       { value: 'geo-block',  label: 'Geo block',  fields: [...] },
 //     ],
 //   }
-
-const stripInternalDeep = value => {
-  if (Array.isArray(value)) {
-    return value.map(stripInternalDeep);
-  }
-  if (value && typeof value === 'object') {
-    const out = {};
-    for (const [k, v] of Object.entries(value)) {
-      if (!k.startsWith('_')) {
-        out[k] = stripInternalDeep(v);
-      }
-    }
-    return out;
-  }
-  return value;
-};
 
 const blankItem = itemFields => {
   const out = { _key: genKey() };
@@ -209,75 +196,25 @@ ScalarField.propTypes = {
 const StringListField = ({ field, value, onChange }) => {
   const { t } = useTranslation(['haproxy', 'common']);
   const items = value ?? [];
-  const [pending, setPending] = useState('');
-  const add = () => {
-    const trimmed = pending.trim();
-    if (!trimmed || items.includes(trimmed)) {
-      setPending('');
-      return;
-    }
-    onChange([...items, trimmed]);
-    setPending('');
-  };
-  const remove = idx => {
-    const next = items.slice();
-    next.splice(idx, 1);
-    onChange(next.length === 0 ? undefined : next);
-  };
+  const handleChange = list => onChange(list.length === 0 ? undefined : list);
   const itemLabel = field.itemLabel ?? t('haproxy:entityForm.item', 'item');
+  const placeholder =
+    field.placeholder ??
+    t('haproxy:entityForm.addItemPlaceholder', 'Add {{label}} and press Enter', {
+      label: itemLabel,
+    });
   return (
     <Form.Group className="mb-2">
       <Form.Label>
         {field.label}
         {field.required ? <span className="text-danger ms-1">*</span> : null}
       </Form.Label>
-      <InputGroup>
-        <Form.Control
-          type="text"
-          value={pending}
-          placeholder={
-            field.placeholder ??
-            t('haproxy:entityForm.addItemPlaceholder', 'Add {{label}} and press Enter', {
-              label: itemLabel,
-            })
-          }
-          onChange={e => setPending(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              add();
-            }
-          }}
-        />
-        <Button variant="outline-secondary" type="button" onClick={add}>
-          {t('common:buttons.add', 'Add')}
-        </Button>
-      </InputGroup>
-      <div className="d-flex flex-wrap gap-1 mt-2">
-        {items.length === 0 ? (
-          <span className="text-muted small">
-            {t('haproxy:entityForm.noItemsYet', 'No {{label}} yet.', {
-              label: field.itemLabel ?? t('haproxy:entityForm.items', 'items'),
-            })}
-          </span>
-        ) : (
-          items.map((item, idx) => (
-            <Badge key={item} bg="secondary" className="d-flex align-items-center gap-2 py-2">
-              <span>{item}</span>
-              <Button
-                type="button"
-                size="sm"
-                variant="link"
-                className="text-white p-0 lh-1"
-                aria-label={t('haproxy:entityForm.removeItem', 'Remove {{item}}', { item })}
-                onClick={() => remove(idx)}
-              >
-                ×
-              </Button>
-            </Badge>
-          ))
-        )}
-      </div>
+      <ListEditor
+        items={items}
+        onChange={handleChange}
+        placeholder={placeholder}
+        validate={field.validate ?? null}
+      />
       {field.help ? <Form.Text className="text-muted d-block mt-1">{field.help}</Form.Text> : null}
     </Form.Group>
   );

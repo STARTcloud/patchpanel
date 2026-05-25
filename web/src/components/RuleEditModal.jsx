@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { Alert, Badge, Button, Col, Dropdown, Form, Modal, Row } from 'react-bootstrap';
 import { useTranslation } from 'react-i18next';
 
-import { ListEditor } from './ListEditor.jsx';
+import { ID_REGEX } from '../utils/regexes.js';
 
-const ID_REGEX = /^[a-z][a-z0-9_-]{0,62}$/u;
+import { ListEditor } from './ListEditor.jsx';
 
 const VAR_SCOPES = ['proc', 'sess', 'txn', 'req', 'res'];
 const LOG_LEVELS = [

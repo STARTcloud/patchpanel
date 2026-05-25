@@ -20,7 +20,7 @@ RestartSec=10
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
-ReadWritePaths=/var/lib/patchpanel /var/log/patchpanel /etc/patchpanel /etc/haproxy /run/haproxy /etc/keepalived
+ReadWritePaths=/var/lib/patchpanel /var/log/patchpanel /etc/patchpanel /etc/haproxy /run/haproxy /etc/keepalived /etc/letsencrypt /var/lib/letsencrypt /var/log/letsencrypt /tmp
 PrivateTmp=no
 
 # CAP_NET_BIND_SERVICE: bind privileged ports (80/443) without root.

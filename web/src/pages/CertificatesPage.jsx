@@ -27,6 +27,7 @@ import { TrustedCRLsCard } from '../components/TrustedCRLsCard.jsx';
 import { useActions } from '../hooks/useActions.jsx';
 import { CRT_STORES_SECTION } from '../lib/section-configs.jsx';
 import { onSavePropType, stateDocShape } from '../prop-shapes.js';
+import { uniquifyCopy } from '../utils/entity-naming.js';
 
 // v0.2.39 — Advanced "what's on disk under byoCertsDir" panel. Renamed
 // from "BYO lineages" to "Uploaded certificate files" and dropped the
@@ -364,18 +365,12 @@ ProviderCell.propTypes = {
 };
 
 const cloneCertInList = (cert, existingCerts) => {
-  const existingIds = new Set(existingCerts.map(c => c.id));
-  const existingCertNames = new Set(existingCerts.map(c => c.certName));
-  const nextSuffix = base => {
-    let s = 1;
-    let candidate = `${base}-copy`;
-    while (existingIds.has(candidate) || existingCertNames.has(candidate)) {
-      s += 1;
-      candidate = `${base}-copy-${s}`;
-    }
-    return candidate;
+  const taken = new Set([...existingCerts.map(c => c.id), ...existingCerts.map(c => c.certName)]);
+  return {
+    ...cert,
+    id: uniquifyCopy(cert.id, taken),
+    certName: uniquifyCopy(cert.certName, taken),
   };
-  return { ...cert, id: nextSuffix(cert.id), certName: nextSuffix(cert.certName) };
 };
 
 const CertSettingsAccordion = ({ doc, onSave }) => {
@@ -783,7 +778,7 @@ export const CertificatesPage = ({ doc = null, onSave = null }) => {
                             'Duplicate this certificate entry with a new id/certName. Useful for splitting one cert into per-host certs, or for staging a renewal against a fresh certName. Edit the SAN list before issuing.'
                           )}
                         >
-                          {t('cert:page.action.clone', 'Clone')}
+                          {t('common:buttons.clone', 'Clone')}
                         </Button>
                       ) : null}
                       <Button
